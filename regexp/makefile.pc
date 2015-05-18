@@ -1,0 +1,36 @@
+ENV=-IC:\turboc\include -LC:\turboc\lib -DIBMPC -mh -w-pro
+
+CFLAGS=$(ENV)
+
+REGOBJ=regexp.obj regsub.obj regerror.obj
+
+
+regexp.lib: $(REGOBJ)
+	rm regexp.lib
+	tlib /C regexp +regexp +regsub +regerror
+
+fixtabs: fixtabs.c
+	tcc $(CFLAGS) -efixtabs fixtabs.c
+
+regexp.obj:  regexp.h regmagic.h
+regsub.obj:  regexp.h regmagic.h
+try.obj:  regexp.h 
+
+# generate REGEX stuff
+
+try:    try.obj regexp.lib
+        tcc $(CFLAGS) -etry try.obj regexp.lib 
+
+# Regression test.
+r:      try tests
+        @echo 'No news is good news...'
+        try <tests
+
+
+clean:
+	rm *.obj
+	rm *.exe
+	rm *.lib
+
+.c.obj:
+	tcc -c $(CFLAGS) $<

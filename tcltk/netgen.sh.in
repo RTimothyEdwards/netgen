@@ -1,0 +1,54 @@
+#!/bin/sh
+#
+# For installation, put this file (netgen.sh) in a standard executable path.
+# Put startup script "netgen.tcl" and shared library "tclnetgen.so"
+# in ${CAD_ROOT}/netgen/tcl/, with a symbolic link from file
+# ".wishrc" to "netgen.tcl".
+#
+# This script starts irsim under the Tcl interpreter,
+# reading commands from a special .wishrc script which
+# launches irsim and retains the Tcl interactive interpreter.
+
+# Parse for the argument "-c[onsole]".  If it exists, run netgen
+# with the TkCon console.  Strip this argument from the argument list.
+
+TKCON=true
+BATCH=
+NETGEN_WISH=WISH_EXE
+export NETGEN_WISH
+
+# Hacks for Cygwin
+if [ ${TERM:=""} = "cygwin" ]; then
+   export PATH="$PATH:TCLLIB_DIR"
+   export DISPLAY=${DISPLAY:=":0"}
+fi
+
+# Preserve quotes in arguments (thanks, Stackoverflow!)
+arglist=''
+for i in "$@" ; do
+   case $i in
+      -noc*) TKCON=;;
+      -bat*) BATCH=true; TKCON=;;
+      *) arglist="$arglist${arglist:+ }\"${i//\"/\\\"}\"";;
+   esac
+done 
+
+if [ $TKCON ]; then
+
+   exec TCL_DIR/tkcon.tcl \
+	-eval "source TCL_DIR/console.tcl" \
+	-slave "package require Tk; set argc $#; set argv [list $arglist]; \
+	source TCL_DIR/netgen.tcl"
+
+else
+
+#
+# Run the stand-in for wish (netgenexec), which acts exactly like "wish"
+# except that it replaces ~/.wishrc with netgen.tcl.  This executable is
+# *only* needed when running without the console; the console itself is
+# capable of sourcing the startup script.
+#
+
+   exec TCL_DIR/netgenexec -- "$@"
+
+fi

@@ -1,0 +1,37 @@
+TO_DO list for version 1.5
+------------------------------
+
+ 1) Parallel (transistors and capacitors) and serial (resistors)
+    device merging, plus methods for describing how any device
+    class may be merged.
+
+Possible useful additions (not critical)
+----------------------
+
+ 1) Add new output style allowing netlists to be described by Tcl scripts
+    (similar to the C-Code format, but does not require compiling).
+ 2) Add automatic file format guessing from file extension for "write" command
+ 3) Add Tk GUI to match (and improve upon!) the original X11 GUI.
+ 4) Incorporate into Tcl-based xcircuit
+ 5) Extend 2-terminal device handling (namely R and C) to more formats
+    (where appropriate).
+ 6) Generate feedback in the form of a .mag file to facilitate interactive
+    netlist comparison in conjunction with magic.  This may be an error
+    file, but it may also make use of magic 7.2's "element" command to
+    build rat's nests or outline areas of interest or anything else that
+    might be helpful to interactive comparison.
+ 7) Improve upon the readability of the netlist comparator output.
+    In particular, pinpoint situations in which an error does not show
+    up in an obvious way in either the element or node lists.
+ 8) Handle the hierarchy of ".ext" files automatically.
+ 9) Retain position information from ".ext" files for the purpose of writing
+    feedback information into magic and for matching devices in the element
+    list to their counterparts in the original layout [note---done for .sim
+    format, which contains position information.  Usefulness of improving
+    the .ext parsing is questionable.  Ditto for item 8].
+10) Expand upon the details of format-to-format translation, (especially
+    ntk and ext formats, SPICE format writing, and sim format reading).
+11) Add a "property" command to add/remove properties to check, and change
+    the slop values (done).
+12) Add a "subcircuit" command to mimic a SPICE ".SUBCKT ... .ENDS" card.
+

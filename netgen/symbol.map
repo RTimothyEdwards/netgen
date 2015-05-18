@@ -1,0 +1,4 @@
+NETGEN_1.1 {
+   global: Tclnetgen_Init;
+   local: *;
+};

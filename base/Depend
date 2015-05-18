@@ -1,0 +1,44 @@
+actel.o: actel.c config.h pdutils.h netgen.h objlist.h netfile.h hash.h \
+ print.h
+ccode.o: ccode.c config.h pdutils.h netgen.h objlist.h hash.h netfile.h \
+ print.h
+greedy.o: greedy.c config.h pdutils.h timing.h hash.h objlist.h netfile.h \
+ embed.h print.h dbug.h
+ntk.o: ntk.c config.h pdutils.h netgen.h objlist.h hash.h netfile.h \
+ print.h
+print.o: print.c config.h pdutils.h
+actellib.o: actellib.c config.h pdutils.h netgen.h objlist.h
+embed.o: embed.c config.h pdutils.h netgen.h objlist.h hash.h netfile.h \
+ print.h embed.h
+hash.o: hash.c config.h pdutils.h netgen.h objlist.h hash.h
+netfile.o: netfile.c config.h pdutils.h netgen.h objlist.h hash.h \
+ netfile.h print.h
+objlist.o: objlist.c config.h pdutils.h netgen.h objlist.h hash.h \
+ regexp.h dbug.h print.h netfile.h netcmp.h
+query.o: query.c config.h pdutils.h netgen.h objlist.h timing.h hash.h \
+ query.h netfile.h print.h dbug.h netcmp.h
+anneal.o: anneal.c config.h pdutils.h hash.h objlist.h embed.h timing.h \
+ print.h dbug.h
+ext.o: ext.c config.h pdutils.h netgen.h objlist.h hash.h netfile.h \
+ print.h
+netcmp.o: netcmp.c config.h pdutils.h netgen.h objlist.h netcmp.h hash.h \
+ query.h netfile.h print.h dbug.h
+netgen.o: netgen.c config.h pdutils.h netgen.h objlist.h hash.h netfile.h \
+ print.h netcmp.h
+pdutils.o: pdutils.c config.h pdutils.h netgen.h objlist.h
+random.o: random.c config.h pdutils.h hash.h objlist.h embed.h print.h \
+ dbug.h
+timing.o: timing.c config.h pdutils.h timing.h
+bottomup.o: bottomup.c config.h pdutils.h hash.h objlist.h timing.h \
+ embed.h dbug.h print.h
+flatten.o: flatten.c config.h pdutils.h netgen.h objlist.h hash.h print.h \
+ netcmp.h
+place.o: place.c config.h pdutils.h netgen.h objlist.h hash.h query.h \
+ netfile.h embed.h dbug.h print.h
+spice.o: spice.c config.h pdutils.h netgen.h objlist.h hash.h netfile.h \
+ print.h
+wombat.o: wombat.c config.h pdutils.h netgen.h objlist.h hash.h netfile.h \
+ print.h
+xilinx.o: xilinx.c config.h pdutils.h netgen.h objlist.h netfile.h hash.h \
+ print.h
+xillib.o: xillib.c config.h pdutils.h netgen.h objlist.h

@@ -1,0 +1,176 @@
+Changes
+Version 1.4
+-------------------------------------------------------------------
+For changes since 9/3/05, refer to the list of changes posted
+on the website at http://opencircuitdesign.com/netgen/.
+
+Version 1.3
+-------------------------------------------------------------------
+9/3/05 -- Added Xilinx .xnf output format.
+
+-------------------------------------------------------------------
+11/13/04 -- Changed the make process to GNU "autoconf" to match
+  magic-7.3 and irsim-9.7.
+
+-------------------------------------------------------------------
+9/30/03 -- Fixed the "lvs" script such that it no longer suggests that
+  circuits having passed "run converge" match uniquely!  Script now
+  checks the "verify equivalent" to check if the circuit passed the
+  local connections test, and does a "run resolve" to check global
+  connectivity, with a final call to "verify unique" to give a pass/
+  fail answer.  Note that by doing "run converge" first and then
+  testing keeps the output short while obvious errors like transistor
+  mismatch exist.
+
+  Also:  Changed the "varargs" method in dbug.c to "stdarg".
+
+9/22/03 -- Added capability to work with multiple transistors declared
+  with the "M=" syntax in SPICE input decks.
+
+3/31/03 -- "make config" updates and a couple of bug fixes.  Updated
+  the Tcl script for interoperability with applications "Magic",
+  "IRSIM", and "XCircuit".
+
+3/10/03 -- finished the preliminary new Tcl-based netgen, and updated
+  the version number to 1.2.  Added the tkcon console, worked out
+  ctrl-C interrupts for both the console and the terminal-based modes,
+  and extended the log file capability.  Added scripted command "lvs"
+  to do basically what the standalone command "netcomp" used to do.
+
+12/12/02 -- started work on new version 1.1, incorporating Tcl as an
+  interpreter, changing the command structure to full-name commands
+  with arguments, redesigning the make process to match that for
+  magic version 7.2 and irsim version 9.6, and cleaning up 10 years'
+  worth of accumulated obsolescence.
+
+Between 1991 and 2002 -- some functionality was added to the .sim
+  file format to incorporate two-terminal devices (namely resistors
+  and capacitors), and pseudo-three-terminal devices from magic's
+  extractor (poly-poly caps and bipolar transistors).  Each of these
+  becomes a separate class for the netlist comparison.  Added better
+  handling of hierarchical and array node names passed down from
+  magic.  Ports (sort of) to IRIX and Linux.  Changes largely
+  undocumented.
+
+9/13/91  -- modified ntk.c to allow reading previously undefined
+  instances.  If a cell does not exist in the cell hash table,
+  it is automatically created.  To facilitate this operation, an
+  explicit procedure ReopenCellDef() is used to avoid the complications
+  of the AddToExistingDefinition flag.
+
+4/12/91  --  fixed some noise after #endif in netcmp.c and place.c.
+  Fixed template of ReadNetgenFile in the case of USE_PORTABLE_FILE.
+  Moved definition of HAVE_GETOPT to config.h under VMUNIX.
+  Version 1.04 frozen.
+
+11/21/90 --  added 'spice' shell script to wrap spice decks around .ckt files
+  produced by netgen.  Also added sample spice.top and spice.bot files.
+
+11/20/90 --  added checks in NodeName for illegal indices into nodename_cache.
+  Also repaired a serious bug in generating SPICE and ESACAP output.
+  Made some mods (#ifdef mips) in netfile.c for brain-dead MIPS compiler.
+
+11/9/90  --  added UNIX man-page documentation: netgen.1, netcomp.1, ntk2adl.1
+  Modified installation procedure to allow install to occur in a 
+  subdirectory (for different binaries/architectures).
+
+11/7/90  --  fixed actelCell() to correctly write out power and
+  ground nets even when they are not connected to any logic inputs.
+
+10/25/90 --  modified Flatten to avoid coredumping on cells that
+  had illegally changed the portlist of their instances (e.g., by
+  re-opening definitions).  
+  Also added global variable: AddToExistingDefinition that controls
+  whether subsequent CellDefs add to or replace previous definition.
+  Default: 0.
+
+9/13/90  --  added ConnectAllNodes(cellname) to eliminate all disconnected
+  (i.e., connected to node -1) nodes within a cell.  Also added global flag
+  NoDisconnectedNodes that, when true, causes EndCell() to automatically
+  call ConnectAllNodes.  Modified NETCOMP to set this by default.
+
+9/12/90  --  improved netcomp algorithm upon detection of illegal partition.
+  Improved output format from netcomp (much more user-friendly).
+
+9/11/90  --  portability enhancements:  removed all instances of
+  variables "new","template", and "class" for C++ compatibility.
+  Modified proto.h to provide correct definition of sprintf for SUNOS-4.0
+
+9/6/90   --  added makemake shell script to configure makefile.
+
+9/1/90   --  version 1.03 frozen.
+
+8/29/90  --  fixed up .EXT parser to correctly accept quoted names.
+  Added .SIM input parser.   Added GNU Public Licence and copyrights.
+  Modified all cell readers to return the name of the top-level cell
+  that has been read.  Added CellDelete(), CellRename(), and CellCopy()
+  functions.
+
+7/5/90   --  added VerboseOutput flag to control optional output of routines.
+             added NoOutput flag to disable printing of stdout.
+
+4/22/90  --  added Str() procedure to generate temporary strings.
+  Streamlined X_main_loop() to call Query() if not running X.
+
+4/5/90   --  added ESACAP output facility
+
+3/20/90  --  version 1.02 frozen.
+
+3/19/90  --  removed object hashing for IBMPC (for memory efficiency 
+   reasons (see objlist.h)). Improved makefile in tests subdirectory.
+
+3/5/90   --  arbitrary automorphism resolver added to netcmp
+
+2/12/90  --  unified X/non-X code (looks for DISPLAY environment variable).
+   added .SIM output format
+
+1/25/90  --  added ability to read command files, from Query() and from X.
+
+1/23/90  --  added C-code netlist output format.  added named parameter
+   lists to Cell() procedure. Added Wire() procedure to wire-up an instance.
+
+12/14/89 --  functional X interface completed.  All command-line functionality
+   should be present.
+
+11/21/89 --  deleted all references to data.c and data.h.  Modified
+   print.c to call X hooks, and to provide Finsert function.
+
+10/26/89 --  version 1.01 frozen.  New makefile target 'dist' uses
+   contents of file 'manifest' to generate a distribution tape.
+   Version 1.01 made available for anonymous FTP from hobiecat.
+
+10/25/89 --  modified ntk2adl to automatically operate on top-level
+   cell (or, optionally, on cell named in optional second arguement).
+   Modified dbug/dbug.c to not include <varargs.h> if IBMPC defined.
+
+10/24/89 --  stomped bug in FlattenCell.  Added global variable
+   EquivalenceTransistors to control equivalence of transistor
+   source/drains in function Compare() only.  Added Fwrap() to print.c.
+
+10/17/89 --  collected all public domain software into file pdutils.
+   Unified 'makefile' between UNIX and MSDOS.
+   Added internal support for random number generation.
+
+10/13/89 --  added routine ReadNetlist, replacing ReadNtk, ReadExt...
+   Added NETGEN-internal netlist format: non-portable but fast.
+
+10/10/89 --  added netcmp module to perform graph isomorphism tests.
+   Wrote stand-alone stub: netcomp.c
+
+9/20/89  --  added support for reading/writing SPICE decks.
+
+9/13/89  --  added caching of NodeName for each cell.  This speeds
+   up writing of all netlist formats, while slowing down creation
+   of cells somewhat. New procedure NodeAlias replaces NodeName in
+   most applications, as it correctly handles disconnected nodes.
+
+9/12/89  --  improved List() procedure to call LookupObject
+   in the absence of wildcards.  Removed duplicate call to List() in Cell().
+   Sped up ReadNtk by 4x.  Added timing command to Query();
+
+9/11/89  --  improved support for BSD: synthesized v*printf on VAX,
+   provided emulation of SYSV string routines, fixed tolower() bug on BSD.
+   Get CPU time through getrusage().
+
+9/7/89  --  Netgen 1.00 released to Mike Godfrey (version frozen)
+

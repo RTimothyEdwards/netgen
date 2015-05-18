@@ -1,0 +1,607 @@
+NETGEN -- An embedded-language netlist specification.
+
+NETGEN consists of a set of C language subroutines intended to facilitate
+the specification of netlists of circuits that are ill-suited to 
+conventional schematic-capture paradigms.
+
+Some of the features of the NETGEN system:
+
+1)  full hierarchical specification of the circuit in question.
+2)  powerful list-based operators that permit rapid declaration
+and subsequent connection of semantic structures such as busses,
+signal vectors, port lists, etc.
+3)  optional topology-driven front end, providing connectivity of
+cells according to a composition-by-abuttment paradigm.
+4)  dynamic scoping rules governing visibility of ports and nodes.
+5)  support for multiple output netlist file formats, 
+including .NTK, .EXT (and consequently .SIM), .ACTEL, and .WOMBAT.
+In addition, hierarchical .NTK files can be read, providing an
+alternate mechanism to input cells.
+
+Hierarchical specification of circuits.
+
+The basic unit in defining a circuit is a CELL.  A cell, in turn, can
+contain any number of other cells, called INSTANCES.  A cell has some
+special nodes, called PORTS, that are the connections that can be
+made to the cell when it is instanced.  When a cell is actually
+instanced, these ports are called PINS within the context of the cell
+being constructed.  The ports (of the current cell) and pins (of
+previously defined cells) may connect together directly, or through
+optional NODES.  
+
+So much for the definitions.  Now the good news:  within a CELL, there
+are 3 kinds of elements (PORTS, NODES, and PINS);  these are treated
+ABSOLUTELY IDENTICALLY from the user's perspective.  NETGEN has a uniform
+internal representation with a single operator: "connect".  In defining
+a cell, the user "connects" ports, nodes, and pins as required to construct
+the desired circuit.  In particular, there is no real notion of a "wire"
+within NETGEN; situations where named signal lines would be useful can
+be accomodated by using named internal nodes.
+
+In it's simplest form, the user interface to NETGEN consists of
+four procedures:
+
+
+  void CellDef(char *name);
+
+  Declares cell "name", and appends all future commands to the definition
+of that cell.
+
+
+  void Port(char *name);
+
+  Declares a port node called "name" within the current cell.
+
+
+  void Node(char *name);
+
+  Declares an internal node called "name" within the current cell.
+
+
+  void Instance(char *cell, *instancename);
+
+  Incorporates an instance of cell "cell" into the current cell; the
+instance is called "instancename", which must be a unique identifier
+within the context of the current cell (the function Next(cell) is
+often useful in generating this unique identifier).  The Instance()
+procedure generates a set of PINS corresponding to the ports of
+"cell"; these pins are named "instancename"/"portname". 
+
+As a (trivial) example, consider the following definition of
+the elements within a CMOS inverter:
+
+    CellDef("inv");
+        PortDef("in");
+        PortDef("out");
+        PortDef("vdd");
+        PortDef("gnd");
+        Instance("p","pullup");
+        Instance("n","pulldown");
+
+Instance() also has some subtle side-effects.  See the section
+below on dynamic scoping for a discussion of how these can be used
+to implicitly connect elements automatically.
+
+Connecting up the circuit;  (or, using wirelists effectively).
+
+We must now specify how the above elements are to be interconnected.
+The most general form of this operator is:
+
+      void Connect(char *list1, *list2);
+
+In its simplest form, list1 and list2 are the names of two elements
+to be connected together.  In the above example,
+
+      Connect("pulldown/source", "gnd");
+      Connect("pullup/source", "vdd");
+      Connect("pulldown/gate", "in");
+      Connect("pullup/gate", "in");
+      Connect("pulldown/drain", "out");
+      Connect("pullup/drain", "out");
+
+completes the specification of the inverter.  However, the same result
+can be obtained more simply by the use of WILDCARDS in the list-constructor
+strings list1 and list2.  Supported wildcards are the UNIX(TM) shell
+wildcards (*,?,{},[]) where:
+   * matches 0 or more characters (unlike csh, "/" is treated
+       identically to any other character).
+   ? matches any single character.
+   {} delimits alternate choices.  For example "c{a,o}t" matches "cat" 
+       and "cot".
+   [] delimits ranges for matching a single character.  For example,
+       "cell[1-3]" matches "cell1", "cell2", and "cell3".  Multiple 
+       ranges can be specified (e.g. [a-mp-x]), as can excluded
+       ranges ([~a-m]).
+
+Full regular expression pattern matching is also available.  To use this
+form, set the global flag UnixWildcards to 0, and see regexp(3) for 
+detailed syntax.
+
+The result of Connecting two lists is the following:
+a) if the lists are the same length, corresponding pairs of elements
+are connected to each other,
+b) if one of the lists has a single element, all elements of the
+other list are connected to that element,
+c) otherwise, the lists are of unequal lengths and an error is reported.
+
+Thus, the inverter can be specified simply by:
+       Connect("*drain", "out");
+       Connect("*gate", "in");
+       Connect("*up/source", "vdd");
+       Connect("*down/source", "gnd");
+
+The ORDER of generated list elements is the same as the order in which
+the elements were added to the cell.  In the above example,
+"*gate" gets expanded to {"pullup/gate","pulldown/gate"}.  It is possible
+to take advantage of wildcards (and this bit of information) even
+further:
+       Connect("*drain", "out");
+       Connect("*gate", "in");
+       Connect("*source","*d");
+
+The user should, however, try to minimize the abuse of wildcards at
+the expense of clarity.  Wildcards are provided to expedite grouping
+of elements with associated semantics (see the section below on
+topological specification of interconnection), NOT to minimize the
+keystrokes required to specify a netlist.
+
+The relationship between placement and interconnect.
+
+NETGEN provides a simple model for VLSI cell placement:  cells are
+rectangular and have ports along the perimeter on 4 sides (N,S,E,W).
+Composition is by abuttment and can occur in either the horizontal
+or vertical direction.  When two cells are placed so that they share
+an edge, the port lists along that edge of the respective cells are
+generated, and the Connect operator is invoked on them.  Ports along
+the othogonal edges are propagated as ports of the cell being defined.
+The (implied) order of ports in cells is bottom-to-top on vertical
+edges, and left-to-right on horizontal edges, corresponding to the
+order of placement of subsequent cells.
+
+  void Place(char *name);
+
+  An instance of cell "name" is generated, and placed in a direction
+corresponding to the "Composition" flag (if Composition==HORIZONTAL,
+the cell is placed to the right of any previously placed cells; if
+Composition==VERTICAL, the cell is placed above; if
+Composition==NONE, a call to Place(name) is equivalent to
+Instance(name,Next(name))).  A unique instance name is generated for
+the cell, by appending an integer (starting at 1) to "name".  Ports
+along abutting edges are "sealed", and ports along orthogonal edges
+are made ports of the cell being defined.  In the first call to Place
+within a cell, the leftmost (or bottom, if Composition==VERTICAL)
+ports of cell "name" are defined to be the corresponding ports of the
+cell being defined.  In order to correctly generate the port list at
+the other end of the cell, the procedure:
+
+   void EndCell();
+
+must be called to end the current cell definition.  It is good form to
+always terminate cell definitions with this statement (even if you
+did not use the implicit composition mechanism) -- one side-effect of
+EndCell() is to arbitrarily connect all otherwise disconnected nodes
+if the global variable NoDisconnectedNodes is set to 1 (the default is 0).
+
+In order to understand the relationship between topology and connectivity,
+the user must adhere to a particular NAMING CONVENTION.  Ports must
+be declared in the correct order (bottom-to-top and left-to-right),
+and with the following syntax:  the side of the port is prepended 
+to the port name, separated by a ".".  For example, if the input
+to the inverter is to be on the left (west) side, we would
+replace the previous definition of port "in" by:
+
+      Port("W.in");
+
+Corresponding changes are required for the other ports (for example,
+"E.out", "N.vdd", "S.gnd").  Then, the specification for a chain of 4
+inverters (perhaps an exponential horn for a pad driver) takes the
+form:
+
+    CellDef("exphorn");
+       Composition = HORIZONTAL;
+       for (i=0; i<4; i++) Place("inv");
+       EndCell();
+
+This code fragment specifies a cell "exphorn" that takes a single
+input on the left (west) side, generates a single output on the
+right side, and has 4 ports on the top (which should be connected
+to vdd in the cell that calls "exphorn"), and 4 on the bottom (gnd).
+
+To simplify code fragments such as the above, the procedure
+   
+   void Array(char *name, int count)
+
+is provided, and is equivalent to "for (i=0;i<count;i++) Place(name)".
+
+Scoping rules for identifiers;  Implicit (global) connections.
+
+   It is often inconvenient to have to continually declare high
+connectivity nodes (e.g. power rails, bit/word lines, etc.) explicitly
+as parameters to each cell.  Also, the number of ports of generated
+cells (see example above) can be kept managable.
+
+   The solution to this problem takes the form of scoping rules for
+element names; when a cell is instantiated within the context of a
+calling cell, particular elements within the CALLED cell are
+implicitly connected to elements in the PARENT cell.  This binding
+process is exactly analogous to local/global variables within nested
+PASCAL procedure declarations, but the process is slightly different:
+instead of declaring LOCAL variables, and assuming all others to have
+GLOBAL visibility, particular ports (i.e. explicitly global objects)
+are declared to obey certain implicit connection rules by the 
+following:  
+
+   void Global(char *name);
+
+Semantically, "name" is a PORT that connects itself automatically
+when the cell is instanced.  In particular, a port obtained by a call
+to Global("xxx") in cell B will automatically connect to an element
+named "xxx" in cell A, whenever A instantiates B.  If "xxx" does not
+exist in A, the instantiation of B will CAUSE a global port named
+"xxx" to be declared (by a call to Global("xxx") in A).  The result
+of this action is that the unbound variable "xxx" is now propagated
+to the next level of the hierarchy. This dynamic scoping allows
+cell B (which is instantiated within cell A) to be declared
+BEFORE cell A.
+
+   An example is useful.  Reconsider the "inv" cell above, but this
+time change the definitions of the power ports to :
+
+   Global("vdd");
+   Global("gnd");
+
+The previous code fragment for "exphorn" would now result
+in a cell with 4 ports, named "vdd", "gnd", "W.inv1/W.in" and
+"E.inv4/E.out" (instead of the previous exphorn, which had 10 ports).
+
+Naming conventions:
+
+Within the context of the calling cell:
+
+1) Ports:
+      <instance name> SEPARATOR <port name>
+
+2) Ports - Oriented:
+      <side> { PORT_DELIMITER <instance name> PORT_DELIMITER <side>}*  \
+             PORT_DELIMITER <port name>
+
+3) Ports - Global:
+      <port name>  --  name propagates unchanged, but is bound to 
+             locally-declared identifier of same name.
+
+4) Ports - Unique Global:
+      <my class name> INSTANCE_DELIMITER <instance name> SEPARATOR <port name>
+
+5) Flattened cells:
+      <instance name> { SEPARATOR <instance name> }* SEPARATOR <port name>
+
+6) Cells read from NTK:
+      <instance class> INSTANCE_DELIMITER <instance name> SEPARATOR <port name>
+
+
+
+Other Procedures (i.e. what else do I need to know?)
+ 
+   In order to use the NETGEN package, the user's program must include
+the library, link the correct object module, and initialize the package.
+ 
+The first is accomplished by the line:
+
+   #include "netgen.h"
+ 
+at the top of every program.  In practice, "netgen.h" is not likely
+to be found in the current directory, so ask a system guru where it
+is located.  The same goes for the object file "netgen.a"  that must
+be linked in (via a command-line parameter in UNIX; if you are
+running NETGEN on a PC (or maybe even someday on a chipmunk) talk
+to a system mangler).
+
+The NETGEN package is written in ANSI-standard C, and requires
+an ANSI-C compiler.  On many UNIX systems, the GNU C compiler
+is known to work; the incantation to compile a user's main
+program main.c is:
+
+   gcc -o main main.c netgen.a
+
+ 
+The NETGEN package is initialized via a call to:
+ 
+   void Initialize();
+ 
+This procedure sets up the internal data structures, and pre-defines
+two types of cells:  n- and p-channel transistors.  These cells are
+declared by the following code (which is actually inside Initialize()):
+
+     CellDef("p");
+         Primitive();
+         PortDef("gate");
+         PortDef("drain");
+         PortDef("source");
+         EndCell();
+    CellDef("n");
+         Primitive();
+         PortDef("gate");
+         PortDef("drain");
+         PortDef("source");
+         EndCell();
+ 
+The procedure Primitive() in the above code fragment informs
+NETGEN that the element is a primitive, and not to be further
+decomposed when an output netlist file is written. This mechanism
+assumes that the system READING the netlist understands the
+meaning of the element.
+
+A slightly more powerful initialization routine is:
+
+   void InitializeCommandLine(int argc, char *argv[]);
+
+This routine parses any command-line arguements (interpreted as
+commands to the Query() routine), and processes them first.  A single
+'-' in the command line indicates that interactive operation should
+follow these commands.
+
+For the user's convenience, an alternative to the Instance/Connect
+mechanism is provided; when a cell is instantiated, explicit
+connections may be specified to each of its ports via the procedure:
+ 
+     void Cell(char *CellName, char *PortNameList, ...);
+ 
+The strings passed in PortNameList, and any subsequent (assumed char *)
+are of one of two forms:
+
+1) they are a list of "port=element" strings.  In this case, their
+order is unimportant; the ports of the cell are connected to the
+corresponding element.  For example, 
+     Cell("n", "drain=n1", "gate=g1", "source=n2"); 
+does the obvious thing.
+
+2) arguements do not contain "=", but may contain wildcards, in which
+case they are expanded into lists, and this list is sealed with the
+port list obtained when CellName is instanced (and after any "=" ports
+are matched).  For example, an n-channel device in parallel with
+another (named "tran1") can be obtained by:
+     Cell("n", "tran1/*");
+
+In both of these cases, the portnames of CellName are also added to the
+namespace of the current cell, so subsequent calls to Connect() 
+operate correctly.
+ 
+Along the lines of Cell(), two other procedures are defined:
+ 
+     void N(char *PortNameList, ...);
+     void P(char *PortNameList, ...);
+ 
+These are merely calls to Cell(), with the CellName arguement
+hard-wired to "n" and "p", respectively.
+
+A slight variant on Cell() is the Wire() procedure:
+
+     void Wire(char *instance_name, ...);
+
+This procedure accepts the name of an instance, and a list of ports
+identical to Cell().  The only difference is that for Wire(), the
+instance name is explicitly required, while for Cell() it is
+totally suppressed (in fact, the user cannot even find out what it was).
+The "=" form of the parameter list can be used in Wire() as well.
+
+Other Useful Functions
+
+Because many element names are derived from others, NETGEN
+provides some useful functions to manipulate temporary strings:
+
+     char *Str(char *format, ...);
+
+This function takes a format string and a variable arguement list
+in a manner identical to printf(), and returns a pointer to a 
+temporary string.  There are only a small number of these (statically
+allocated) strings available, so you must use the pointer quickly.
+Typical use is in declaring a "subscripted" cell:  CellDef(Str("array%d", i));
+
+Finally, as a convenience to the user, a procedure:
+
+     void Query(void);
+
+puts NETGEN in an interactive mode, where the user is permitted
+to choose between output netlist formats, input files to read, and
+various other things.  It is a convenient way to end a program.
+
+If your version of NETGEN was compiled with X11 support, a more
+general command parser is available as:
+
+     void X_main_loop(int argc, char *argv[]);
+
+
+Generating Output
+
+The main output format currently supported is the Caltech NTK
+format.  An output file is created by calling:
+
+  void Ntk(char *cellname, char *filename);
+
+All nodes are named, with the following priority given to nodes
+with multiple elements connected to them.  Highest priority
+goes to port names, then to internal node names, and finally
+to instance pin names. Certain shortcomings in the .NTK specification
+(such as the inability to connect two ports within a cell) are 
+dealt with correctly. If filename is NULL, or an empty string,
+a file name is generated by appending .ntk to "cellname".
+
+
+Late news flash:  the MAGIC hierarchical extract format
+is now supported to a limited.  To generate .EXT files, call 
+
+  void Ext(char *cellname);
+
+This procedure generates a .EXT file for EACH(!) cell class.
+The only thing .EXT is good for is to run EXT2SIM on, in order to
+get the other MAGIC netlist format (flattened list of
+transistors only.).  SIM output can be generated directly by:
+
+  void Sim(char *cellname);
+
+NETGEN also supports the Actel(TM) cell libraries and netlist
+file format.  To access these cells, call the procedure:
+
+   void ActelLib();
+
+These cells are then regular NETGEN objects, whose elements
+are accessed by the names described in the Actel gate catalog.
+For example, the pins on a 2-input NAND gate are
+"thisgate/A", "thisgate/B", and "thisgate/Y", after a call
+to Instance("NAND2","thisgate").
+
+Actel .adl files are written by calling the procedure:
+
+   void Actel(char *cellname, char *filename);
+
+As before, if filename is NULL, or an empty string, a file name is 
+generated by appending .adl to "cellname".
+
+NETGEN supports the netlist format required by 
+the WOMBAT netlist comparison program.  Such files
+are written by the procedure:
+
+   void Wombat(char *cellname, char *filename);
+
+WOMBAT requires flat (non-hierarchical) netlists.  See the
+Flatten() procedure below.
+
+NETGEN also supports two popular circuit simulator formats:
+
+   void SpiceCell(char *cellname, char *filename);
+   void EsacapCell(char *cellname, char *filename);
+
+Of course, because NETGEN only maintains topological information and
+not device sizing information, writing circuit simulator input files
+generally requires some manual post-processing.
+
+NETGEN also supports an output format that is, in fact, the specification
+of the netlist using the NETGEN C-language embedded interface:
+
+   void Ccode(char *cellname, char *filename);
+
+This procedure creates a file that is suitable for inclusion and compilation
+within a program that, when linked with the netgen libraries, will 
+re-create the netlist.
+
+Finally, NETGEN provides a machine-dependent (i.e., nonportable)
+but fast netlist format, based on a binary dump of its internal data
+structures:
+
+   void WriteNetgenFile(char *cellname, char *filename);
+
+
+Other Cell Manipulation commands
+
+  Two routines are also provided to manipulate the cell dictionary
+(the list of defined cells):
+
+    void CellDelete(char *cellname);
+
+This procedure deletes the definition of 'cellname' from the dictionary.
+It does NOT care whether instances of 'cellname' exist within other cells.
+This procedure is useful for remapping sub-cells within a design, by
+deleting the original cells, then subsequently loading in new definitions.
+
+    void CellRename(char *from, char *to);
+
+This procedure deletes the definition of cell 'from', and creates an
+identical cell in 'to'.  If cell 'to' already exists, that cell is overwritten.
+
+    void CellCopy(char *from, char *to);
+
+Copy cell 'from', calling the new cell 'to'.  If 'to' exists already,
+its definition is overwritten.
+
+NETGEN also supports some hierarchy-manipulation functions:
+
+   void Flatten(char *cellname);
+
+The Flatten() procedure actually flattens the internal data
+structure, and is consequently irreversible.  Of course, 
+flattened cells can also be written out in any of the
+other netlist formats.
+
+   void FlattenInstancesOf(char *classname);
+
+This procedure flattens all instances of 'classname' within other
+cells.  However, any hierarchy within 'classname' remains.
+
+
+Alternative Input Formats
+ 
+  In addition to the embedded procedural interface for declaring/defining
+cells, NETGEN is able to read hierarchical .NTK files directly,
+and convert them into the internal element list representation.
+These cells can then be operated on identically to procedurally defined
+cells.  This process facilitates using a (separately generated, perhaps
+by a graphical schematic capture system) cell library, then using
+NETGEN as a composition tool.
+
+In fact, many different input netlist formats are supported:
+
+   char *ReadNtk(char *filename);
+   char *ReadExt(char *filename);
+   char *ReadSim(char *filename);
+   char *ReadSpice(char *filename);
+   char *ReadNetgenFile(char *filename);
+
+All of these procedures return the name of the top-level cell that
+was read.
+
+A general file-reading interface is provided by:
+
+   char *ReadNetlist(char *filename);
+
+This procedure selects one of the above netlist formats, based on
+the file extension of the 'filename' arguement.
+
+Testing graph isomorphism.
+
+NETGEN includes a fast, powerful probabilistic algorithm for
+verifying whether two netlists represent isomorphic graphs.
+The favored interface to this facility is the 'netcomp' program
+that is built along with the 'netgen' interface.  However, advanced
+users may need the additional functionality provided by the C-language
+interface:
+
+   void NETCOMP(void);
+
+This is a primitive command-line interpreter (similar to Query())
+that gives the user access to all the internal capabilities of netcomp.
+A simpler interface is given by:
+
+   int Compare(char *cell1, char *cell2);
+
+This procedure returns 1 if the two cells are isomorphic, and 0 otherwise.
+If you consider MOS transistor sources and drains to be equivalent
+(i.e., permutable), set the integer variable EquivalenceTransistors to 1.
+This is appropriate for extracted outputs of VLSI circuits, but (typically)
+not for asymmetrical circuit-simulator specifications.
+
+
+Command-line interface and X-windows interface.
+
+By default in UNIX, if the DISPLAY environment variable is set, netgen
+starts an X-window application.  Otherwise, a command-line interface
+is executed, running the function Query() described above.  In either case,
+any command-line arguements are passed through Query(); if the last
+command is a single dash ("-"), the regular command parser is started
+AFTER the command-line commands are executed.  Otherwise, netgen
+terminates.
+
+
+Future work:
+
+* 1) have ntk generate file of output
+* 2) capture wildcard query routine into library (returning a string, so
+        user can incorporate it into interactive programs).
+* 3) add "internal ports" to implement scoping rules for variable names.
+* 4) find out what output format WOMBAT requires and generate it.
+5) add simple operators to act on element lists: move, delete, reverse
+* 6) don't forget to mention Initialize() procedure
+* 7) discuss alternatives to Instance() (e.g. Cell(), and N(), P())
+* 8) ability to flatten cells
+* 9) learn to write ACTEL format
+* 10) more streamlined syntax for Global ports
+* 11) don't forget to mention Primitive() procedure.

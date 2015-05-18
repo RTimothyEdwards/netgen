@@ -1,0 +1,1307 @@
+dnl Process this file with autoconf to produce a configure script.
+dnl Use autoconf 2.52 or newer.
+
+AC_INIT(netgen, 1.3, magic-hackers@csl.cornell.edu)
+AC_PREREQ(2.52)
+AC_CONFIG_SRCDIR(rules.mak)
+AC_CONFIG_AUX_DIR(.)
+
+AC_CANONICAL_SYSTEM
+
+dnl pass the version string on the the makefiles
+PACKAGE=netgen
+NETGEN_VERSION=`cat ../VERSION | cut -d. -f1-2`
+NETGEN_REVISION=`cat ../VERSION | cut -d. -f3`
+AC_DEFINE_UNQUOTED(NETGEN_VERSION, "${NETGEN_VERSION}")
+AC_DEFINE_UNQUOTED(NETGEN_REVISION, "${NETGEN_REVISION}")
+
+dnl Override default target when compiling under TCL
+ALL_TARGET="standard"
+INSTALL_TARGET="install-netgen"
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_CPP
+AC_ISC_POSIX
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+
+dnl GNU M4 is preferred due to some of the option switches.
+AC_PATH_PROGS([M4], [gm4 gnum4 m4], [no])
+if test x$M4 = xno; then
+  AC_MSG_ERROR([M4 is required])
+fi
+
+dnl check size of pointer for correct behavior on 64-bit systems
+dnl If the C preprocessor is GCC, we need to force the flag to
+dnl assert that input files are of type C, or else the preprocessing
+dnl stage will not execute correctly on the ".in" files in the scmos
+dnl directory.
+
+if test "$CPP" = "gcc -E" ; then
+   CPP="$CPP -x c"
+fi
+
+dnl check if the linker is a GNU linker
+
+#------------------------------------------------------------
+# AC_PROG_LD - find the path to the GNU or non-GNU linker
+# (This stuff ripped from libtool)
+#------------------------------------------------------------
+AC_DEFUN([AC_PROG_LD],
+[AC_ARG_WITH(gnu-ld,
+[  --with-gnu-ld           assume the C compiler uses GNU ld [[default=no]]],
+test "$withval" = no || with_gnu_ld=yes, with_gnu_ld=no)
+AC_REQUIRE([AC_PROG_CC])dnl
+AC_REQUIRE([AC_CANONICAL_HOST])dnl
+dnl ###not for PostgreSQL### AC_REQUIRE([AC_CANONICAL_BUILD])dnl
+ac_prog=ld
+if test "$GCC" = yes; then
+  # Check if gcc -print-prog-name=ld gives a path.
+  AC_MSG_CHECKING([for ld used by GCC])
+  case $host in
+  *-*-mingw*)
+    # gcc leaves a trailing carriage return which upsets mingw
+    ac_prog=`($CC -print-prog-name=ld) 2>&5 | tr -d '\015'` ;;
+  *)
+    ac_prog=`($CC -print-prog-name=ld) 2>&5` ;;
+  esac
+  case "$ac_prog" in
+    # Accept absolute paths.
+changequote(,)dnl
+    [\\/]* | [A-Za-z]:[\\/]*)
+      re_direlt='/[^/][^/]*/\.\./'
+changequote([,])dnl
+      # Canonicalize the path of ld
+      ac_prog=`echo $ac_prog| sed 's%\\\\%/%g'`
+      while echo $ac_prog | grep "$re_direlt" > /dev/null 2>&1; do
+        ac_prog=`echo $ac_prog| sed "s%$re_direlt%/%"`
+      done
+      test -z "$LD" && LD="$ac_prog"
+      ;;
+  "")
+    # If it fails, then pretend we aren't using GCC.
+    ac_prog=ld
+    ;;
+  *)
+    # If it is relative, then search for the first ld in PATH.
+    with_gnu_ld=unknown
+    ;;
+  esac
+elif test "$with_gnu_ld" = yes; then
+  AC_MSG_CHECKING([for GNU ld])
+else
+  AC_MSG_CHECKING([for non-GNU ld])
+fi
+AC_CACHE_VAL(ac_cv_path_LD,
+[if test -z "$LD"; then
+  IFS="${IFS=   }"; ac_save_ifs="$IFS"; IFS="${IFS}${PATH_SEPARATOR-:}"
+  for ac_dir in $PATH; do
+    test -z "$ac_dir" && ac_dir=.
+    if test -f "$ac_dir/$ac_prog" || test -f "$ac_dir/$ac_prog$ac_exeext"; then
+      ac_cv_path_LD="$ac_dir/$ac_prog"
+      # Check to see if the program is GNU ld.  I'd rather use --version,
+      # but apparently some GNU ld's only accept -v.
+      # Break only if it was the GNU/non-GNU ld that we prefer.
+      if "$ac_cv_path_LD" -v 2>&1 < /dev/null | egrep '(GNU|with BFD)' > /dev/null; then
+        test "$with_gnu_ld" != no && break
+      else
+        test "$with_gnu_ld" != yes && break
+      fi
+    fi
+  done
+  IFS="$ac_save_ifs"
+else
+  ac_cv_path_LD="$LD" # Let the user override the test with a path.
+fi])
+LD="$ac_cv_path_LD"
+if test -n "$LD"; then
+  AC_MSG_RESULT($LD)
+else
+  AC_MSG_RESULT(no)
+fi
+test -z "$LD" && AC_MSG_ERROR([no acceptable ld found in \$PATH])
+AC_PROG_LD_GNU
+])
+
+AC_DEFUN([AC_PROG_LD_GNU],
+[AC_CACHE_CHECK([if the linker ($LD) is GNU ld], ac_cv_prog_gnu_ld,
+[# I'd rather use --version here, but apparently some GNU ld's only accept -v.
+if $LD -v 2>&1 </dev/null | egrep '(GNU|with BFD)' 1>&5; then
+  ac_cv_prog_gnu_ld=yes
+else
+  ac_cv_prog_gnu_ld=no
+fi])
+with_gnu_ld=$ac_cv_prog_gnu_ld
+])
+
+AC_PROG_LD
+
+AC_CHECK_SIZEOF([void *], 4)
+AC_CHECK_SIZEOF([unsigned int], 4)
+AC_CHECK_SIZEOF([unsigned long], 4)
+AC_CHECK_SIZEOF([unsigned long long], 8)
+
+dnl Check byte arrangement for doubleint routines
+AC_C_BIGENDIAN
+
+dnl Check for required header files
+AC_HEADER_STDC
+
+dnl Need either setenv or putenv
+AC_CHECK_FUNCS(setenv putenv)
+
+dnl Check for vfork
+AC_CHECK_FUNC(vfork)
+
+dnl Check for <dirent.h>
+AC_CHECK_HEADERS(dirent.h)
+
+dnl Check for <limits.h>
+AC_CHECK_HEADERS(limits.h)
+
+dnl Check for <param.h>
+AC_CHECK_HEADERS(param.h)
+
+dnl Check for va_copy
+AC_CACHE_CHECK([for va_copy], ac_cv_c_va_copy,
+ AC_TRY_LINK(
+   [#include <stdarg.h>],
+   [va_list ap1, ap2;
+    va_copy(ap1,ap2);
+   ],
+   [ac_cv_c_va_copy="yes"],
+   [ac_cv_c_va_copy="no"])
+ )
+if test "$ac_cv_c_va_copy" = "yes"
+then
+    AC_DEFINE(HAVE_VA_COPY, 1, [Define if we have va_copy])
+fi
+AC_CACHE_CHECK([for __va_copy], ac_cv_c___va_copy,
+ AC_TRY_LINK(
+   [#include <stdarg.h>],
+   [va_list ap1, ap2;
+    __va_copy(ap1,ap2);
+   ],
+   [ac_cv_c___va_copy="yes"],
+   [ac_cv_c___va_copy="no"])
+ )
+if test "$ac_cv_c___va_copy" = "yes"
+then
+    AC_DEFINE(HAVE___VA_COPY, 1, [Define if we have __va_copy])
+fi
+
+# Note that it is essential to disable the DBUG packages, as it is
+# not ANSI-compliant and won't compile without quite a bit of work.
+AC_DEFINE(DBUG_OFF)
+
+extra_defs="$extra_defs -DCAD_DIR=\\\"\${LIBDIR}\\\""
+X_LIBS=
+X_CFLAGS=
+CPPFLAGS=
+INC_SPECS=
+DEPEND_FLAG=
+SHLIB_CFLAGS=""
+LD_RUN_PATH=""
+WISH_EXE=""
+TCLSH_EXE=""
+CXX=
+
+modules=""
+unused=""
+cadinstall=""
+extra_libs=""
+other_srcs=""
+top_extra_libs=""
+sub_extra_libs=""
+ld_extra_libs=""
+ld_extra_objs=""
+programs=""
+rl_defs=
+rl_libs=
+gr_cflags=
+gr_dflags=
+gr_libs=
+gr_srcs=
+gr_hsrcs=
+gr_hprog=
+
+netgen_with_tcl="yes"
+netgen_with_tk="yes"
+netgen_with_tcl_includes=""
+netgen_with_tk_includes=""
+netgen_with_tcl_libraries=""
+netgen_with_tk_libraries=""
+
+dnl We will attempt to configure with Tcl/Tk and OpenGL.  However,
+dnl if checks for the appropriate header and library files fail,
+dnl we will revert to non-Tcl and/or non-OpenGL compilation.
+dnl Compilation for Tcl/Tk may be explicitly prohibited by using
+dnl --with-tcl=no or --with-interpreter=no, and OpenGL may be
+dnl disabled with --with-opengl=no
+
+usingTcl=1
+usingX11=
+
+dnl Compile-time options below. . .
+
+AC_ARG_WITH(interpreter,
+[  --with-interpreter=[arg]	enable interpreter], [
+  if test "$withval" = "no" -o "$withval" = "NO"; then
+    usingTcl=
+  elif test "$withval" = "scheme" -o "$withval" = "SCHEME"; then
+    usingScheme=1
+    usingTcl=
+  elif test "$withval" != "tcl" -a "$withval" != "TCL"; then
+    echo "Unknown option to --with-interpreter:  Must be scheme, tcl, or no."
+    exit 1
+  fi
+], )
+
+AC_ARG_WITH(tcl,
+[  --with-tcl=DIR          Find tclConfig.sh in DIR], [
+  netgen_with_tcl=$withval
+  if test "$withval" = "no" -o "$withval" = "NO"; then
+    usingTcl=
+  elif test $usingScheme ; then
+    echo Attempt to enable both Tcl and Scheme interpreters.
+    echo Disabling Tcl, and using Scheme instead.
+    usingTcl=
+  fi
+], )
+
+dnl ----------------------------------------------------------------
+dnl Do our best to find Tcl/Tk.  If we can't, then flag a warning
+dnl and don't set the usingTcl variable.
+dnl
+dnl This has been broken up into a number of sections, each of which
+dnl depends independently on the setting of usingTcl.
+dnl ----------------------------------------------------------------
+
+AC_ARG_WITH(tk,         [  --with-tk=DIR           Find tkConfig.sh in DIR],
+  netgen_with_tk=$withval)
+AC_ARG_WITH(tclincls,   [  --with-tclincls=DIR     Find tcl.h in DIR],
+  netgen_with_tcl_includes=$withval)
+AC_ARG_WITH(tkincls,    [  --with-tkincls=DIR      Find tk.h in DIR],
+  netgen_with_tk_includes=$withval)
+AC_ARG_WITH(tcllibs,    [  --with-tcllibs=DIR      Find Tcl library in DIR],
+  netgen_with_tcl_libraries=$withval)
+AC_ARG_WITH(tklibs,     [  --with-tklibs=DIR       Find Tk library in DIR],
+  netgen_with_tk_libraries=$withval)
+
+# -----------------------------------------------------------------------
+# Find the Tcl build configuration file "tclConfig.sh"
+# -----------------------------------------------------------------------
+
+if test $usingTcl ; then
+  TCL_INC_DIR="."
+  TK_INC_DIR="."
+
+  AC_MSG_CHECKING([for tclConfig.sh])
+  tcl_config_sh=""
+
+  if test "$netgen_with_tcl" = "no" ; then
+    netgen_with_tcl=""
+  elif test "$netgen_with_tcl" != "yes" ; then
+    #
+    # Verify that a tclConfig.sh file exists in the directory specified
+    # by --with-tcl.
+    #
+    for dir in \
+     $netgen_with_tcl
+    do
+      if test -r "$dir/tclConfig.sh" ; then
+        tcl_config_sh="$dir/tclConfig.sh"
+        break
+      elif test -r "$dir/lib/tclConfig.sh" ; then
+        tcl_config_sh="$dir/lib/tclConfig.sh"
+        break
+      elif test -r "$dir/unix/tclConfig.sh" ; then
+        tcl_config_sh="$dir/unix/tclConfig.sh"
+        break
+      fi
+    done
+  else
+    #
+    # Otherwise, search for Tcl configuration file.
+    #
+
+    #  1. Search previously named locations.
+
+    for dir in \
+     $prefix \
+     $exec_prefix
+    do
+      if test -r "$dir/tclConfig.sh" ; then
+        tcl_config_sh="$dir/tclConfig.sh"
+        break
+      elif test -r "$dir/lib/tclConfig.sh" ; then
+        tcl_config_sh="$dir/lib/tclConfig.sh"
+        break
+      elif test -r "$dir/unix/tclConfig.sh" ; then
+        tcl_config_sh="$dir/unix/tclConfig.sh"
+        break
+      fi
+    done
+
+    #  2. Search standard locations.
+
+    if test "x$tcl_config_sh" = "x" ; then
+      for dir in \
+       `ls -dr /usr/local/tcl/tcl[[7-9]].[[0-9]]* 2>/dev/null` \
+       /usr/local/tcl \
+       /usr/local/lib \
+       /usr/local \
+       `ls -dr /usr/lib/tcl[[7-9]].[[0-9]]* 2>/dev/null` \
+       /sw/lib \
+       /usr/lib \
+       /usr/lib64 \
+       /usr
+      do
+        if test -r "$dir/tclConfig.sh" ; then
+          tcl_config_sh="$dir/tclConfig.sh"
+          break
+        elif test -r "$dir/lib/tclConfig.sh" ; then
+          tcl_config_sh="$dir/lib/tclConfig.sh"
+          break
+        fi
+      done
+    fi
+  fi
+
+  AC_MSG_RESULT([${tcl_config_sh}])
+
+  if test "x$tcl_config_sh" = "x" ; then
+    echo "Can't find Tcl configuration script \"tclConfig.sh\""
+    echo "Reverting to non-Tcl compilation"
+    usingTcl=
+  fi
+fi
+
+# -----------------------------------------------------------------------
+# Find the Tk build configuration file "tkConfig.sh"
+# -----------------------------------------------------------------------
+
+if test $usingTcl ; then
+
+  AC_MSG_CHECKING([for tkConfig.sh])
+  tk_config_sh=""
+  if test "$netgen_with_tk" != "yes"; then
+    #
+    # Verify that a tkConfig.sh file exists in the directory specified
+    # by --with-tcl or --with-tk.
+    #
+    for dir in \
+     $netgen_with_tk \
+     $netgen_with_tcl
+    do
+      if test -r "$dir/tkConfig.sh" ; then
+        tk_config_sh="$dir/tkConfig.sh"
+        break
+      elif test -r "$dir/lib/tkConfig.sh" ; then
+        tk_config_sh="$dir/lib/tkConfig.sh"
+        break
+      elif test -r "$dir/unix/tkConfig.sh" ; then
+        tk_config_sh="$dir/unix/tkConfig.sh"
+        break
+      fi
+    done
+  else
+    #
+    # Search for Tk configuration file.
+    #
+
+    #
+    #  1. Search previously named locations.
+    #
+    for dir in \
+     $prefix \
+     $exec_prefix
+    do
+      if test -r "$dir/tkConfig.sh" ; then
+        tk_config_sh="$dir/tkConfig.sh"
+        break
+      elif test -r "$dir/lib/tkConfig.sh" ; then
+        tk_config_sh="$dir/lib/tkConfig.sh"
+        break
+      elif test -r "$dir/unix/tkConfig.sh" ; then
+        tk_config_sh="$dir/unix/tkConfig.sh"
+        break
+      fi
+    done
+    #
+    #  2. Search standard locations.
+    #
+    if test "x$tk_config_sh" = "x" ; then
+      for dir in \
+	/usr/local \
+	/usr \
+	`ls -dr /usr/local/lib/tk[[7-9]].[[0-9]]* 2>/dev/null` \
+	`ls -dr /usr/lib/tk[[7-9]].[[0-9]]* 2>/dev/null` \
+	`ls -dr /usr/local/tk/tk[[7-9]].[[0-9]]* 2>/dev/null` \
+	`ls -dr /usr/local/tk[[7-9]].[[0-9]]* 2>/dev/null` \
+	/usr/local/tk \
+	`ls -dr /usr/local/lib/tcl[[7-9]].[[0-9]]* 2>/dev/null` \
+	`ls -dr /usr/lib/tcl/tk[[7-9]].[[0-9]]* 2>/dev/null` \
+	`ls -dr /usr/local/tcl/tcl[[7-9]].[[0-9]]* 2>/dev/null` \
+	`ls -dr /usr/share/tcltk/tk[[7-9]].[[0-9]]* 2>/dev/null` \
+	/sw/lib \
+	/usr/lib \
+	/usr/lib64 \
+	${x_libraries}
+      do
+        if test -r "$dir/tkConfig.sh" ; then
+          tk_config_sh="$dir/tkConfig.sh"
+          break
+        elif test -r "$dir/lib/tkConfig.sh" ; then
+          tk_config_sh="$dir/lib/tkConfig.sh"
+          break
+        fi
+      done
+    fi
+  fi
+  AC_MSG_RESULT([${tk_config_sh}])
+
+  if test "x$tk_config_sh" = "x" ; then
+    echo "can't find Tk configuration script \"tkConfig.sh\""
+    echo "Reverting to non-Tcl compilation"
+    usingTcl=
+  fi
+fi
+
+# -----------------------------------------------------------------------
+# Source in the Tcl/Tk configuration scripts.
+# -----------------------------------------------------------------------
+
+if test $usingTcl ; then
+  . $tcl_config_sh
+  . $tk_config_sh
+
+  if test "$TCL_VERSION" = "7.6" -a "$TK_VERSION" = "4.2" ; then
+    :
+  elif test "$TCL_VERSION" = "7.5" -a "$TK_VERSION" = "4.1" ; then
+    :
+  elif test "$TCL_VERSION" = "$TK_VERSION" ; then
+    :
+  else
+    echo "Mismatched Tcl/Tk versions ($TCL_VERSION != $TK_VERSION)"
+    echo "Reverting to non-Tcl compile"
+    usingTcl=
+  fi
+fi
+
+if test $usingTcl ; then
+  if test "x${netgen_with_tcl_includes}" != "x" ; then
+    if test -r "${netgen_with_tcl_includes}/tcl.h" ; then
+      TCL_INC_DIR=${netgen_with_tcl_includes}
+    else
+      echo "Can't find tcl.h in \"${netgen_with_tcl_includes}\""
+      echo "Reverting to non-Tcl compile"
+      usingTcl=
+    fi
+  else
+    for dir in \
+     ${TCL_PREFIX}/include/tcl${TCL_MAJOR_VERSION}.${TCL_MINOR_VERSION} \
+     ${TCL_PREFIX}/include \
+     ${TCL_SRC_DIR}/generic \
+     ${TCL_INC_DIR}
+    do
+      if test -r "$dir/tcl.h" ; then
+        TCL_INC_DIR=$dir
+        break
+      fi
+    done
+    if test "x${TCL_INC_DIR}" = "x" ; then
+      echo "Can't find tcl.h header file"
+      echo "Reverting to non-Tcl compile"
+      usingTcl=
+    fi
+  fi
+fi
+
+if test $usingTcl ; then
+  if test "x${netgen_with_tk_includes}" != "x" ; then
+    if test -r "${netgen_with_tk_includes}/tk.h" ; then
+      TK_INC_DIR=${netgen_with_tk_includes}
+    else
+      echo "Can't find tk.h in \"${netgen_with_tk_includes}\""
+      echo "Reverting to non-Tcl compile"
+      usingTcl=
+    fi
+  else
+    for dir in \
+     ${TK_PREFIX}/include/tk${TK_MAJOR_VERSION}.${TK_MINOR_VERSION} \
+     ${TK_PREFIX}/include \
+     ${TK_SRC_DIR}/generic \
+     ${TK_INC_DIR} \
+     ${TCL_INC_DIR}
+    do
+      if test -r "$dir/tk.h" ; then
+        TK_INC_DIR=$dir
+        break
+      fi
+    done
+    if test "x${TK_INC_DIR}" = "x" ; then
+      echo "Can't find tk.h header file"
+      echo "Reverting to non-Tcl compile"
+      usingTcl=
+    fi
+  fi
+fi
+
+if test $usingTcl ; then
+  case $target in
+    *-sunos4*|*-*-netbsd*|NetBSD-*|FreeBSD-*|OpenBSD-*)
+      TCL_LIB_NAME="tcl${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}"
+      TK_LIB_NAME="tk${TK_MAJOR_VERSION}${TK_MINOR_VERSION}"
+      ;;
+    *)
+      TCL_LIB_NAME="tcl${TCL_MAJOR_VERSION}.${TCL_MINOR_VERSION}"
+      TK_LIB_NAME="tk${TK_MAJOR_VERSION}.${TK_MINOR_VERSION}"
+      ;;
+  esac
+
+  loclib=`echo ${TCL_LIB_SPEC} | sed -e 's/.*-L//' -e 's/ .*//'`
+
+  if test "x${TCL_LIB_SPEC}" = "x" ; then
+     TCL_LIB_SPEC="-l${TCL_LIB_NAME}"
+  fi
+  if test "x${TK_LIB_SPEC}" = "x" ; then
+     TK_LIB_SPEC="-l${TK_LIB_NAME}"
+  fi
+
+# Find the version of "wish" that corresponds to TCL_EXEC_PREFIX
+# We really ought to run "ldd" to confirm that the linked libraries match.
+
+  AC_MSG_CHECKING([for wish executable])
+  for dir in \
+   ${TK_EXEC_PREFIX}/bin \
+   ${TK_EXEC_PREFIX}
+  do
+    for wishexe in \
+      wish \
+      wish${TK_VERSION} \
+      wish.exe \
+      wish${TK_VERSION}.exe
+    do
+      if test -r "$dir/$wishexe" ; then
+        WISH_EXE=$dir/$wishexe
+        break
+      fi
+    done
+    if test "x${WISH_EXE}" != "x" ; then
+      break
+    fi
+  done
+  if test "x${WISH_EXE}" = "x" ; then
+    echo "Warning: Can't find executable for \"wish\".  You may have to"
+    echo "manually set the value for WISH_EXE in the netgen startup script."
+    AC_MSG_RESULT(no)
+  else
+    AC_MSG_RESULT([${WISH_EXE}])
+  fi
+
+# Find the version of "tclsh" that corresponds to TCL_EXEC_PREFIX
+
+  AC_MSG_CHECKING([for tclsh executable])
+  for dir in \
+   ${TK_EXEC_PREFIX}/bin \
+   ${TK_EXEC_PREFIX}
+  do
+    for tclshexe in \
+      tclsh \
+      tclsh${TK_VERSION} \
+      tclsh.exe \
+      tclsh${TK_VERSION}.exe
+    do
+      if test -r "$dir/$tclshexe" ; then
+        TCLSH_EXE=$dir/$tclshexe
+        break
+      fi
+    done
+    if test "x${TCLSH_EXE}" != "x" ; then
+      break;
+    fi
+  done
+  if test "x${TCLSH_EXE}" = "x" ; then
+    echo "Warning: Can't find executable for \"tclsh\"."
+    AC_MSG_RESULT(no)
+  else
+    AC_MSG_RESULT([${TCLSH_EXE}])
+  fi
+
+# Have to define SHDLIB_EXT here even though we have to do it below, too.
+  case $target in
+     *-hpux*)
+        SHDLIB_EXT=".sl"
+	SHDLIB_EXT_ALT=".sl"
+        ;;
+     *cygwin*)
+        SHDLIB_EXT=".dll"
+	SHDLIB_EXT_ALT=".dll.a"
+	;;
+     *darwin*)
+        SHDLIB_EXT=".dylib"
+	SHDLIB_EXT_ALT=".dylib"
+        ;;
+     *)
+        SHDLIB_EXT=".so"
+	SHDLIB_EXT_ALT=".so"
+        ;;
+  esac
+
+  if test "x${netgen_with_tcl_libraries}" != "x" ; then
+    for libname in \
+     "${netgen_with_tcl_libraries}/lib${TCL_LIB_FILE}" \
+     "${netgen_with_tcl_libraries}/lib${TCL_LIB_NAME}${SHDLIB_EXT}" \
+     "${netgen_with_tcl_libraries}/lib${TCL_LIB_NAME}${SHDLIB_EXT_ALT}"
+    do
+      if test -r "$libname" ; then
+        TCL_LIB_DIR="${netgen_with_tcl_libraries}"
+        break
+      fi
+    done
+
+    if test "x${TCL_LIB_DIR}" = "x" ; then
+      echo "Can't find tcl library in \"${netgen_with_tcl_libraries}\""
+      echo "Reverting to non-Tcl compile"
+      usingTcl=
+    fi
+  else
+    for libname in \
+     "${loclib:=${TCL_EXEC_PREFIX}/lib}/lib${TCL_LIB_NAME}${SHDLIB_EXT}" \
+     "${loclib:=${TCL_EXEC_PREFIX}/lib64}/lib${TCL_LIB_NAME}${SHDLIB_EXT}" \
+     "${loclib:=${TCL_EXEC_PREFIX}/lib}/lib${TCL_LIB_NAME}${SHDLIB_EXT_ALT}"
+    do
+      if test -r "$libname" ; then
+        TCL_LIB_DIR="${TCL_EXEC_PREFIX}/lib"
+        break
+      fi
+    done
+    if test "x${TCL_LIB_DIR}" = "x" ; then
+      echo "Can't find tcl library"
+      echo "Reverting to non-Tcl compile"
+      usingTcl=
+    fi
+  fi
+fi
+
+if test $usingTcl ; then
+  if test "x${netgen_with_tk_libraries}" != "x" ; then
+    for libname in \
+     "${netgen_with_tk_libraries}/${TCL_LIB_FILE}" \
+     "${netgen_with_tk_libraries}/lib${TK_LIB_NAME}${SHDLIB_EXT}" \
+     "${netgen_with_tk_libraries}/lib${TK_LIB_NAME}${SHDLIB_EXT_ALT}"
+    do
+      if test -r "$libname" ; then
+        TK_LIB_DIR="${netgen_with_tk_libraries}"
+        break
+      fi
+    done
+    if test "x${TK_LIB_DIR}" = "x" ; then
+      echo "Can't find tk library in \"${netgen_with_tk_libraries}\""
+      echo "Reverting to non-Tcl compile"
+      usingTcl=
+    fi
+  else
+    for libname in \
+     "${loclib:=${TK_EXEC_PREFIX}/lib}/lib${TK_LIB_NAME}${SHDLIB_EXT}" \
+     "${loclib:=${TK_EXEC_PREFIX}/lib}/lib${TK_LIB_NAME}${SHDLIB_EXT_ALT}" \
+     "${loclib:=${TK_EXEC_PREFIX}/lib64}/lib${TK_LIB_NAME}${SHDLIB_EXT}"
+    do
+      if test -r "$libname" ; then
+        TK_LIB_DIR="${TK_EXEC_PREFIX}/lib"
+        break
+      fi
+    done
+    if test "x${TK_LIB_DIR}" = "x" ; then
+      echo "Can't find tk library"
+      echo "Reverting to non-Tcl compile"
+      usingTcl=
+    fi
+  fi
+fi
+
+dnl ----------------------------------------------------
+dnl End of Tcl/Tk search
+dnl ----------------------------------------------------
+
+dnl The X11 version of the non-Tcl-based netgen is so awful
+dnl we don't really want to advertise it.  So, you have to
+dnl specifically do "--with-widgets=" to get HAVE_X11 set;
+dnl otherwise, you get the command-line interface, which is
+dnl much more pleasant.
+
+AC_ARG_WITH(widgets,
+[  --with-widgets=[arg]            select widget set], [
+   if test "$withval" = "xw" -o "$withval" = "Xw"; then
+      usingX11=1
+      usingTcl=
+      gr_dflags="${gr_dflags} -DHAVE_X11 -DX11_HP_WIDGETS"
+      gr_libs="${gr_libs} -lXw -lXt"
+   elif test "$withval" = "Xm" -o "$withval" = "Motif"; then
+      usingX11=1
+      usingTcl=
+      gr_dflags="${gr_dflags} -DHAVE_X11 -DX11_MOTIF_WIDGETS"
+      gr_libs="${gr_libs} -lXm -lXt"
+   else
+      usingX11=1
+      usingTcl=
+      gr_dflags="${gr_dflags} -DHAVE_X11 -DX11_ATHENA_WIDGETS"
+      gr_libs="${gr_libs} -lXaw -lXmu -lXt -lXext"
+   fi
+], )
+
+dnl Check for X enabled/disabled
+
+AC_PATH_XTRA
+if test "x$no_x" != "x"; then
+  if test $usingX11 ; then
+     echo Cannot find X11---will attempt to compile anyway.
+     echo Graphics options will be NULL only!
+     usingX11=
+  fi
+  if test $usingTcl ; then
+    echo "Cannot compile TCL version without X11, disabling."
+    usingTcl=
+  fi
+fi
+
+dnl ----------------------------------------------------------------
+dnl Once we're sure what, if any, interpreter is being compiled,
+dnl set all the appropriate definitions.  For Tcl/Tk, override
+dnl the default install targets: allows compiling tcl version with
+dnl "make" instead of requiring "make tcl"
+dnl ----------------------------------------------------------------
+
+if test $usingTcl ; then
+  usingX11=1
+  cadinstall="$cadinstall tcltk"
+  modules="$modules tcltk"
+  programs="$programs tcltk"
+  ALL_TARGET="tcl"
+  INSTALL_TARGET="install-tcl"
+  AC_DEFINE(TCL_NETGEN)
+  extra_libs="$extra_libs \${NETGENDIR}/tcltk/libtcltk.o"
+  extra_defs="$extra_defs -DTCL_DIR=\\\"\${TCLDIR}\\\""
+else
+  programs="$programs netgen"
+  unused="$unused tcltk"
+fi
+
+dnl If usingAthena is set, and we are using X11, then no widget
+dnl set has been selected with "--with-widgets", so we default
+dnl to the X11 Athena widget set.
+
+dnl ----------------------------------------------------------------
+dnl Handle graphics based on the setting of "usingTcl", "usingX11",
+dnl "usingOGL", and "usingBLT"
+dnl ----------------------------------------------------------------
+
+if test $usingTcl ; then
+  if test $usingX11 ; then
+     gr_dflags="$gr_dflags -DX11 -DXLIB"
+     gr_libs="$gr_libs -lX11"
+     gr_srcs="$gr_srcs \${TK_SRCS}"
+  else
+     gr_srcs="$gr_srcs \${NULL_SRCS}"
+  fi
+else
+  if test $usingX11 ; then
+    gr_dflags="$gr_dflags -DX11 -DXLIB"
+    gr_libs="$gr_libs -lX11"
+    gr_srcs="$gr_srcs \${X11_SRCS}"
+  fi
+fi
+
+dnl ----------------------------------------------------------------
+dnl Define system-specific settings
+dnl ----------------------------------------------------------------
+
+case $target in
+  *-linux*)
+    AC_DEFINE(linux)
+    AC_DEFINE(SYSV)
+    dnl Defining "ISC" prevents compiler failure on redefinition of "wchar_t"
+    AC_DEFINE(ISC)
+    dnl 64-bit support for AMD Opteron
+    case $target in
+        *x86_64*)
+            CFLAGS="${CFLAGS} -m64 -fPIC"
+            ;;
+    esac
+    if test -f /usr/lib/libbsd-compat.a ; then
+      gr_libs="$gr_libs -lbsd-compat"
+    elif test -f /usr/lib/libbsd.a ; then
+      gr_libs="$gr_libs -lbsd"
+    fi
+    ;;
+  *solaris*)
+    AC_DEFINE(SYSV)
+    ;;
+  *irix*)
+    AC_DEFINE(SYSV)
+    AC_DEFINE(IRIX)
+    AC_DEFINE(_BSD_SIGNALS)
+    ;;
+  *sysv*)
+    AC_DEFINE(SYSV)
+    ;;
+  *cygwin*)
+    AC_DEFINE(CYGWIN)
+    AC_DEFINE(i386)
+    AC_DEFINE(WIN32)
+    ;; 
+  *darwin*)
+    AC_DEFINE(macosx)
+    if test "$CPP" = "cc -E" ; then
+       CPPFLAGS="$CPPFLAGS -no-cpp-precomp"
+    fi
+    ;;
+esac
+# -----------------------------------------------------------------------
+# Tcl/Tk configuration
+# -----------------------------------------------------------------------
+
+if test $usingTcl ; then
+
+# -----------------------------------------------------------------------
+#
+# Tk libraries and header files
+#
+# -----------------------------------------------------------------------
+  if test "${TK_INC_DIR}" != "/usr/include" ; then
+    INC_SPECS="${INC_SPECS} -I${TK_INC_DIR}"
+  fi
+  if test "${TK_LIB_DIR}" = "/usr/lib" -o \
+        "${TK_LIB_DIR}" = "/usr/lib64" ; then
+    LIB_SPECS="${LIB_SPECS} ${TK_LIB_SPEC}"
+  else
+    LIB_SPECS="${LIB_SPECS} -L${TK_LIB_DIR} ${TK_LIB_SPEC}"
+    if test "x${loader_run_path}" = "x" ; then
+      loader_run_path="${TK_LIB_DIR}"
+    else
+      loader_run_path="${TK_LIB_DIR}:${loader_run_path}"
+    fi
+  fi
+
+# -----------------------------------------------------------------------
+#
+# Tcl libraries and header files
+#
+# Add a header file directory specification only if the Tcl headers reside
+# in a different directory from Tk's.
+#
+## -----------------------------------------------------------------------
+  if test "${TCL_INC_DIR}" != "/usr/include" -a \
+        "${TCL_INC_DIR}" != "${TK_INC_DIR}" ; then
+    INC_SPECS="${INC_SPECS} -I${TCL_INC_DIR}"
+  fi
+
+  if test "${TCL_LIB_DIR}" = "/usr/lib" -o \
+        "${TCL_LIB_DIR}" = "/usr/lib64" -o \ 
+        "${TCL_LIB_DIR}" = "${TK_LIB_DIR}" ; then
+    LIB_SPECS="${LIB_SPECS} ${TCL_LIB_SPEC}"
+  else
+    LIB_SPECS="${LIB_SPECS} -L${TCL_LIB_DIR} ${TCL_LIB_SPEC}"
+    if test "x${loader_run_path}" = "x" ; then
+      loader_run_path="${TCL_LIB_DIR}"
+    else
+      loader_run_path="${TCL_LIB_DIR}:${loader_run_path}"
+    fi
+  fi
+
+#--------------------------------------------------------------------
+#
+# Check if we can generate shared libraries on this system.  Set flags
+# to generate shared libraries for systems that we know about.  Start
+# with the values found in tclConfig.sh, make changes as we know about
+# the different systems.
+#
+#--------------------------------------------------------------------
+
+# Initialize shared library build variables
+
+  SHLIB_LD=""
+  LDDL_FLAGS="-shared"
+  SHDLIB_EXT=".so"
+  EXTRA_LIB_SPECS=""
+
+  build_shared="yes"
+
+  case $target in
+    *-aix4.[[2-9]]*)
+      # No Position-Independent flags needed
+
+      # Use the installed export file or the one found in the source directory.
+
+      if test -r "${TCL_LIB_DIR}/lib${TCL_LIB_NAME}.exp" ; then
+        tcl_exp="${TCL_LIB_DIR}/lib${TCL_LIB_NAME}.exp"
+      else
+        tcl_exp="${TCL_SRC_DIR}/unix/lib.exp"
+      fi
+      if test -r "${TK_LIB_DIR}/lib${TK_LIB_NAME}.exp" ; then
+        tk_exp="${TK_LIB_DIR}/lib${TK_LIB_NAME}.exp"
+      else
+        tk_exp="${TK_SRC_DIR}/unix/lib.exp"
+      fi
+
+      full_src_path=`cd ${srcdir}; pwd`
+
+      # Use shell-script to link shared library
+      LD="${full_src_path}/cf/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry -bI:${tk_exp} -bI:${tcl_exp}"
+
+      SHLIB_LIB_SPECS="${aix_lib_specs} -lc"
+
+      LDFLAGS="-L${loader_run_path}"
+      EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *-aix*)
+      # No Position-Independent flags needed
+
+      # Use the installed export file or the one found in the source directory.
+
+      if test -r "${TCL_LIB_DIR}/lib${TCL_LIB_NAME}.exp" ; then
+        tcl_exp="${TCL_LIB_DIR}/lib${TCL_LIB_NAME}.exp"
+      else
+        tcl_exp="${TCL_SRC_DIR}/unix/lib.exp"
+      fi
+      if test -r "${TK_LIB_DIR}/lib${TK_LIB_NAME}.exp" ; then
+        tk_exp="${TK_LIB_DIR}/lib${TK_LIB_NAME}.exp"
+      else
+        tk_exp="${TK_SRC_DIR}/unix/lib.exp"
+      fi
+
+      full_src_path=`cd ${srcdir}/cf; pwd`
+
+      # Use shell-script to link shared library
+
+      LD="${full_src_path}/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry -bI:${tk_exp} -bI:${tcl_exp}"
+      SHLIB_LIB_SPECS="${aix_lib_specs} -lc"
+      LDFLAGS="-L${loader_run_path}"
+      EXTRA_LIB_SPECS="-lld"
+      ;;
+
+    *-bsdi2*|*-bsdi3*)
+      LD="shlicc"
+      LDDL_FLAGS="-r"
+      EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *darwin*)
+      SHDLIB_EXT=".dylib"
+      LDDL_FLAGS="-dynamiclib -flat_namespace -undefined suppress -noprebind"
+      LDFLAGS="${LDFLAGS} ${LIB_SPECS}"
+      CFLAGS="${CFLAGS} ${X_CFLAGS} ${INC_SPECS} -I/sw/include -fno-common"
+      ;;
+
+    *cygwin*)
+      SHDLIB_EXT=".dll"
+      AC_DEFINE(USE_DL_IMPORT)
+      LDDL_FLAGS='-shared -Wl,--enable-auto-image-base'
+      if test "x${loader_run_path}" != "x" ; then
+        LD_RUN_PATH="${LD_RUN_PATH} -Wl,-rpath,${loader_run_path}"
+      fi
+      ld_extra_libs=${LIB_SPECS}
+      sub_extra_libs='-L${NETGENDIR}/netgen -ltclnetgen'
+      ;;
+
+    *-bsdi4*)
+      SHLIB_CFLAGS="-export-dynamic -fPIC"
+      LDDL_FLAGS='-shared -Wl,-E -Wl,-soname,$@'
+      ;;
+
+    *-dgux*)
+      SHLIB_CFLAGS="-K PIC"
+      LDDL_FLAGS="-G"
+     EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *-hpux*)
+      if test "$GCC" = "no" ; then
+        AC_DEFINE(_HPUX_SOURCE)
+      fi
+      AC_CHECK_LIB(dld, shl_load, [found=yes], [found=no])
+      if test "${found}" = "yes" ; then
+        SHLIB_CFLAGS="+z"
+        LDDL_FLAGS="-b -E -n +s +b,${loader_run_path}:."
+        SHDLIB_EXT=".sl"
+
+        # The run path is included in both LDFLAGS and LDDL_FLAGS
+        # because SHLIB_LD is ld and LD is cc/gcc.
+
+        LDFLAGS="-Wl,-E -Wl,+s,+b,${loader_run_path}:."
+        EXTRA_LIB_SPECS="-ldld"
+      fi
+      ;;
+
+    *-irix64-6.5*)
+      LDDL_FLAGS="-32 -shared -rdata_shared"
+      if test "x${loader_run_path}" != "x" ; then
+        LD_RUN_PATH="${LD_RUN_PATH} -Wl,-rpath,${loader_run_path}"
+      fi
+      ;;
+
+    *-irix-[56].*|*-irix64-*)
+      LDDL_FLAGS="-shared -rdata_shared"
+      if test "x${loader_run_path}" != "x" ; then
+        LD_RUN_PATH="${LD_RUN_PATH} -Wl,-rpath,${loader_run_path}"
+      fi
+      LDFLAGS=""
+      if test "$GCC" = "yes" ; then
+        SHLIB_CFLAGS="-mabi=n32 $SHLIB_CFLAGS"
+        LDDL_FLAGS="-mabi=n32 $LDDL_FLAGS"
+        LDFLAGS="-mabi=n32 $LDFLAGS"
+      else
+        CFLAGS="-n32 $CFLAGS"
+        LDFLAGS="-n32 $LDFLAGS"
+      fi
+      ;;
+
+    *-linux*)
+      LDDL_FLAGS=' -shared -Wl,-soname,$@'
+      if test "x${loader_run_path}" != "x" ; then
+        LD_RUN_PATH="${LD_RUN_PATH} -Wl,-rpath,${loader_run_path}"
+      fi
+      LDFLAGS=""
+      EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *-mp-ras-02*)
+      SHLIB_CFLAGS="-G -K PIC"
+      LDDL_FLAGS=""
+      ;;
+
+    *-mp-ras-*)
+      SHLIB_CFLAGS="-G -K PIC"
+      LDDL_FLAGS="-Wl,-Bexport"
+      ;;
+
+    *-ncr-sysv4-*2*)
+      SHLIB_CFLAGS="-K PIC"
+      LDDL_FLAGS="-G"
+
+      EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *-ncr-sysv4*)
+      SHLIB_CFLAGS="-K PIC"
+      LDDL_FLAGS="-G -Wl,-Bexport"
+
+      LDFLAGS="-Wl,-Bexport"
+      EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *-freebsd*)
+      # Not available on all versions:  check for include file.
+      SHLIB_CFLAGS="-fpic"
+      LDDL_FLAGS="-shared ${LIB_SPECS}"
+      CFLAGS="${CFLAGS} -l/usr/X11R6/include"
+      ;;
+
+    *-netbsd*|*-openbsd*)
+      # Not available on all versions:  check for include file.
+      AC_CHECK_HEADER(dlfcn.h, test_ok=yes, test_ok=no)
+      if test "$test_ok" = yes; then
+        SHLIB_CFLAGS="-fPIC"
+        LDDL_FLAGS="-shared ${LIB_SPEC}"
+      fi
+      ;;
+
+    *-nextstep*)
+      LDDL_FLAGS="-nostdlib -r"
+      ;;
+
+    *-osf1-1.[012]*)
+      # OSF/1 1.[012] from OSF, and derivatives, including Paragon OSF/1
+
+      # Warning: Ugly Makefile Hack
+      # Make package name same as library name
+
+      SHLIB_LD='ld -R -export $@:'
+      ;;
+
+    *-osf1-1.*)
+      # OSF/1 1.3 from OSF using ELF, and derivatives, including AD2
+
+      SHLIB_CFLAGS="-fpic"
+      SHLIB_LD="ld -shared"
+      ;;
+
+    *-osf1V*)
+      # Digital OSF/1
+
+      LDDL_FLAGS='-shared -expect_unresolved "*"'
+      if test "x${loader_run_path}" != "x" ; then
+        LD_RUN_PATH="${LD_RUN_PATH} -Wl,-rpath,${loader_run_path}"
+      fi
+      LDFLAGS=""
+      ;;
+
+    *-sco*)
+      # Note, dlopen is available only on SCO 3.2.5 and greater.  However,
+      # this test works, since "uname -s" was non-standard in 3.2.4 and
+      # below.
+
+      SHLIB_CFLAGS="-Kpic -belf"
+      LDDL_FLAGS="-G"
+      LDFLAGS="-belf -Wl,-Bexport"
+      ;;
+
+    *-sni-sysv*)
+
+      SHLIB_CFLAGS="-K PIC"
+      LDDL_FLAGS="-G"
+
+      EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *-sunos4*)
+
+      SHLIB_CFLAGS="-PIC"
+      LDDL_FLAGS="-assert pure-text"
+
+      EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *-solaris2*)
+
+      if test "$with_gnu_ld" = "yes" ; then
+        LDDL_FLAGS='-shared -Wl,-E -Wl,-soname,$@ ${LIB_SPEC}'
+        if test "x${loader_run_path}" != "x" ; then
+          LD_RUN_PATH="${LD_RUN_PATH} -Wl,-rpath,${loader_run_path}"
+        fi
+      else
+        LDDL_FLAGS="-shared -mimpure-text"
+        if test "x${loader_run_path}" != "x" ; then
+          LD_RUN_PATH="${LD_RUN_PATH} -R ${loader_run_path}"
+        fi
+      fi
+      EXTRA_LIB_SPECS="-ldl"
+    ;;
+
+    *-mips-dde-sysv*)
+
+      SHLIB_CFLAGS="-KPIC"
+      LDDL_FLAGS="-G"
+
+      EXTRA_LIB_SPECS="-ldl"
+      ;;
+
+    *-pc-sysv4* | *-unixware-5*)
+      SHLIB_CFLAGS="-G -KPIC"
+      LDDL_FLAGS=" -Wl,-Bexport"
+      ;;
+
+  esac
+
+# If we're running gcc, then set SHLIB_CFLAGS flags for compiling
+# shared libraries for gcc, instead of those of the vendor's compiler.
+
+  if test "$GCC" = "yes" ; then
+    case $target in
+      *cygwin*)
+        ;;
+      *)
+        SHLIB_CFLAGS="-fPIC"
+        ;;
+    esac
+  fi
+  if test "$with_gnu_ld" = "yes" ; then
+    LDDL_FLAGS="${LDDL_FLAGS} -Wl,--version-script=\${NETGENDIR}/netgen/symbol.map"
+  fi
+
+  AC_SUBST(SHDLIB_EXT)
+  AC_SUBST(SHLIB_LD)
+  AC_SUBST(LD)
+  AC_SUBST(LDDL_FLAGS)
+  AC_SUBST(SHLIB_LIB_SPECS)
+
+  AC_SUBST(EXTRA_LIB_SPECS)
+  AC_SUBST(LDFLAGS)
+  AC_SUBST(INC_SPECS)
+  AC_SUBST(LIB_SPECS)
+  AC_SUBST(WISH_EXE)
+  AC_SUBST(TCLSH_EXE)
+  AC_SUBST(TCL_LIB_DIR)
+
+fi
+
+if test "$GCC" = "yes" ; then
+   DEPEND_FLAG="-MM"
+fi
+
+dnl Substitute all variables
+
+AC_SUBST(VERSION)
+AC_SUBST(PACKAGE)
+AC_SUBST(SCRIPTS)
+AC_SUBST(extra_libs)
+AC_SUBST(extra_defs)
+AC_SUBST(ld_extra_libs)
+AC_SUBST(ld_extra_objs)
+AC_SUBST(top_extra_libs)
+AC_SUBST(sub_extra_libs)
+AC_SUBST(modules)
+AC_SUBST(unused)
+AC_SUBST(programs)
+AC_SUBST(cadinstall)
+
+AC_SUBST(gr_cflags)
+AC_SUBST(gr_dflags)
+AC_SUBST(gr_libs)
+AC_SUBST(gr_srcs)
+
+AC_SUBST(X_LIBS)
+AC_SUBST(X_CFLAGS)
+AC_SUBST(CPPFLAGS)
+AC_SUBST(CFLAGS)
+AC_SUBST(DEPEND_FLAG)
+AC_SUBST(SHLIB_CFLAGS)
+AC_SUBST(LD_RUN_PATH)
+
+AC_SUBST(ALL_TARGET)
+AC_SUBST(INSTALL_TARGET)
+
+AC_OUTPUT(defs.mak)
+
+dnl
+dnl Print configuration and report problems
+
+ECHO_N=printf
+
+echo
+echo "-----------------------------------------------------------"
+echo "Configuration Summary (principle requirements):"
+echo
+
+${ECHO_N} "Tcl/Tk:      "
+if test $usingTcl ; then
+   echo "yes"
+else
+   echo "no"
+   echo
+   echo "   Without Tcl/Tk, you cannot run the enhanced version of netgen"
+   echo "   with scripting ability, console window, convenience commands"
+   echo "   such as \"lvs\", and other useful features.  If you did not"
+   echo "   specifically disable Tcl/Tk on the configure command line, then" 
+   echo "   getting this message means that you do not have Tcl/Tk headers"
+   echo "   and/or libraries installed, or they are not in a standard path."
+   echo "   Try using configure options --with-tcl=<DIR> and --with-tk=<DIR>."
+   echo
+fi
+
+echo "-----------------------------------------------------------"
+echo
+
+echo "Use 'make' to compile and 'make install' to install."
+echo
+echo "Errors may not be printed to stdout:  see files 'make.log' "
+echo "   and 'install.log' for a complete error summary."
+echo
+echo "-----------------------------------------------------------"
+echo
+
+dnl Put "defs.mak" in the top-level directory
+cp defs.mak ..

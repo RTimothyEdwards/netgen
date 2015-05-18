@@ -1,0 +1,22 @@
+*
+*
+* MODEL cards go here
+
+* Old CMOS 3um process parameters from MOSIS run M46M
+* CBPEM2 Telmos/Sierracin
+
+.options defl=3um defw=3u defas=9pm^2 defad=9pm^2
+
+.MODEL p2 pmos level=2 ld=0.51286u tox=500e-10
++nsub=2.971614e+14 vto=-0.844293 kp=1.048805e-5 gamma=0.723071
++phi=0.6 uo=100.0 uexp=0.145531 ucrit=18543.6
++delta=2.19030 vmax=100000. xj=2.583588e-2u lambda=5.274834e-2
++nfs=1.615644e+12 neff=1.001e-2 nss=0. tpg=-1.
++rsh=95 cgso=4e-10 cgdo=4e-10 cj=2e-4 mj=0.5 cjsw=4.5e-10 mjsw=0.33
+
+.MODEL n2 nmos level=2 ld=0.245423u tox=500e-10
++nsub=1e+16 vto=0.932797 kp=2.696667e-5 gamma=1.28047
++phi=0.6 uo=381.905 uexp=1.001e-3 ucrit=999000
++delta=1.47242 vmax=55346.3 xj=0.145596u lambda=2.491255e-2
++nfs=3.727796e+11 neff=1.001e-2 nss=0 tpg=1
++rsh=25 cgso=5.2e-10 cgdo=5.2e-10 cj=3.2e-4 mj=0.5 cjsw=9e-10 mjsw=0.33

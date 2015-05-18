@@ -1,0 +1,129 @@
+/*
+ ******************************************************************************
+ *									      *
+ *	                           N O T I C E				      *
+ *									      *
+ *	              Copyright Abandoned, 1987, Fred Fish		      *
+ *									      *
+ *									      *
+ *	This previously copyrighted work has been placed into the  public     *
+ *	domain  by  the  author  and  may be freely used for any purpose,     *
+ *	private or commercial.						      *
+ *									      *
+ *	Because of the number of inquiries I was receiving about the  use     *
+ *	of this product in commercially developed works I have decided to     *
+ *	simply make it public domain to further its unrestricted use.   I     *
+ *	specifically  would  be  most happy to see this material become a     *
+ *	part of the standard Unix distributions by AT&T and the  Berkeley     *
+ *	Computer  Science  Research Group, and a standard part of the GNU     *
+ *	system from the Free Software Foundation.			      *
+ *									      *
+ *	I would appreciate it, as a courtesy, if this notice is  left  in     *
+ *	all copies and derivative works.  Thank you.			      *
+ *									      *
+ *	The author makes no warranty of any kind  with  respect  to  this     *
+ *	product  and  explicitly disclaims any implied warranties of mer-     *
+ *	chantability or fitness for any particular purpose.		      *
+ *									      *
+ ******************************************************************************
+ */
+
+
+/*
+ *  FILE
+ *
+ *	llib-ldbug    lint library source for debugging package
+ *
+ *  SCCS ID
+ *
+ *	@(#)llib-ldbug	1.9 6/12/89
+ *
+ *  DESCRIPTION
+ *
+ *	Function definitions for use in building lint library.
+ *	Note that these must stay in syncronization with actual
+ *	declarations in "dbug.c".
+ *
+ */
+
+
+/*LINTLIBRARY*/
+
+#include <stdio.h>
+
+#define VOID void
+typedef int BOOLEAN;
+#define FALSE 0
+#define ARGLIST a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
+
+int _db_on_ = FALSE;
+int _db_pon_ = FALSE;
+FILE *_db_fp_ = stderr;
+FILE *_db_pfp_ = stderr;
+char *_db_process_ = "dbug";
+
+VOID _db_push_ (control)
+char *control;
+{
+}
+
+VOID _db_pop_ ()
+{
+}
+
+VOID _db_enter_ (_func_, _file_, _line_, _sfunc_, _sfile_, _slevel_, _sframep_)
+char *_func_;
+char *_file_;
+int _line_;
+char **_sfunc_;
+char **_sfile_;
+int *_slevel_;
+char ***_sframep_;
+{
+}
+
+VOID _db_return_ (_line_, _sfunc_, _sfile_, _slevel_)
+int _line_;
+char **_sfunc_;
+char **_sfile_;
+int *_slevel_;
+{
+}
+
+VOID _db_pargs_ (_line_, keyword)
+int _line_;
+char *keyword;
+{
+}
+
+/*VARARGS1*/
+VOID _db_doprnt_ (format, ARGLIST)
+char *format;
+long ARGLIST;
+{
+}
+
+/* WARNING -- the following function is obsolete and may not be supported */
+/* in future releases... */
+
+/*VARARGS3*/
+VOID _db_printf_ (_line_, keyword, format, ARGLIST)
+int _line_;
+char *keyword,  *format;
+long ARGLIST;
+{
+}
+
+BOOLEAN _db_keyword_ (keyword)
+char *keyword;
+{
+	return (0);
+}
+
+VOID _db_longjmp_ ()
+{
+}
+
+VOID _db_setjmp_ ()
+{
+}

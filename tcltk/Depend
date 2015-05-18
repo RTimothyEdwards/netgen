@@ -1,0 +1,3 @@
+tclnetgen.o: tclnetgen.c ../base/config.h ../base/pdutils.h \
+ ../base/netgen.h ../base/objlist.h ../base/objlist.h ../base/netcmp.h \
+ ../base/dbug.h ../base/print.h ../base/query.h ../base/hash.h
