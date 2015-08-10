@@ -4622,13 +4622,20 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
 		     }
 		     if (ob2 == NULL) {
 			if (Debug == 0) {
-			   for (m = 0; m < 43; m++) *(ostr + m) = ' ';
-			   for (m = 44; m < 87; m++) *(ostr + m) = ' ';
-			   sprintf(ostr, "%s", obn->name);
-			   sprintf(ostr + 44, "(no matching pin)");
-			   for (m = 0; m < 88; m++)
+			   // If first cell has no pins but 2nd cell
+			   // does, then "no matching pin" entries will
+			   // be generated for all pins in the 2nd cell,
+			   // so don't print out the "no pins" entry.
+
+			   if (strcmp(obn->name, "(no pins)")) {
+			      for (m = 0; m < 43; m++) *(ostr + m) = ' ';
+			      for (m = 44; m < 87; m++) *(ostr + m) = ' ';
+			      sprintf(ostr, "%s", obn->name);
+			      sprintf(ostr + 44, "(no matching pin)");
+			      for (m = 0; m < 88; m++)
 				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-			   Fprintf(stdout, ostr);
+			      Fprintf(stdout, ostr);
+			   }
 			}
 			else {
 		           Fprintf(stderr, "No matching pin in cell %s for "
