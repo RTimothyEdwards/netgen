@@ -4701,13 +4701,16 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
       if (ob2->model.port == -1) {
 
 	 if (Debug == 0) {
-	    for (m = 0; m < 43; m++) *(ostr + m) = ' ';
-	    for (m = 44; m < 87; m++) *(ostr + m) = ' ';
-	    sprintf(ostr, "(no matching pin)");
-	    sprintf(ostr + 44, "%s", ob2->name);
-	    for (m = 0; m < 88; m++)
-	       if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-	    Fprintf(stdout, ostr);
+	    // See above for reverse case
+	    if (strcmp(ob2->name, "(no pins)")) {
+	       for (m = 0; m < 43; m++) *(ostr + m) = ' ';
+	       for (m = 44; m < 87; m++) *(ostr + m) = ' ';
+	       sprintf(ostr, "(no matching pin)");
+	       sprintf(ostr + 44, "%s", ob2->name);
+	       for (m = 0; m < 88; m++)
+		  if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+	       Fprintf(stdout, ostr);
+	    }
 	 }
 	 else {
 	    Fprintf(stderr, "No netlist match for cell %s pin %s\n",
