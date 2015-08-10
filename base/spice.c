@@ -284,6 +284,12 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 			  case TOK_FUNC_ELSE:
 			     FlushString(",");
 			     break;
+			  case TOK_SGL_QUOTE:
+			     FlushString("'");
+			     break;
+			  case TOK_DBL_QUOTE:
+			     FlushString("\"");
+			     break;
 		       }
 		       stackptr = stackptr->last;
 		    }

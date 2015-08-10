@@ -50,6 +50,8 @@
 #define TOK_FUNC_IF     17
 #define TOK_FUNC_THEN   18
 #define TOK_FUNC_ELSE   19
+#define TOK_SGL_QUOTE	20
+#define TOK_DBL_QUOTE	21
 
 /* Part 1b: Stack structure used to hold expressions in tokenized form */
 

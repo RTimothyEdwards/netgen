@@ -89,6 +89,8 @@ void PushTok(int toktype, void *tval, struct tokstack **top)
 	case TOK_STRING:
 	    newstack->data.string = strsave((char *)tval);
 	    break;
+	case TOK_SGL_QUOTE:
+	case TOK_DBL_QUOTE:
 	case TOK_FUNC_OPEN:
 	case TOK_FUNC_CLOSE:
 	case TOK_GROUP_OPEN:
@@ -363,6 +365,26 @@ int ReduceExpressions(struct objlist *instprop,
 			}
 			numlast = 1;
 			estr = tstr + 1;
+			break;
+
+		    case '\'':
+			*tstr = '\0';
+			result = TokGetValue(estr, parent, glob, &dval);
+			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			PushTok(TOK_SGL_QUOTE, NULL, &expstack);
+			estr = tstr + 1;
+			numlast = 0;
+			break;
+
+		    case '"':
+			*tstr = '\0';
+			result = TokGetValue(estr, parent, glob, &dval);
+			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			PushTok(TOK_DBL_QUOTE, NULL, &expstack);
+			estr = tstr + 1;
+			numlast = 0;
 			break;
 
 		    case '{':
@@ -698,7 +720,7 @@ int ReduceExpressions(struct objlist *instprop,
 		}
 	    }
 
-	    // Reduce {value} and (value)
+	    // Reduce {value}, (value), and 'value'
 
 	    for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
 		switch (stackptr->toktype) {
@@ -709,7 +731,11 @@ int ReduceExpressions(struct objlist *instprop,
 				(((nptr->toktype == TOK_FUNC_OPEN) &&
 					(lptr->toktype == TOK_FUNC_CLOSE)) ||
 				((nptr->toktype == TOK_GROUP_OPEN) &&
-					(lptr->toktype == TOK_GROUP_CLOSE)))) {
+					(lptr->toktype == TOK_GROUP_CLOSE)) ||
+				((nptr->toktype == TOK_DBL_QUOTE) &&
+					(lptr->toktype == TOK_DBL_QUOTE)) ||
+				((nptr->toktype == TOK_SGL_QUOTE) &&
+					(lptr->toktype == TOK_SGL_QUOTE)))) {
 
 			    modified = 1;
 			    stackptr->last = lptr->last;
