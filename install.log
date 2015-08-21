@@ -62,3 +62,128 @@ rm -f /usr/local/lib/netgen/tcl/netgenexec
 cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
 make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
 make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+./scripts/mkdirs /usr/local/bin /usr/local/share/man \
+	/usr/local/lib/netgen/tcl
+for dir in lib doc tcltk netgen tcltk; do \
+	(cd $dir && make install-tcl); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/lib'
+make[2]: Nothing to be done for 'install-tcl'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/lib'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/doc'
+../scripts/mkdirs /usr/local/share/man /usr/local/share/man/man1
+../scripts/mkdirs /usr/local/lib/netgen/doc
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/doc'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+rm -f /usr/local/bin/netgen.sh /usr/local/bin/netgen
+cp netgen.sh /usr/local/bin/netgen
+(cd /usr/local/bin; chmod 0755 netgen)
+rm -f /usr/local/lib/netgen/tcl/netgen.tcl
+cp netgen.tcl /usr/local/lib/netgen/tcl/netgen.tcl
+rm -f /usr/local/lib/netgen/tcl/netgenexec
+cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+rm -f /usr/local/lib/netgen/tcl/tclnetgen.so
+cp tclnetgen.so /usr/local/lib/netgen/tcl/tclnetgen.so
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+rm -f /usr/local/bin/netgen.sh /usr/local/bin/netgen
+cp netgen.sh /usr/local/bin/netgen
+(cd /usr/local/bin; chmod 0755 netgen)
+rm -f /usr/local/lib/netgen/tcl/netgenexec
+cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+./scripts/mkdirs /usr/local/bin /usr/local/share/man \
+	/usr/local/lib/netgen/tcl
+for dir in lib doc tcltk netgen tcltk; do \
+	(cd $dir && make install-tcl); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/lib'
+make[2]: Nothing to be done for 'install-tcl'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/lib'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/doc'
+../scripts/mkdirs /usr/local/share/man /usr/local/share/man/man1
+../scripts/mkdirs /usr/local/lib/netgen/doc
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/doc'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+rm -f /usr/local/bin/netgen.sh /usr/local/bin/netgen
+cp netgen.sh /usr/local/bin/netgen
+(cd /usr/local/bin; chmod 0755 netgen)
+rm -f /usr/local/lib/netgen/tcl/netgenexec
+cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+rm -f /usr/local/lib/netgen/tcl/tclnetgen.so
+cp tclnetgen.so /usr/local/lib/netgen/tcl/tclnetgen.so
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+rm -f /usr/local/bin/netgen.sh /usr/local/bin/netgen
+cp netgen.sh /usr/local/bin/netgen
+(cd /usr/local/bin; chmod 0755 netgen)
+rm -f /usr/local/lib/netgen/tcl/netgenexec
+cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+./scripts/mkdirs /usr/local/bin /usr/local/share/man \
+	/usr/local/lib/netgen/tcl
+for dir in lib doc tcltk netgen tcltk; do \
+	(cd $dir && make install-tcl); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/lib'
+make[2]: Nothing to be done for 'install-tcl'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/lib'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/doc'
+../scripts/mkdirs /usr/local/share/man /usr/local/share/man/man1
+../scripts/mkdirs /usr/local/lib/netgen/doc
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/doc'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+rm -f /usr/local/bin/netgen.sh /usr/local/bin/netgen
+cp netgen.sh /usr/local/bin/netgen
+(cd /usr/local/bin; chmod 0755 netgen)
+rm -f /usr/local/lib/netgen/tcl/netgenexec
+cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+rm -f /usr/local/lib/netgen/tcl/tclnetgen.so
+cp tclnetgen.so /usr/local/lib/netgen/tcl/tclnetgen.so
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+rm -f /usr/local/bin/netgen.sh /usr/local/bin/netgen
+cp netgen.sh /usr/local/bin/netgen
+(cd /usr/local/bin; chmod 0755 netgen)
+rm -f /usr/local/lib/netgen/tcl/netgenexec
+cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+./scripts/mkdirs /usr/local/bin /usr/local/share/man \
+	/usr/local/lib/netgen/tcl
+for dir in lib doc tcltk netgen tcltk; do \
+	(cd $dir && make install-tcl); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/lib'
+make[2]: Nothing to be done for 'install-tcl'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/lib'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/doc'
+../scripts/mkdirs /usr/local/share/man /usr/local/share/man/man1
+../scripts/mkdirs /usr/local/lib/netgen/doc
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/doc'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+rm -f /usr/local/bin/netgen.sh /usr/local/bin/netgen
+cp netgen.sh /usr/local/bin/netgen
+(cd /usr/local/bin; chmod 0755 netgen)
+rm -f /usr/local/lib/netgen/tcl/netgenexec
+cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Nothing to be done for 'install-tcl'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+rm -f /usr/local/bin/netgen.sh /usr/local/bin/netgen
+cp netgen.sh /usr/local/bin/netgen
+(cd /usr/local/bin; chmod 0755 netgen)
+rm -f /usr/local/lib/netgen/tcl/netgenexec
+cp netgenexec /usr/local/lib/netgen/tcl/netgenexec
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'

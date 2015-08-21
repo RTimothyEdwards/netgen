@@ -2322,9 +2322,10 @@ _netcmp_verify(ClientData clientData,
    }
 
    if (ElementClasses == NULL || NodeClasses == NULL) {
-      Fprintf(stderr, "Cell has no elements and/or nodes.\n");
-      Tcl_SetObjResult(interp, Tcl_NewIntObj(-1));
-      // return TCL_ERROR;
+      if (index == EQUIV_IDX || index == UNIQUE_IDX)
+	 Tcl_SetObjResult(interp, Tcl_NewIntObj(-1));
+      else
+	 Fprintf(stdout, "Cell has no elements and/or nodes.  Not checked.\n");
       return TCL_OK;
    }
    else {
