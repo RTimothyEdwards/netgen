@@ -373,6 +373,53 @@ int renamepins(struct hashlist *p, int file)
    }
 }
 
+/* If any pins are marked unconnected, see if there are	*/
+/* other pins of the same name that have connections.	*/
+/* Also remove any unconnected globals (just for cleanup) */
+
+void CleanupSubcell() {
+   int maxnode = 0;
+   struct objlist *sobj, *nobj, *lobj, *pobj;
+
+   if (CurrentCell == NULL) return;
+
+   for (sobj = CurrentCell->cell; sobj; sobj = sobj->next)
+      if (sobj->node > maxnode)
+	 maxnode = sobj->node + 1;
+
+   lobj = NULL;
+   for (sobj = CurrentCell->cell; sobj != NULL;) {
+      nobj = sobj->next;
+      if (sobj->node < 0) {
+         if (IsGlobal(sobj)) {
+ 	    if (lobj != NULL)
+	       lobj->next = sobj->next;
+	    else
+	       CurrentCell->cell = sobj->next;
+	    FreeObjectAndHash(sobj, CurrentCell);
+	 }
+	 else if (IsPort(sobj) && sobj->model.port == PROXY)
+	    sobj->node = maxnode++;
+	 else if (IsPort(sobj)) {
+	    for (pobj = CurrentCell->cell; pobj && (pobj->type == PORT);
+			pobj = pobj->next) {
+	       if (pobj == sobj) continue;
+	       if (matchnocase(pobj->name, sobj->name) && pobj->node >= 0) {
+		  sobj->node = pobj->node;
+		  break;
+	       }
+	    }
+	    lobj = sobj;
+	 }
+	 else
+	    lobj = sobj;
+      }
+      else
+         lobj = sobj;
+      sobj = nobj;
+   }
+}
+
 /*------------------------------------------------------*/
 /* Structure for stacking nested subcircuit definitions */
 /*------------------------------------------------------*/
@@ -422,7 +469,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 {
   int cdnum = 1, rdnum = 1, ndev, multi;
   int warnings = 0, update = 0, hasports = 0;
-  char *eqptr, devtype;
+  char *eqptr, devtype, endsubcell;
   struct keyvalue *kvlist = NULL;
   char inst[256], model[256], instname[256];
   struct nlist *tp;
@@ -433,6 +480,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   instname[255] = '\0';
   
   while (!EndParseFile()) {
+
     SkipTok(); /* get the next token */
     if ((EndParseFile()) && (nexttok == NULL)) break;
 
@@ -566,50 +614,9 @@ skip_ends:
 	 }
       }
     }
-    else if (matchnocase(nexttok, ".ENDS")) {
-      /* If any pins are marked unconnected, see if there are	*/
-      /* other pins of the same name that have connections.	*/
-      /* Also remove any unconnected globals (just for cleanup) */
+    else if (endsubcell || matchnocase(nexttok, ".ENDS")) {
 
-      if (CurrentCell != NULL) {
-	 int maxnode = 0;
-	 for (sobj = CurrentCell->cell; sobj; sobj = sobj->next)
-	    if (sobj->node > maxnode)
-	       maxnode = sobj->node + 1;
-
-	 lobj = NULL;
-	 for (sobj = CurrentCell->cell; sobj != NULL;) {
-	    nobj = sobj->next;
-	    if (sobj->node < 0) {
-	       if (IsGlobal(sobj)) {
-		  if (lobj != NULL)
-		     lobj->next = sobj->next;
-		  else
-		     CurrentCell->cell = sobj->next;
-		  FreeObjectAndHash(sobj, CurrentCell);
-	       }
-	       else if (IsPort(sobj) && sobj->model.port == PROXY)
-		  sobj->node = maxnode++;
-	       else if (IsPort(sobj)) {
-		  for (pobj = CurrentCell->cell; pobj && (pobj->type == PORT);
-			pobj = pobj->next) {
-		     if (pobj == sobj) continue;
-		     if (matchnocase(pobj->name, sobj->name) && pobj->node >= 0) {
-			sobj->node = pobj->node;
-			break;
-		     }
-		  }
-		  lobj = sobj;
-	       }
-	       else
-		  lobj = sobj;
-	    }
-	    else
-	       lobj = sobj;
-	    sobj = nobj;
-         }
-      }
-
+      CleanupSubcell();
       EndCell();
 
       // This condition will be true if no nodes or components were
@@ -1772,6 +1779,17 @@ skip_ends:
 baddevice:
     Fprintf(stderr, "Badly formed line in input.\n");
   }
+
+  /* Watch for bad ending syntax */
+
+  if (*(CellStackPtr)) {
+     Printf("Error: Subcircuit without .ENDS encountered at EOF (ignoring).\n");
+     CleanupSubcell();
+     EndCell();
+     if (*CellStackPtr) PopStack(CellStackPtr);
+     if (*CellStackPtr) ReopenCellDef((*CellStackPtr)->cellname, filenum);
+  }
+
   if (update != 0) RecurseCellFileHashTable(renamepins, filenum);
 
   if (warnings)
