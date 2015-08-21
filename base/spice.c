@@ -434,7 +434,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   
   while (!EndParseFile()) {
     SkipTok(); /* get the next token */
-    if (EndParseFile()) break;
+    if ((EndParseFile()) && (nexttok == NULL)) break;
 
     if (nexttok[0] == '*') SkipNewLine();
 
@@ -571,41 +571,43 @@ skip_ends:
       /* other pins of the same name that have connections.	*/
       /* Also remove any unconnected globals (just for cleanup) */
 
-      int maxnode = 0;
-      for (sobj = CurrentCell->cell; sobj; sobj = sobj->next)
-	 if (sobj->node > maxnode)
-	    maxnode = sobj->node + 1;
+      if (CurrentCell != NULL) {
+	 int maxnode = 0;
+	 for (sobj = CurrentCell->cell; sobj; sobj = sobj->next)
+	    if (sobj->node > maxnode)
+	       maxnode = sobj->node + 1;
 
-      lobj = NULL;
-      for (sobj = CurrentCell->cell; sobj != NULL;) {
-	 nobj = sobj->next;
-	 if (sobj->node < 0) {
-	    if (IsGlobal(sobj)) {
-	       if (lobj != NULL)
-	          lobj->next = sobj->next;
-	       else
-	          CurrentCell->cell = sobj->next;
-	       FreeObjectAndHash(sobj, CurrentCell);
-	    }
-	    else if (IsPort(sobj) && sobj->model.port == PROXY)
-		sobj->node = maxnode++;
-	    else if (IsPort(sobj)) {
-		for (pobj = CurrentCell->cell; pobj && (pobj->type == PORT);
+	 lobj = NULL;
+	 for (sobj = CurrentCell->cell; sobj != NULL;) {
+	    nobj = sobj->next;
+	    if (sobj->node < 0) {
+	       if (IsGlobal(sobj)) {
+		  if (lobj != NULL)
+		     lobj->next = sobj->next;
+		  else
+		     CurrentCell->cell = sobj->next;
+		  FreeObjectAndHash(sobj, CurrentCell);
+	       }
+	       else if (IsPort(sobj) && sobj->model.port == PROXY)
+		  sobj->node = maxnode++;
+	       else if (IsPort(sobj)) {
+		  for (pobj = CurrentCell->cell; pobj && (pobj->type == PORT);
 			pobj = pobj->next) {
-		    if (pobj == sobj) continue;
-		    if (matchnocase(pobj->name, sobj->name) && pobj->node >= 0) {
+		     if (pobj == sobj) continue;
+		     if (matchnocase(pobj->name, sobj->name) && pobj->node >= 0) {
 			sobj->node = pobj->node;
 			break;
-		    }
-		}
-		lobj = sobj;
+		     }
+		  }
+		  lobj = sobj;
+	       }
+	       else
+		  lobj = sobj;
 	    }
 	    else
-		lobj = sobj;
-	 }
-	 else
-	    lobj = sobj;
-	 sobj = nobj;
+	       lobj = sobj;
+	    sobj = nobj;
+         }
       }
 
       EndCell();
