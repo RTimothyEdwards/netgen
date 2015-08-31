@@ -469,7 +469,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 {
   int cdnum = 1, rdnum = 1, ndev, multi;
   int warnings = 0, update = 0, hasports = 0;
-  char *eqptr, devtype, endsubcell;
+  char *eqptr, devtype, in_subckt;
   struct keyvalue *kvlist = NULL;
   char inst[256], model[256], instname[256];
   struct nlist *tp;
@@ -478,6 +478,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   inst[255] = '\0';
   model[255] = '\0';
   instname[255] = '\0';
+  in_subckt = (char)0;
   
   while (!EndParseFile()) {
 
@@ -492,6 +493,12 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	 Fprintf(stderr, "Badly formed .subkt line\n");
 	 goto skip_ends;
       }
+
+      if (in_subckt == (char)1) {
+	  Fprintf(stderr, "Missing .ENDS statement on subcircuit.\n");
+          InputParseError(stderr);
+      }
+      in_subckt = (char)1;
 
       /* Save pointer to current cell */
       if (CurrentCell != NULL)
@@ -610,22 +617,23 @@ skip_ends:
 	    SpiceSkipNewLine();
 	    SkipTok();
 	    if (EndParseFile()) break;
-	    if (matchnocase(nexttok, ".ENDS")) break;
+	    if (matchnocase(nexttok, ".ENDS")) {
+	       in_subckt = 0;
+	       break;
+	    }
 	 }
       }
     }
-    else if (endsubcell || matchnocase(nexttok, ".ENDS")) {
+    else if (matchnocase(nexttok, ".ENDS")) {
 
       CleanupSubcell();
       EndCell();
 
-      // This condition will be true if no nodes or components were
-      // created in the top-level cell before the first subcircuit
-      // definition, so it is not necessarily an error. . .
-
-      // if (*(CellStackPtr) && ((*CellStackPtr)->next == NULL))
-      //    Printf(".ENDS encountered outside of a subcell.\n");
-      // else
+      if (in_subckt == (char)0) {
+	  Fprintf(stderr, ".ENDS occurred outside of a subcircuit!\n");
+          InputParseError(stderr);
+      }
+      in_subckt = (char)0;
 
       if (*CellStackPtr) PopStack(CellStackPtr);
       if (*CellStackPtr) ReopenCellDef((*CellStackPtr)->cellname, filenum);
@@ -1782,8 +1790,12 @@ baddevice:
 
   /* Watch for bad ending syntax */
 
+  if (in_subckt == (char)1) {
+     Fprintf(stderr, "Missing .ENDS statement on subcircuit.\n");
+     InputParseError(stderr);
+  }
+
   if (*(CellStackPtr)) {
-     Printf("Error: Subcircuit without .ENDS encountered at EOF (ignoring).\n");
      CleanupSubcell();
      EndCell();
      if (*CellStackPtr) PopStack(CellStackPtr);
