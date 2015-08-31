@@ -204,8 +204,15 @@ static struct filestack *OpenFiles = NULL;
 int GetNextLineNoNewline()
 {
   char *newbuf;
+  int testc;
 
   if (feof(infile)) return -1;
+
+  // This is more reliable than feof() ...
+  testc = getc(infile);
+  if (testc == -1) return -1;
+  ungetc(testc, infile); 
+
   if (linesize == 0) {
 	/* Allocate memory for line */
 	linesize = 500;
@@ -295,7 +302,7 @@ void SpiceTokNoNewline(void)
 	    ungetc(contline, infile);
 	    return;
 	}
-	GetNextLineNoNewline();
+	if (GetNextLineNoNewline() == -1) break;
     }
 }
 
