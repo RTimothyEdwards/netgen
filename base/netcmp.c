@@ -2395,7 +2395,7 @@ struct nlist *LookupClassEquivalent(char *model, int file1, int file2)
 struct nlist *LookupPrematchedClass(struct nlist *tc1, int file2)
 {
    struct Correspond *crec;
-   struct nlist *tc2;
+   struct nlist *tc2 = NULL;
 
    for (crec = ClassCorrespondence; crec != NULL; crec = crec->next) {
       if (crec->file1 == tc1->file) {
@@ -2728,12 +2728,14 @@ void DescendCompareQueue(struct nlist *tc, struct nlist *tctop, int stoplevel,
       // Find exact-name equivalents or cells that have been specified
       // as equivalent using the "equate class" command.
 
-      tc2 = LookupClassEquivalent(tc->name, tc->file, tctop->file);
-      if (tc2 == NULL) {
-	 // Check if cell names were forced to be matched using the
-	 // "equate classes" command.
-	 tc2 = LookupPrematchedClass(tc, tctop->file);
-      }
+      // Check if cell names were forced to be matched using the
+      // "equate classes" command.  This takes precedence over any
+      // name matching.
+
+      tc2 = LookupPrematchedClass(tc, tctop->file);
+      if (tc2 == NULL)
+	 tc2 = LookupClassEquivalent(tc->name, tc->file, tctop->file);
+
       if (tc2 != NULL) {
 	 newcomp = (struct Correspond *)CALLOC(1, sizeof(struct Correspond));
 	 newcomp->next = NULL;
