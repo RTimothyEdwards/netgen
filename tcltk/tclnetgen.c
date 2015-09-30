@@ -146,7 +146,7 @@ Command netgen_cmds[] = {
 		"<cell>\n   "
 		"describe the cell"},
 	{"cells",		_netgen_cells,
-		"[list|-all|-top] [filename]\n   "
+		"[list] [-all | -top | filename]\n   "
 		"print known cells, optionally from filename only\n   "
 		"-all:  print all cells, including primitives\n   "
 		"-top:  print all top-level cells"},
@@ -257,6 +257,25 @@ Command netcmp_cmds[] = {
 	NULL
 };
  
+/*------------------------------------------------------*/
+/* Given a file number, need to find the top-level cell */
+/*------------------------------------------------------*/
+
+struct nlist *
+GetTopCell(int fnum)
+{
+    struct nlist *tp;
+
+    tp = FirstCell();
+    while (tp != NULL) {
+	if (tp->flags & CELL_TOP)
+	    if (tp->file == fnum)
+		break;
+	tp = NextCell();
+    }
+    return tp;
+}
+
 /*------------------------------------------------------*/
 /* Common function to parse a Tcl object as either a	*/
 /* netlist file name or a file number.			*/
@@ -617,13 +636,7 @@ CommonParseCell(Tcl_Interp *interp, Tcl_Obj *objv,
 	    }
 	    else {
 		/* Given a file number, need to find the top-level cell */
-		tp = FirstCell();
-		while (tp != NULL) {
-		    if (tp->flags & CELL_TOP)
-			if (tp->file == fnum)
-			    break;
-		    tp = NextCell();
-		}
+		tp = GetTopCell(fnum);
 		if (tp == NULL) {
 		    Tcl_SetResult(interp, "No such file number!\n", NULL);
 		    return TCL_ERROR;
@@ -1005,15 +1018,20 @@ _netgen_flatten(ClientData clientData,
 
    if (objc == 3) {
       char *argv = Tcl_GetString(objv[1]);
-      if (!strcmp(argv, "class"))
+      if (!strcmp(argv, "class")) {
+	 tp = GetTopCell(filenum);
+	 Printf("Flattening instances of %s in file %s\n", repstr, tp->name);
          FlattenInstancesOf(repstr, filenum);
+      }
       else {
 	 Tcl_WrongNumArgs(interp, 1, objv, "class valid_cellname");
 	 return TCL_ERROR;
       }
    }
-   else
+   else {
+      Printf("Flattening contents of cell %s\n", repstr);
       Flatten(repstr, filenum);
+   }
    return TCL_OK;
 }
 
@@ -1420,7 +1438,7 @@ _netgen_cells(ClientData clientData,
       PrintCellHashTable((dolist) ? 2 : 0, -1);
    }
    else if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 1, objv, "[-all|-top|valid_filename]");
+      Tcl_WrongNumArgs(interp, 1, objv, "[list] [-all|-top|valid_filename]");
       return TCL_ERROR;
    }
    else {

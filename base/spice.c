@@ -529,13 +529,14 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	    n = -1;
 	 }
 
-	 Printf("Duplicate cell %s in file; renaming.\n", nexttok);
+	 Printf("Duplicate cell %s in file\n", nexttok);
          while (tp != NULL) {
 	    n++;
 	    /* Append "[[n]]" to the preexisting model name to force uniqueness */
 	    sprintf(ds, "[[%d]]", n);
             tp = LookupCellFile(model, filenum);
 	 }
+	 Printf("Renaming original cell to %s\n", model);
 	 InstanceRename(nexttok, model, filenum);
 	 CellRehash(nexttok, model, filenum);
          CellDefNoCase(nexttok, filenum);
