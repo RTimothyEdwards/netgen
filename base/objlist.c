@@ -344,6 +344,9 @@ void CellRehash(char *name, char *newname, int file)
   ptr = HashIntPtrInstall(newname, file, (void *)tp, cell_hashtab, CELLHASHSIZE);
   if (ptr != NULL)
      HashIntDelete(name, file, cell_hashtab, CELLHASHSIZE);
+
+  // Change the classhash to reflect the new name
+  tp->classhash = (*hashfunc)(newname, 0);
 }
 
 struct nlist *OldCell;
