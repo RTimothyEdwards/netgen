@@ -2719,7 +2719,7 @@ void DescendCountQueue(struct nlist *tc, int *level, int loclevel)
 void DescendCompareQueue(struct nlist *tc, struct nlist *tctop, int stoplevel,
 		int loclevel, int flip)
 {
-   struct nlist *tcsub, *tc2;
+   struct nlist *tcsub, *tc2, *tctest;
    struct objlist *ob;
    struct Correspond *scomp, *newcomp;
 
@@ -2733,8 +2733,18 @@ void DescendCompareQueue(struct nlist *tc, struct nlist *tctop, int stoplevel,
       // name matching.
 
       tc2 = LookupPrematchedClass(tc, tctop->file);
-      if (tc2 == NULL)
+      if (tc2 == NULL) {
 	 tc2 = LookupClassEquivalent(tc->name, tc->file, tctop->file);
+
+	 // If there is a name equivalent, then make sure that
+	 // the matching entry does not exist in the prematched
+	 // class list with a match to something else.
+
+         if (tc2 != NULL) {
+	    tctest = LookupPrematchedClass(tc2, tc->file);
+	    if (tctest != NULL && tctest != tc) return;
+         }
+      }
 
       if (tc2 != NULL) {
 	 newcomp = (struct Correspond *)CALLOC(1, sizeof(struct Correspond));
