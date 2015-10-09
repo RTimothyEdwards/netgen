@@ -6056,8 +6056,6 @@ case $target in
 
     $as_echo "#define i386 1" >>confdefs.h
 
-    $as_echo "#define WIN32 1" >>confdefs.h
-
     ;;
   *darwin*)
     $as_echo "#define macosx 1" >>confdefs.h

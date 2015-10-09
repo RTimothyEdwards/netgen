@@ -845,7 +845,6 @@ case $target in
   *cygwin*)
     AC_DEFINE(CYGWIN)
     AC_DEFINE(i386)
-    AC_DEFINE(WIN32)
     ;; 
   *darwin*)
     AC_DEFINE(macosx)
