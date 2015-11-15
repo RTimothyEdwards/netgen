@@ -329,7 +329,7 @@ if test $usingTcl ; then
     #  1. Search previously named locations.
 
     for dir in \
-     $prefix \
+     $ac_default_prefix \
      $exec_prefix
     do
       if test -r "$dir/tclConfig.sh" ; then
@@ -414,7 +414,7 @@ if test $usingTcl ; then
     #  1. Search previously named locations.
     #
     for dir in \
-     $prefix \
+     $ac_default_prefix \
      $exec_prefix
     do
       if test -r "$dir/tkConfig.sh" ; then
