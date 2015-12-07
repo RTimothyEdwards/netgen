@@ -1814,3 +1814,492 @@ sed -e /TCL_DIR/s%TCL_DIR%/usr/local/lib/netgen/tcl%g \
     netgen.sh.in > netgen.sh
 make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/tcltk'
 make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+--- making modules
+for dir in base ; do \
+	(cd $dir && make module); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/base'
+--- compiling base/actel.o
+rm -f actel.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c actel.c
+--- compiling base/ccode.o
+rm -f ccode.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c ccode.c
+--- compiling base/greedy.o
+rm -f greedy.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c greedy.c
+--- compiling base/ntk.o
+rm -f ntk.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c ntk.c
+--- compiling base/print.o
+rm -f print.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c print.c
+--- compiling base/actellib.o
+rm -f actellib.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c actellib.c
+--- compiling base/embed.o
+rm -f embed.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c embed.c
+--- compiling base/hash.o
+rm -f hash.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c hash.c
+--- compiling base/netfile.o
+rm -f netfile.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c netfile.c
+--- compiling base/objlist.o
+rm -f objlist.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c objlist.c
+--- compiling base/query.o
+rm -f query.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c query.c
+query.c: In function 'Query':
+query.c:986:7: error: too few arguments to function 'PrintCell'
+       PrintCell(repstr);
+       ^
+query.c:653:6: note: declared here
+ void PrintCell(char *name, int fnum)
+      ^
+query.c:1003:7: error: too few arguments to function 'Ext'
+       Ext(repstr);
+       ^
+In file included from query.c:38:0:
+netgen.h:158:13: note: declared here
+ extern void Ext(char *name, int fnum);
+             ^
+query.c:1007:7: error: too few arguments to function 'Sim'
+       Sim(repstr);
+       ^
+In file included from query.c:38:0:
+netgen.h:159:13: note: declared here
+ extern void Sim(char *name, int fnum);
+             ^
+query.c:1037:7: error: too few arguments to function 'ReadNetlist'
+       ReadNetlist(repstr);
+       ^
+In file included from query.c:38:0:
+netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+query.c:1041:7: error: too few arguments to function 'ReadExtHier'
+       ReadExtHier(repstr);
+       ^
+In file included from query.c:38:0:
+netgen.h:167:14: note: declared here
+ extern char *ReadExtHier(char *fname, int *fnum);
+              ^
+query.c:1045:7: error: too few arguments to function 'ReadSim'
+       ReadSim(repstr);
+       ^
+In file included from query.c:38:0:
+netgen.h:169:14: note: declared here
+ extern char *ReadSim(char *fname, int *fnum);
+              ^
+query.c:1049:7: error: too few arguments to function 'ReadNtk'
+       ReadNtk(repstr);
+       ^
+In file included from query.c:38:0:
+netgen.h:166:14: note: declared here
+ extern char *ReadNtk (char *fname, int *fnum);
+              ^
+query.c:1057:7: error: too few arguments to function 'ReadSpice'
+       ReadSpice(repstr);
+       ^
+In file included from query.c:38:0:
+netgen.h:170:14: note: declared here
+ extern char *ReadSpice(char *fname, int *fnum);
+              ^
+query.c:1061:7: error: too few arguments to function 'ReadNetgenFile'
+       ReadNetgenFile(repstr);
+       ^
+In file included from query.c:38:0:
+netgen.h:172:14: note: declared here
+ extern char *ReadNetgenFile (char *fname, int *fnum);
+              ^
+../rules.mak:11: recipe for target 'query.o' failed
+make[2]: *** [query.o] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/base'
+Makefile:43: recipe for target 'modules' failed
+make[1]: *** [modules] Error 2
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+--- making modules
+for dir in base ; do \
+	(cd $dir && make module); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/base'
+--- compiling base/query.o
+rm -f query.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c query.c
+--- compiling base/anneal.o
+rm -f anneal.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c anneal.c
+--- compiling base/ext.o
+rm -f ext.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c ext.c
+--- compiling base/netcmp.o
+rm -f netcmp.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c netcmp.c
+--- compiling base/netgen.o
+rm -f netgen.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c netgen.c
+--- compiling base/pdutils.o
+rm -f pdutils.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c pdutils.c
+--- compiling base/random.o
+rm -f random.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c random.c
+--- compiling base/timing.o
+rm -f timing.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c timing.c
+--- compiling base/bottomup.o
+rm -f bottomup.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c bottomup.c
+--- compiling base/flatten.o
+rm -f flatten.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c flatten.c
+--- compiling base/place.o
+rm -f place.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c place.c
+--- compiling base/spice.o
+rm -f spice.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c spice.c
+--- compiling base/wombat.o
+rm -f wombat.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c wombat.c
+--- compiling base/xilinx.o
+rm -f xilinx.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c xilinx.c
+--- compiling base/xillib.o
+rm -f xillib.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c xillib.c
+--- linking libbase.o
+rm -f libbase.o
+/bin/ld -r actel.o ccode.o greedy.o ntk.o print.o actellib.o embed.o hash.o netfile.o objlist.o query.o anneal.o ext.o netcmp.o netgen.o pdutils.o random.o timing.o bottomup.o flatten.o place.o spice.o wombat.o xilinx.o xillib.o -o libbase.o 
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/base'
+--- making main programs
+for dir in netgen netgen; do \
+	(cd $dir && make main); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+--- compiling netgen/netgen_main.o
+rm -f netgen_main.o
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c netgen_main.c
+--- linking libnetgen.o
+rm -f libnetgen.o
+/bin/ld -r netgen_main.o -o libnetgen.o 
+--- building main netgen
+rm -f netgen
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" libnetgen.o ../base/libbase.o  \
+	-o netgen  -lm 
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" netcomp.c -o netcomp ../base/libbase.o  \
+	 -lm 
+netcomp.c: In function 'main':
+netcomp.c:63:17: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cell1, ReadNetlist(argv[1]));
+                 ^
+In file included from netcomp.c:22:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+netcomp.c:66:17: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cell2, ReadNetlist(argv[2]));
+                 ^
+In file included from netcomp.c:22:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+Makefile:49: recipe for target 'netcomp' failed
+make[2]: *** [netcomp] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" netcomp.c -o netcomp ../base/libbase.o  \
+	 -lm 
+netcomp.c: In function 'main':
+netcomp.c:63:17: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cell1, ReadNetlist(argv[1]));
+                 ^
+In file included from netcomp.c:22:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+netcomp.c:66:17: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cell2, ReadNetlist(argv[2]));
+                 ^
+In file included from netcomp.c:22:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+Makefile:49: recipe for target 'netcomp' failed
+make[2]: *** [netcomp] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+Makefile:38: recipe for target 'mains' failed
+make[1]: *** [mains] Error 2
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+--- making modules
+for dir in base ; do \
+	(cd $dir && make module); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/base'
+make[2]: Nothing to be done for 'module'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/base'
+--- making main programs
+for dir in netgen netgen; do \
+	(cd $dir && make main); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" netcomp.c -o netcomp ../base/libbase.o  \
+	 -lm 
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" inetcomp.c -o inetcomp ../base/libbase.o  \
+	 -lm 
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2adl.c -o ntk2adl ../base/libbase.o  \
+	 -lm 
+ntk2adl.c: In function 'main':
+ntk2adl.c:58:20: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cellname, ReadNetlist(argv[1]));
+                    ^
+In file included from ntk2adl.c:22:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+Makefile:57: recipe for target 'ntk2adl' failed
+make[2]: *** [ntk2adl] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2adl.c -o ntk2adl ../base/libbase.o  \
+	 -lm 
+ntk2adl.c: In function 'main':
+ntk2adl.c:58:20: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cellname, ReadNetlist(argv[1]));
+                    ^
+In file included from ntk2adl.c:22:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+Makefile:57: recipe for target 'ntk2adl' failed
+make[2]: *** [ntk2adl] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+Makefile:38: recipe for target 'mains' failed
+make[1]: *** [mains] Error 2
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+--- making modules
+for dir in base ; do \
+	(cd $dir && make module); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/base'
+make[2]: Nothing to be done for 'module'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/base'
+--- making main programs
+for dir in netgen netgen; do \
+	(cd $dir && make main); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2adl.c -o ntk2adl ../base/libbase.o  \
+	 -lm 
+ntk2adl.c: In function 'main':
+ntk2adl.c:59:20: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cellname, ReadNetlist(argv[1]), &filenum);
+                    ^
+In file included from ntk2adl.c:22:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+ntk2adl.c:59:3: error: too many arguments to function 'STRCPY'
+   STRCPY(cellname, ReadNetlist(argv[1]), &filenum);
+   ^
+ntk2adl.c:41:6: note: declared here
+ void STRCPY(char *dest, char *source)
+      ^
+Makefile:57: recipe for target 'ntk2adl' failed
+make[2]: *** [ntk2adl] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2adl.c -o ntk2adl ../base/libbase.o  \
+	 -lm 
+ntk2adl.c: In function 'main':
+ntk2adl.c:59:20: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cellname, ReadNetlist(argv[1]), &filenum);
+                    ^
+In file included from ntk2adl.c:22:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+ntk2adl.c:59:3: error: too many arguments to function 'STRCPY'
+   STRCPY(cellname, ReadNetlist(argv[1]), &filenum);
+   ^
+ntk2adl.c:41:6: note: declared here
+ void STRCPY(char *dest, char *source)
+      ^
+Makefile:57: recipe for target 'ntk2adl' failed
+make[2]: *** [ntk2adl] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+Makefile:38: recipe for target 'mains' failed
+make[1]: *** [mains] Error 2
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+--- making modules
+for dir in base ; do \
+	(cd $dir && make module); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/base'
+make[2]: Nothing to be done for 'module'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/base'
+--- making main programs
+for dir in netgen netgen; do \
+	(cd $dir && make main); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2adl.c -o ntk2adl ../base/libbase.o  \
+	 -lm 
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2xnf.c -o ntk2xnf ../base/libbase.o  \
+	 -lm 
+ntk2xnf.c: In function 'main':
+ntk2xnf.c:60:20: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cellname, ReadNetlist(argv[1]));
+                    ^
+In file included from ntk2xnf.c:25:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+Makefile:61: recipe for target 'ntk2xnf' failed
+make[2]: *** [ntk2xnf] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2xnf.c -o ntk2xnf ../base/libbase.o  \
+	 -lm 
+ntk2xnf.c: In function 'main':
+ntk2xnf.c:60:20: error: too few arguments to function 'ReadNetlist'
+   STRCPY(cellname, ReadNetlist(argv[1]));
+                    ^
+In file included from ntk2xnf.c:25:0:
+../base/netgen.h:174:14: note: declared here
+ extern char *ReadNetlist(char *fname, int *fnum);
+              ^
+Makefile:61: recipe for target 'ntk2xnf' failed
+make[2]: *** [ntk2xnf] Error 1
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+Makefile:38: recipe for target 'mains' failed
+make[1]: *** [mains] Error 2
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+--- making modules
+for dir in base ; do \
+	(cd $dir && make module); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/base'
+make[2]: Nothing to be done for 'module'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/base'
+--- making main programs
+for dir in netgen netgen; do \
+	(cd $dir && make main); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2xnf.c -o ntk2xnf ../base/libbase.o  \
+	 -lm 
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Nothing to be done for 'main'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'
+make[1]: Entering directory '/home/tim/gitsrc/netgen-1.5'
+--- making modules
+for dir in base ; do \
+	(cd $dir && make module); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/base'
+--- compiling base/actel.o
+rm -f actel.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c actel.c
+--- compiling base/ccode.o
+rm -f ccode.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c ccode.c
+--- compiling base/greedy.o
+rm -f greedy.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c greedy.c
+--- compiling base/ntk.o
+rm -f ntk.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c ntk.c
+--- compiling base/print.o
+rm -f print.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c print.c
+--- compiling base/actellib.o
+rm -f actellib.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c actellib.c
+--- compiling base/embed.o
+rm -f embed.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c embed.c
+--- compiling base/hash.o
+rm -f hash.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c hash.c
+--- compiling base/netfile.o
+rm -f netfile.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c netfile.c
+--- compiling base/objlist.o
+rm -f objlist.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c objlist.c
+--- compiling base/query.o
+rm -f query.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c query.c
+--- compiling base/anneal.o
+rm -f anneal.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c anneal.c
+--- compiling base/ext.o
+rm -f ext.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c ext.c
+--- compiling base/netcmp.o
+rm -f netcmp.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c netcmp.c
+--- compiling base/netgen.o
+rm -f netgen.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c netgen.c
+--- compiling base/pdutils.o
+rm -f pdutils.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c pdutils.c
+--- compiling base/random.o
+rm -f random.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c random.c
+--- compiling base/timing.o
+rm -f timing.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c timing.c
+--- compiling base/bottomup.o
+rm -f bottomup.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c bottomup.c
+--- compiling base/flatten.o
+rm -f flatten.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c flatten.c
+--- compiling base/place.o
+rm -f place.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c place.c
+--- compiling base/spice.o
+rm -f spice.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c spice.c
+--- compiling base/wombat.o
+rm -f wombat.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c wombat.c
+--- compiling base/xilinx.o
+rm -f xilinx.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c xilinx.c
+--- compiling base/xillib.o
+rm -f xillib.o
+gcc -g -m64 -fPIC    -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c xillib.c
+--- linking libbase.o
+rm -f libbase.o
+/bin/ld -r actel.o ccode.o greedy.o ntk.o print.o actellib.o embed.o hash.o netfile.o objlist.o query.o anneal.o ext.o netcmp.o netgen.o pdutils.o random.o timing.o bottomup.o flatten.o place.o spice.o wombat.o xilinx.o xillib.o -o libbase.o 
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/base'
+--- making main programs
+for dir in netgen netgen; do \
+	(cd $dir && make main); done
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+--- compiling netgen/netgen_main.o
+rm -f netgen_main.o
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\""  -c netgen_main.c
+--- linking libnetgen.o
+rm -f libnetgen.o
+/bin/ld -r netgen_main.o -o libnetgen.o 
+--- building main netgen
+rm -f netgen
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" libnetgen.o ../base/libbase.o  \
+	-o netgen  -lm 
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" netcomp.c -o netcomp ../base/libbase.o  \
+	 -lm 
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" inetcomp.c -o inetcomp ../base/libbase.o  \
+	 -lm 
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2adl.c -o ntk2adl ../base/libbase.o  \
+	 -lm 
+gcc -g -m64 -fPIC    -I../base -I. -I..  -DCAD_DIR=\"/usr/local/lib\" -DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"47\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -Dlinux=1 -DSYSV=1 -DISC=1 -DSHDLIB_EXT=\"\" -DNDEBUG -DNDEBUG -DNETGEN_DATE="\"`date`\"" ntk2xnf.c -o ntk2xnf ../base/libbase.o  \
+	 -lm 
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Entering directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[2]: Nothing to be done for 'main'.
+make[2]: Leaving directory '/home/tim/gitsrc/netgen-1.5/netgen'
+make[1]: Leaving directory '/home/tim/gitsrc/netgen-1.5'

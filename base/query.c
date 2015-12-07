@@ -948,6 +948,7 @@ void Query(void)
   char repstr2[100];
   float StartTime;   /* for elapsed CPU times */
   int Timing;  /* if true, print times of each command */
+  int filenum = -1;
 	
   if (!SuppressPrompts)
     Printf("Netgen %s.%s: %s, %s, %s\n", NETGEN_VERSION, NETGEN_REVISION,
@@ -961,8 +962,8 @@ void Query(void)
     if (Timing) StartTime = CPUTime();
     reply = repstr[0];
     switch (reply) {
-    case 'h' : PrintCellHashTable(0, -1); break;
-    case 'H' : PrintCellHashTable(1, -1); break;
+    case 'h' : PrintCellHashTable(0, filenum); break;
+    case 'H' : PrintCellHashTable(1, filenum); break;
     case 'N' :
       promptstring("Enter circuit name: ", repstr);
       PrintNodes(repstr, -1);
@@ -983,15 +984,15 @@ void Query(void)
       break;
     case 'c' : 
       promptstring("Enter circuit name: ", repstr);
-      PrintCell(repstr);
+      PrintCell(repstr, filenum);
       break;
     case 'i' :
       promptstring("Enter circuit name: ", repstr);
-      PrintInstances(repstr, -1);
+      PrintInstances(repstr, filenum);
       break;
     case 'd':
       promptstring("Enter circuit name: ", repstr);
-      DescribeInstance(repstr, -1);
+      DescribeInstance(repstr, filenum);
       break;
 /* output file formats */
     case 'k' : 
@@ -1000,11 +1001,11 @@ void Query(void)
       break;
     case 'x' : 
       promptstring("Write EXT: Enter circuit name: ", repstr);
-      Ext(repstr);
+      Ext(repstr, filenum);
       break;
     case 'z' : 
       promptstring("Write SIM: Enter circuit name: ", repstr);
-      Sim(repstr);
+      Sim(repstr, filenum);
       break;
     case 'w' : 
       promptstring("Write WOMBAT: circuit name: ", repstr);
@@ -1016,7 +1017,7 @@ void Query(void)
       break;
     case 's':
       promptstring("Write SPICE: circuit name: ", repstr);
-      SpiceCell(repstr, -1, "");
+      SpiceCell(repstr, filenum, "");
       break;
     case 'E':
       promptstring("Write ESACAP: circuit name: ", repstr);
@@ -1034,19 +1035,19 @@ void Query(void)
     case 'r':
     case 'R':
       promptstring("Read file: ",repstr);
-      ReadNetlist(repstr);
+      ReadNetlist(repstr, &filenum);
       break;
     case 'X' : 
       promptstring("Read EXT: Enter file name: ", repstr);
-      ReadExtHier(repstr);
+      ReadExtHier(repstr, &filenum);
       break;
     case 'Z' : 
       promptstring("Read SIM: Enter file name: ", repstr);
-      ReadSim(repstr);
+      ReadSim(repstr, &filenum);
       break;
     case 'K' : 
       promptstring("Read NTK: file? ", repstr);
-      ReadNtk(repstr);
+      ReadNtk(repstr, &filenum);
       break;
     case 'A' : 
       printf("Reading ACTEL library.\n");
@@ -1054,24 +1055,24 @@ void Query(void)
       break;
     case 'S':
       promptstring("Read SPICE (.ckt) file? ", repstr);
-      ReadSpice(repstr);
+      ReadSpice(repstr, &filenum);
       break;
     case 'G' : 
       promptstring("Read NETGEN: file? ", repstr);
-      ReadNetgenFile(repstr);
+      ReadNetgenFile(repstr, &filenum);
       break;
 
     case 'f' : 
       promptstring("Enter circuit name to flatten: ", repstr);
-      Flatten(repstr, -1);
+      Flatten(repstr, filenum);
       break;
     case 'F' : 
       promptstring("Enter class of circuit to flatten: ", repstr);
-      FlattenInstancesOf(repstr, -1);
+      FlattenInstancesOf(repstr, filenum);
       break;
     case 'p' : 
       promptstring("Enter circuit name: ", repstr);
-      PrintPortsInCell(repstr, -1);
+      PrintPortsInCell(repstr, filenum);
       break;
     case 'T' : 
       NETCOMP();
@@ -1079,7 +1080,7 @@ void Query(void)
     case 'l' : 
       ClearDumpedList();
       promptstring("Enter circuit name: ", repstr);
-      PrintLeavesInCell(repstr, -1);
+      PrintLeavesInCell(repstr, filenum);
       break;
     case 'L' : 
       printf("List of all leaf circuits:\n");

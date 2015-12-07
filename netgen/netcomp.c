@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
 {
 #ifndef HAVE_GETOPT
   char cell1[200], cell2[200];
+  int filenum = -1;
 
   Debug = 0;
   if (argc < 3 || argc > 5) {
@@ -60,10 +61,10 @@ int main(int argc, char *argv[])
   }
   Initialize();
 
-  STRCPY(cell1, ReadNetlist(argv[1]));
+  STRCPY(cell1, ReadNetlist(argv[1], &filenum));
   if (argc >= 4) STRCPY(cell1, argv[3]);  /* if explicit cell name specified */
 
-  STRCPY(cell2, ReadNetlist(argv[2]));
+  STRCPY(cell2, ReadNetlist(argv[2], &filenum));
   if (argc == 5) STRCPY(cell2, argv[4]);  /* if explicit cell name specified */
 #else
   char cell1[200], cell2[200];

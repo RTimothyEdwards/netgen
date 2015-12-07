@@ -46,6 +46,7 @@ void STRCPY(char *dest, char *source)
 int main(int argc, char *argv[])
 {
   char cellname[200];
+  int filenum = -1;
 
   Debug = 0;
   if (argc < 2 || argc > 3) {
@@ -55,7 +56,7 @@ int main(int argc, char *argv[])
   Initialize();
   ActelLib();
 
-  STRCPY(cellname, ReadNetlist(argv[1]));
+  STRCPY(cellname, ReadNetlist(argv[1], &filenum));
   if (argc == 3) STRCPY(cellname, argv[2]);
 
   Actel(cellname, NULL);
