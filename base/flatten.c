@@ -1348,7 +1348,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     // Find all instances of one cell that have fewer in
     // the compared circuit.  Check whether subcircuits
     // in the hierarchy of each instance contain devices
-    // or subcircuits that more in the compared circuit.
+    // or subcircuits that have more in the compared circuit.
 
     ecomp = (ECompare *)HashFirst(comptab, OBJHASHSIZE);
     while (ecomp != NULL) {
@@ -1386,12 +1386,15 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		flattenInstancesOf(name2, file2, ecomp->cell2->name); 
-		flattenInstancesOf(name1, file1, ecomp->cell1->name); 
+		if (ecomp->cell2)
+		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
+		if (ecomp->cell1)
+		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
 		modified++;
 	    }
 
 	    /* Reset or apply the count adjustments */
+	    if (ecomp->cell2)
 	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
 		    ncomp = (ECompare *)HashLookup(ob2->model.class,
