@@ -4334,9 +4334,18 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
       tp = LookupCellFile(name1, file1);
       if (need_new_seed == 1) {
 	 char *altname;
-	 altname = (char *)MALLOC(strlen(name1 + 2));
-	 sprintf(altname, "_%s", name1);
-	 tp->classhash = (*hashfunc)(altname, 0);
+	 while (need_new_seed == 1) {
+	    altname = (char *)MALLOC(strlen(name1) + 2);
+	    sprintf(altname, "%s%c", name1, (char)(65 + Random(26)));
+	    tp->classhash = (*hashfunc)(altname, 0);
+
+	    /* Make sure randomly-altered name is not in any netlist */
+	    if ((LookupCellFile(altname, file1) == NULL) &&
+			(LookupCellFile(altname, file2) == NULL))
+		need_new_seed = 0;
+
+	    FREE(altname);
+	 }
       }
       tp2 = LookupCellFile(name2, file2);
       tp2->classhash = tp->classhash;
