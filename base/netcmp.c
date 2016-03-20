@@ -3737,6 +3737,7 @@ int ResolveAutomorphsByProperty()
 		badmatch = FALSE;
 		for (E2 = E1->next; E2 != NULL; E2 = E2->next) {
 		    if (E2->hashval != orighash) continue;
+		    if (E2->graph == E1->graph) continue;
 		    result = PropertyMatch(E1->object, E2->object, FALSE);
 		    if (result == 0) {
 			E2->hashval = newhash;
@@ -4310,6 +4311,7 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
    char *class1, *class2;
    struct Correspond *newc;
    struct nlist *tp, *tp2;
+   unsigned char need_new_seed = 0;
 
    if (file1 != -1 && file2 != -1) {
 
@@ -4317,7 +4319,25 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
       if (tp && (*matchfunc)(tp->name, name2))
 	 return 1;	/* Already equivalent */
 
+      /* Do a cross-check for each name in the other netlist.  If 	*/
+      /* conflicting names exist, then alter the classhash to make it	*/
+      /* unique.							*/
+
+      tp = LookupCellFile(name1, file2);
+      if (tp != NULL) need_new_seed = 1;
+      tp = LookupCellFile(name2, file1);
+      if (tp != NULL) need_new_seed = 1;
+
+      /* Now make the classhash values the same so that these cells	*/
+      /* are indistinguishable by the netlist comparator.		*/
+
       tp = LookupCellFile(name1, file1);
+      if (need_new_seed == 1) {
+	 char *altname;
+	 altname = (char *)MALLOC(strlen(name1 + 2));
+	 sprintf(altname, "_%s", name1);
+	 tp->classhash = (*hashfunc)(altname, 0);
+      }
       tp2 = LookupCellFile(name2, file2);
       tp2->classhash = tp->classhash;
       return 1;
