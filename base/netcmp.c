@@ -3243,6 +3243,10 @@ int Iterate(void)
 /* return the number of mismatched properties (0 = perfect	*/
 /* match of all properties, or there were no properties to	*/
 /* compare).							*/
+/*								*/
+/* NOTE:  ob1 must belong to Circuit1, and ob2 must belong to	*/
+/* Circuit2.  The calling procedure is responsble for ensuring	*/
+/* that this is true.						*/
 /*--------------------------------------------------------------*/
 
 int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
@@ -3738,7 +3742,10 @@ int ResolveAutomorphsByProperty()
 		for (E2 = E1->next; E2 != NULL; E2 = E2->next) {
 		    if (E2->hashval != orighash) continue;
 		    if (E2->graph == E1->graph) continue;
-		    result = PropertyMatch(E1->object, E2->object, FALSE);
+		    if (E1->graph == Circuit1->file) 
+			result = PropertyMatch(E1->object, E2->object, FALSE);
+		    else
+			result = PropertyMatch(E2->object, E1->object, FALSE);
 		    if (result == 0) {
 			E2->hashval = newhash;
 			if (E2->graph == E1->graph)
