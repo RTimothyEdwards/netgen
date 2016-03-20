@@ -3282,8 +3282,10 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
       if (t1type != PROPERTY) return 0;
 
    // Sanity check---shouldn't happen
-   if ((t1type == PROPERTY) && (tp1->instance.props == NULL)) t1type = UNKNOWN;
-   if ((t2type == PROPERTY) && (tp2->instance.props == NULL)) t2type = UNKNOWN;
+   if (tp1 && (t1type == PROPERTY) && (tp1->instance.props == NULL))
+	t1type = UNKNOWN;
+   if (tp2 && (t2type == PROPERTY) && (tp2->instance.props == NULL))
+	t2type = UNKNOWN;
 
    if ((t1type != PROPERTY) && (t2type != PROPERTY)) return 0;  
 
