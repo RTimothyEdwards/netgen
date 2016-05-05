@@ -2674,8 +2674,8 @@ int FlattenUnmatched(struct nlist *tc, char *parent, int stoplevel, int loclevel
 
    changed = 1;
    while (changed) {
+      changed = 0;
       for (ob = tc->cell; ob != NULL; ob = ob->next) {
-	 changed = 0;
          tcsub = NULL;
          if (ob->type == FIRSTPIN) {
 	    /* First check if there is a class equivalent */
