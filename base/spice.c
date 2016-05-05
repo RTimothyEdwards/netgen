@@ -520,6 +520,10 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	 int n;
 	 char *ds;
 
+	 // NOTE:  Use this to ignore the new definition---should be
+	 // an option to netgen.
+	 /* goto skip_ends; */
+
 	 ds = strrchr(model, '[');
 	 if ((ds != NULL) && (*(ds + 1) == '['))
 	    sscanf(ds + 2, "%d", &n);

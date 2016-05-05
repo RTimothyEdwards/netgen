@@ -915,7 +915,7 @@ struct nlist *uniquepins(struct hashlist *p, void *clientdata)
 	       }
 	    }
 	    tob = tob->next;
-	    if (tob->type != PORT && tob->type != UNKNOWN) break;
+	    if (tob == NULL || (tob->type != PORT && tob->type != UNKNOWN)) break;
 	 }
 
 	 /* 2nd pass---remove the pins */
@@ -941,7 +941,7 @@ struct nlist *uniquepins(struct hashlist *p, void *clientdata)
 	       ob = ob->next;
 	    }
 	    tob = tob->next;
-	    if (tob->type != PORT && tob->type != UNKNOWN) break;
+	    if (tob == NULL || (tob->type != PORT && tob->type != UNKNOWN)) break;
 	 }
 
 	 // Renumber the pins in order.  Since when removing duplicates, the
