@@ -3,6 +3,8 @@
 .inca.db.*
 inca.*.pak
 *.swp
+*.log
+*.so
 *~
 */av_extracted*/
 .nfs*
