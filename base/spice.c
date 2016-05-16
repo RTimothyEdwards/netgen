@@ -534,6 +534,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	 }
 
 	 Printf("Duplicate cell %s in file\n", nexttok);
+	 tp->flags |= CELL_DUPLICATE;
          while (tp != NULL) {
 	    n++;
 	    /* Append "[[n]]" to the preexisting model name to force uniqueness */

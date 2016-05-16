@@ -381,7 +381,8 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	  /* delete all ports at beginning of list */
 	  if (Debug) Printf("deleting leading port from child\n");
 	  tmp = ChildObjList->next;
-	  FreeObjectAndHash(ChildObjList, ChildCell);
+	  // FreeObjectAndHash(ChildObjList, ChildCell);
+	  FreeObject(ChildObjList);
 	  ChildObjList = tmp;
         }
         tmp = ChildObjList;
@@ -389,7 +390,8 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	  if (IsPort(tmp->next)) {
 	    ob2 = (tmp->next)->next;
 	    if (Debug) Printf("deleting a port from child\n");
-	    FreeObjectAndHash(tmp->next, ChildCell);
+	    // FreeObjectAndHash(tmp->next, ChildCell);
+	    FreeObject(tmp->next);
 	    tmp->next = ob2;
 	  } 
 	  else tmp = tmp->next;
@@ -499,9 +501,22 @@ int flattenoneentry(struct hashlist *p, int file)
    struct nlist *ptr;
 
    ptr = (struct nlist *)(p->ptr);
-   if (file == ptr->file)
+   if (file == ptr->file) {
       if (!(*matchfunc)(ptr->name, model_to_flatten) && (ptr->class == CLASS_SUBCKT))
 	 flattenInstancesOf(ptr->name, file, model_to_flatten);
+      else if (ptr->flags & CELL_DUPLICATE) {
+	 char *bptr = strstr(ptr->name, "[[");
+	 if (bptr != NULL) {
+	    *bptr = '\0';
+            if (!(*matchfunc)(ptr->name, model_to_flatten)
+			&& (ptr->class == CLASS_SUBCKT)) {
+	       *bptr = '[';
+	       flattenInstancesOf(ptr->name, file, model_to_flatten);
+	    }
+	    *bptr = '[';
+	 }
+      }
+   }
    return(1);
 }
 
@@ -1204,7 +1219,11 @@ int CleanupPins(char *name, int filenum)
 
    lob = NULL;
    for (ob = ThisCell->cell; ob != NULL; ) {
-      if (ob->type == UNKNOWN) continue;
+      if (ob->type == UNKNOWN) {
+	 lob = ob;
+         ob = ob->next;
+	 continue;
+      }
       else if (ob->type != PORT) break;
       nob = ob->next;
       if (ob->node == -1) {
@@ -1243,6 +1262,13 @@ typedef struct ecompare {
     char refcount;
 } ECompare;
 
+typedef struct ecomplist *ECompListPtr;
+
+typedef struct ecomplist {
+    ECompare *ecomp;
+    ECompListPtr next;
+} ECompList;
+
 /*------------------------------------------------------*/
 /* Survey the contents of a cell and 
 /*------------------------------------------------------*/
@@ -1253,38 +1279,58 @@ SurveyCell(struct nlist *tc, struct hashlist **comptab, int file1, int file2, in
     struct objlist *ob;
     struct nlist *tsub, *teq;
     ECompare *ecomp, *qcomp, *ncomp;
+    int file = (which == 0) ? file1 : file2;
+    int ofile = (which == 0) ? file2 : file1;
+    char *dstr;
 
     for (ob = tc->cell; ob; ob = ob->next) {
 	if (ob->type == FIRSTPIN) {
-	    tsub = LookupCellFile(ob->model.class, (which == 0) ? file1 : file2);
-	    ecomp = (ECompare *)HashLookup(ob->model.class, comptab, OBJHASHSIZE);
+	    tsub = LookupCellFile(ob->model.class, file);
+	    if (tsub->flags & CELL_DUPLICATE) {
+	       // Always register a duplicate under the original name
+	       dstr = strstr(ob->model.class, "[[");
+	       if (dstr) *dstr = '\0';
+	    }
+	    else dstr = NULL;
+
+	    teq = LookupClassEquivalent(ob->model.class, file, ofile);
+	    ecomp = (ECompare *)HashInt2Lookup(ob->model.class, file,
+			comptab, OBJHASHSIZE);
+
 	    if (ecomp == NULL) {
 		ncomp = (ECompare *)MALLOC(sizeof(ECompare));
 		if (which == 0) {
 		   ncomp->num1 = 1;
 		   ncomp->num2 = 0;
 		   ncomp->cell1 = tsub;
-		   teq = LookupClassEquivalent(ob->model.class, file1, file2);
 		   ncomp->cell2 = teq;
 		}
 		else {
 		   ncomp->num1 = 0;
 		   ncomp->num2 = 1;
 		   ncomp->cell2 = tsub;
-		   teq = LookupClassEquivalent(ob->model.class, file2, file1);
 		   ncomp->cell1 = teq;
 		}
 		ncomp->add1 = 0;
 		ncomp->add2 = 0;
 		ncomp->refcount = (char)1;
 
-		HashPtrInstall(ob->model.class, ncomp, comptab, OBJHASHSIZE);
+		HashInt2PtrInstall(ob->model.class, file, ncomp, comptab,
+			OBJHASHSIZE);
 		if (teq != NULL) {
-		    qcomp = (ECompare *)HashLookup(teq->name, comptab, OBJHASHSIZE);
+		    char *bstr = NULL;
+		    if (teq->flags & CELL_DUPLICATE) {
+			bstr = strstr(teq->name, "[[");
+			if (bstr) *bstr = '\0';
+		    }
+		    qcomp = (ECompare *)HashInt2Lookup(teq->name, ofile,
+				comptab, OBJHASHSIZE);
 		    if (qcomp == NULL) {
-			HashPtrInstall(teq->name, ncomp, comptab, OBJHASHSIZE);
+			HashInt2PtrInstall(teq->name, ofile, ncomp, comptab,
+				OBJHASHSIZE);
 			ncomp->refcount++;
 		    }
+		    if (bstr) *bstr = '[';
 		}
 	    }
 	    else {
@@ -1293,6 +1339,7 @@ SurveyCell(struct nlist *tc, struct hashlist **comptab, int file1, int file2, in
 		else
 		   ecomp->num2++;
 	    }
+	    if (dstr) *dstr = '[';
 	}
     }
 }
@@ -1318,10 +1365,11 @@ SurveyCell(struct nlist *tc, struct hashlist **comptab, int file1, int file2, in
 int
 PrematchLists(char *name1, int file1, char *name2, int file2)
 {
-    struct nlist *tc1, *tc2, *teq, *tsub1, *tsub2;
+    struct nlist *tc1, *tc2, *tsub1, *tsub2;
     struct objlist *ob1, *ob2, *lob;
     struct hashlist **comptab;
     ECompare *ecomp, *ncomp;
+    ECompList *list0X, *listX0;
     int match, modified = 0;
 
     if (file1 == -1)
@@ -1350,17 +1398,24 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     // in the hierarchy of each instance contain devices
     // or subcircuits that have more in the compared circuit.
 
+    listX0 = list0X = NULL;
     ecomp = (ECompare *)HashFirst(comptab, OBJHASHSIZE);
     while (ecomp != NULL) {
+
+	/* Case 1:  Both cell1 and cell2 classes are subcircuits, */
+	/* and flattening both of them improves the matching.	  */
+
 	if ((ecomp->num1 != ecomp->num2) && (ecomp->cell2 != NULL) &&
-			(ecomp->cell2->class == CLASS_SUBCKT)) {
+			(ecomp->cell1 != NULL) &&
+			(ecomp->cell2->class == CLASS_SUBCKT) &&
+			(ecomp->cell1->class == CLASS_SUBCKT)) {
 	    ecomp->add2 = -ecomp->num2;
 	    ecomp->add1 = -ecomp->num1;
 	    match = 1;
 	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
-	   	    ncomp = (ECompare *)HashLookup(ob2->model.class,
-				comptab, OBJHASHSIZE);
+	   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
+				ecomp->cell2->file, comptab, OBJHASHSIZE);
 		    if (ncomp != NULL) {
 			if ((ncomp->num1 > ncomp->num2) &&
 				((ncomp->add2 + ecomp->num2) >=
@@ -1386,10 +1441,10 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		if (ecomp->cell2)
-		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
 		if (ecomp->cell1)
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
+		if (ecomp->cell2)
+		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
 		modified++;
 	    }
 
@@ -1397,8 +1452,9 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    if (ecomp->cell2)
 	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
-		    ncomp = (ECompare *)HashLookup(ob2->model.class,
-					comptab, OBJHASHSIZE);
+		    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
+					ecomp->cell2->file, comptab,
+					OBJHASHSIZE);
 		    if (ncomp != NULL) {
 			if (match) {
 			    ncomp->num1 += ncomp->add1;
@@ -1415,6 +1471,137 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    }
 	    ecomp->add1 = 0;
 	    ecomp->add2 = 0;
+
+	    /* If the pair was unresolved, and the number of	*/
+	    /* instances is either N:0 or 0:M, add to a list so	*/
+	    /* they can be cross-checked at the end.		*/
+
+	    if ((ecomp->num1 != 0) && (ecomp->num2 == 0)) {
+		ECompList *newcomplist;
+
+		newcomplist = (ECompList *)MALLOC(sizeof(ECompList));
+		newcomplist->ecomp = ecomp;
+		newcomplist->next = listX0;
+		listX0 = newcomplist;
+	    }
+	    else if ((ecomp->num1 == 0) && (ecomp->num2 != 0)) {
+		ECompList *newcomplist;
+
+		newcomplist = (ECompList *)MALLOC(sizeof(ECompList));
+		newcomplist->ecomp = ecomp;
+		newcomplist->next = list0X;
+		list0X = newcomplist;
+	    }
+	}
+
+	/* Case 2:  Cell2 class is a subcircuit, and flattening	*/
+	/* (it without regard to cell1) improves the matching.	*/
+
+	else if ((ecomp->num1 != ecomp->num2) && (ecomp->cell2 != NULL) &&
+			(ecomp->cell2->class == CLASS_SUBCKT)) {
+	    ecomp->add2 = -ecomp->num2;
+	    match = 1;
+	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
+		if (ob2->type == FIRSTPIN) {
+	   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
+				ecomp->cell2->file, comptab, OBJHASHSIZE);
+		    if (ncomp != NULL) {
+			if ((ncomp->num1 > ncomp->num2) &&
+				((ncomp->add2 + ecomp->num2) <=
+				ncomp->num1)) {
+			    ncomp->add2 += ecomp->num2;
+			}
+			else {
+			   match = 0;
+			   break;
+			}
+		    }
+		    else {
+		       match = 0;
+		       break;
+		    }
+		}
+	    }
+	    if (match) {
+		if (ecomp->cell2)
+		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
+		modified++;
+	    }
+
+	    /* Reset or apply the count adjustments */
+	    if (ecomp->cell2)
+	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
+		if (ob2->type == FIRSTPIN) {
+		    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
+					ecomp->cell2->file, comptab,
+					OBJHASHSIZE);
+		    if (ncomp != NULL) {
+			if (match) {
+			    ncomp->num2 += ncomp->add2;
+			}
+			ncomp->add2 = 0;
+		    }
+		}
+	    }
+	    if (match) {
+		ecomp->num2 = 0;
+	    }
+	    ecomp->add2 = 0;
+	}
+	
+	/* Case 3:  Cell1 class is a subcircuit, and flattening	*/
+	/* (it without regard to cell1) improves the matching.	*/
+
+	else if ((ecomp->num1 != ecomp->num2) && (ecomp->cell1 != NULL) &&
+			(ecomp->cell1->class == CLASS_SUBCKT)) {
+	    ecomp->add1 = -ecomp->num1;
+	    match = 1;
+	    for (ob2 = ecomp->cell1->cell; ob2; ob2 = ob2->next) {
+		if (ob2->type == FIRSTPIN) {
+	   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
+				ecomp->cell1->file, comptab, OBJHASHSIZE);
+		    if (ncomp != NULL) {
+			if ((ncomp->num2 > ncomp->num1) &&
+				((ncomp->add1 + ecomp->num1) <=
+				ncomp->num2)) {
+			    ncomp->add1 += ecomp->num1;
+			}
+			else {
+			   match = 0;
+			   break;
+			}
+		    }
+		    else {
+		       match = 0;
+		       break;
+		    }
+		}
+	    }
+	    if (match) {
+		if (ecomp->cell1)
+		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
+		modified++;
+	    }
+
+	    /* Reset or apply the count adjustments */
+	    if (ecomp->cell1)
+	    for (ob2 = ecomp->cell1->cell; ob2; ob2 = ob2->next) {
+		if (ob2->type == FIRSTPIN) {
+		    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
+					ecomp->cell1->file, comptab,
+					OBJHASHSIZE);
+		    if (ncomp != NULL) {
+			if (match) {
+			    ncomp->num1 += ncomp->add1;
+			}
+			ncomp->add1 = 0;
+		    }
+		}
+	    }
+	    if (match) {
+		ecomp->num1 = 0;
+	    }
+	    ecomp->add1 = 0;
 	}
 	ecomp = (ECompare *)HashNext(comptab, OBJHASHSIZE);
     } 
@@ -1619,8 +1806,73 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	}
-
 	ecomp = (ECompare *)HashNext(comptab, OBJHASHSIZE);
+    }
+
+    // Finally, check all entries in listX0 vs. all entries in list0X to see
+    // if flattening one side will improve the matching.  Ignore entries
+    // that are duplicates (already matched).
+
+    if ((listX0 != NULL) && (list0X != NULL)) {
+	ECompare *ecomp0X, *ecompX0;
+	ECompList *elist0X, *elistX0;
+	for (elistX0 = listX0; elistX0; elistX0 = elistX0->next) {
+	    ecompX0 = elistX0->ecomp;
+
+	    for (elist0X = list0X; elist0X; elist0X = elist0X->next) {
+		ecomp0X = elist0X->ecomp;
+
+		// Check that this has not already been processed and flattened
+		if (ecompX0->num1 > 0 && ecomp0X->num2 > 0) {
+
+		    // Are any components of ecompX0->cell1 in the ecomp0X list?
+
+		    for (ob1 = ecompX0->cell1->cell; ob1; ob1 = ob1->next) {
+			if (ob1->type == FIRSTPIN) {
+			    char *dstr = NULL;
+			    tc1 = LookupCellFile(ob1->model.class, ecompX0->cell1->file);
+			    if (tc1->flags & CELL_DUPLICATE) {
+				dstr = strstr(ob1->model.class, "[[");
+				if (dstr) *dstr = '\0';
+			    }
+		   	    ncomp = (ECompare *)HashInt2Lookup(ob1->model.class,
+					ecompX0->cell1->file, comptab, OBJHASHSIZE);
+			    if (dstr) *dstr = '[';
+			    if ((ncomp == ecomp0X) && (ecomp0X->num2 <= ecompX0->num1)) {
+				flattenInstancesOf(name1, file1, ecompX0->cell1->name); 
+			        ecompX0->num1 = 0;
+			        ecomp0X->num1 += ecompX0->num1;
+				modified++;
+				break;
+			    }
+			}
+		    }
+
+		    // Are any components of ecomp0X->cell2 in the ecompX0 list?
+
+		    for (ob2 = ecomp0X->cell2->cell; ob2; ob2 = ob2->next) {
+			if (ob2->type == FIRSTPIN) {
+			    char *dstr = NULL;
+			    tc2 = LookupCellFile(ob2->model.class, ecomp0X->cell2->file);
+			    if (tc2->flags & CELL_DUPLICATE) {
+				dstr = strstr(ob1->model.class, "[[");
+				if (dstr) *dstr = '\0';
+			    }
+		   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
+					ecomp0X->cell2->file, comptab, OBJHASHSIZE);
+			    if (dstr) *dstr = '[';
+			    if ((ncomp == ecompX0) && (ecompX0->num1 <= ecomp0X->num2)) {
+				flattenInstancesOf(name2, file2, ecomp0X->cell2->name); 
+			        ecomp0X->num2 = 0;
+			        ecompX0->num2 += ecomp0X->num2;
+				modified++;
+				break;
+			    }
+			}
+		    }
+		}
+	    }
+	}
     }
 
     // Free the hash table and its contents.
@@ -1632,6 +1884,18 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     } 
     HashKill(comptab, OBJHASHSIZE);
     FREE(comptab);
+
+    // Free the 0:X and X:0 lists
+    while (listX0 != NULL) {
+	ECompList *nextptr = listX0->next;
+	FREE(listX0);
+	listX0 = nextptr;
+    }
+    while (list0X != NULL) {
+	ECompList *nextptr = list0X->next;
+	FREE(list0X);
+	list0X = nextptr;
+    }
 
     return modified;
 }

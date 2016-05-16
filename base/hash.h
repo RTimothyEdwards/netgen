@@ -30,10 +30,13 @@ extern struct hashlist *HashPtrInstall(char *name, void *ptr,
 		struct hashlist **hashtab, int hashsize);
 extern struct hashlist *HashIntPtrInstall(char *name, int value, void *ptr, 
 		struct hashlist **hashtab, int hashsize);
+extern struct hashlist *HashInt2PtrInstall(char *name, int c, void *ptr, 
+		struct hashlist **hashtab, int hashsize);
 
 /* these functions return the ->ptr field of a struct hashlist */
 extern void *HashLookup(char *s, struct hashlist **hashtab, int hashsize);
 extern void *HashIntLookup(char *s, int i, struct hashlist **hashtab, int hashsize);
+extern void *HashInt2Lookup(char *s, int c, struct hashlist **hashtab, int hashsize);
 extern void *HashFirst(struct hashlist **hashtab, int hashsize);
 extern void *HashNext(struct hashlist **hashtab, int hashsize);
 

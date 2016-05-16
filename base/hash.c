@@ -150,6 +150,15 @@ unsigned long hash(char *s, int hashsize)
 	return (hashsize == 0) ? hashval : (hashval % hashsize);
 }
 
+unsigned long genhash(char *s, int c, int hashsize)
+{
+	unsigned long hashval;
+	
+	for (hashval = (unsigned long)c; *s != '\0'; )
+	    hashval = (*s++) + (hashval << 6) + (hashval << 16) - hashval;
+	return (hashsize == 0) ? hashval : (hashval % hashsize);
+}
+
 /*----------------------------------------------------------------------*/
 /* HashLookup --							*/
 /* return the 'ptr' field of the hash table entry, or NULL if not found */
@@ -195,6 +204,27 @@ void *HashIntLookup(char *s, int i, struct hashlist **hashtab, int hashsize)
 }
 
 /*----------------------------------------------------------------------*/
+/* Similar to HashIntLookup, but HashInt2Lookup adds the integer c as	*/
+/* part of the hash, using a special hash function to hash the char	*/
+/* first, then the character string.					*/
+/*----------------------------------------------------------------------*/
+
+void *HashInt2Lookup(char *s, int c, struct hashlist **hashtab, int hashsize)
+{
+  struct hashlist *np;
+  unsigned long hashval;
+	
+  hashval = genhash(s, c, hashsize);
+	
+  for (np = hashtab[hashval]; np != NULL; np = np->next)
+    if (!strcmp(s, np->name))
+      return (np->ptr);	/* correct match */
+
+  return (NULL); /* not found */
+}
+
+
+/*----------------------------------------------------------------------*/
 /* return the hashlist entry, after (re)initializing its 'ptr' field */
 /*----------------------------------------------------------------------*/
 
@@ -234,6 +264,32 @@ struct hashlist *HashIntPtrInstall(char *name, int value, void *ptr,
   hashval = (*hashfunc)(name,hashsize);
   for (np = hashtab[hashval]; np != NULL; np = np->next)
     if ((*matchintfunc)(name, np->name, value, (int)(*((int *)np->ptr)))) {
+      np->ptr = ptr;
+      return (np);		/* match found in hash table */
+    }
+
+  /* not in table, so install it */
+  if ((np = (struct hashlist *) CALLOC(1,sizeof(struct hashlist))) == NULL)
+    return (NULL);
+  if ((np->name = strsave(name)) == NULL) return (NULL);
+  np->ptr = ptr;
+  np->next = hashtab[hashval];
+  return(hashtab[hashval] = np);
+}
+
+/*----------------------------------------------------------------------*/
+/* And the following is used with HashInt2.			*/
+/*----------------------------------------------------------------------*/
+
+struct hashlist *HashInt2PtrInstall(char *name, int c, void *ptr,
+			struct hashlist **hashtab, int hashsize)
+{
+  struct hashlist *np;
+  unsigned long hashval;
+	
+  hashval = genhash(name, c, hashsize);
+  for (np = hashtab[hashval]; np != NULL; np = np->next)
+    if (!strcmp(name, np->name)) {
       np->ptr = ptr;
       return (np);		/* match found in hash table */
     }

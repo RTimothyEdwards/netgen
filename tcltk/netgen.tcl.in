@@ -161,7 +161,12 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out}} {
 	 } else {
 	    # Match pins
             netgen::log echo off
-	    equate pins "$fnum1 [lindex $endval 0]" "$fnum2 [lindex $endval 1]"
+	    set result [equate pins "$fnum1 [lindex $endval 0]" \
+			"$fnum2 [lindex $endval 1]"]
+	    if {$result != 0} {
+		equate classes "$fnum1 [lindex $endval 0]" \
+			 "$fnum2 [lindex $endval 1]"
+	    }
             netgen::log echo on
 	 }
 	 if {$result == 2} {lappend properr [lindex $endval 0]}

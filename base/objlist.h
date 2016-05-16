@@ -188,6 +188,7 @@ struct nlist {
 #define CELL_TOP		0x04	/* cell is a top-level cell */
 #define CELL_PLACEHOLDER	0x08	/* cell is a placeholder cell */
 #define CELL_PROPSMATCHED	0x10	/* properties matched to matching cell */
+#define CELL_DUPLICATE		0x20	/* cell has a duplicate */
 
 /* Flags for combination allowances */
 

@@ -122,7 +122,7 @@ Command netgen_cmds[] = {
 		"<format> <file>\n   "
 		"write a netlist file"},
 	{"flatten",		_netgen_flatten,
-		"[class] <cell>\n   "
+		"[class] [<parent>] <cell>\n   "
 		"flatten a hierarchical cell"},
 	{"nodes",		_netgen_nodes,
 		"[<element>] <cell> <file>\n   "
@@ -1005,9 +1005,9 @@ _netgen_flatten(ClientData clientData,
 {
    char *repstr, *file;
    int result, llen, filenum;
-   struct nlist *tp;
+   struct nlist *tp, *tp2;
 
-   if ((objc < 2) || (objc > 3)) {
+   if ((objc < 2) || (objc > 4)) {
       Tcl_WrongNumArgs(interp, 1, objv, "?class? valid_cellname");
       return TCL_ERROR;
    }
@@ -1016,12 +1016,32 @@ _netgen_flatten(ClientData clientData,
    if (result != TCL_OK) return result;
    repstr = tp->name;
 
-   if (objc == 3) {
+   if (objc >= 3) {
       char *argv = Tcl_GetString(objv[1]);
       if (!strcmp(argv, "class")) {
 	 tp = GetTopCell(filenum);
-	 Printf("Flattening instances of %s in file %s\n", repstr, tp->name);
-         FlattenInstancesOf(repstr, filenum);
+
+	 if (objc == 4) {
+	    int numflat;
+	    tp2 = LookupCellFile(Tcl_GetString(objv[2]), filenum);
+	    if (tp2 == NULL) {
+		Tcl_SetResult(interp, "No such cell.", NULL);
+		return TCL_ERROR;
+	    }
+	    else {
+	        Printf("Flattening instances of %s in cell %s within file %s\n",
+			repstr, tp2->name, tp->name);
+		numflat = flattenInstancesOf(tp2->name, filenum, repstr);
+		if (numflat == 0) {
+		   Tcl_SetResult(interp, "No instances found to flatten.", NULL);
+		   return TCL_ERROR;
+		}
+	    }
+	 }
+	 else {
+	    Printf("Flattening instances of %s in file %s\n", repstr, tp->name);
+            FlattenInstancesOf(repstr, filenum);
+	 }
       }
       else {
 	 Tcl_WrongNumArgs(interp, 1, objv, "class valid_cellname");
@@ -2009,8 +2029,9 @@ _netcmp_compare(ClientData clientData,
       return TCL_ERROR;
    }
 
-   CleanupPins(name1, fnum1);		// Remove unconnected pins
-   CleanupPins(name2, fnum2);		// Remove unconnected pins
+   // WIP!
+   // CleanupPins(name1, fnum1);		// Remove unconnected pins
+   // CleanupPins(name2, fnum2);		// Remove unconnected pins
 
    UniquePins(name1, fnum1);		// Check for and remove duplicate pins
    UniquePins(name2, fnum2);		// Check for and remove duplicate pins
@@ -2025,8 +2046,9 @@ _netcmp_compare(ClientData clientData,
    // but define global nodes that are brought out as ports by
    // ConvertGlobals().
 
-   CleanupPins(name1, fnum1);
-   CleanupPins(name2, fnum2);
+   // WIP!
+   // CleanupPins(name1, fnum1);
+   // CleanupPins(name2, fnum2);
 
    CreateTwoLists(name1, fnum1, name2, fnum2);
    while (PrematchLists(name1, fnum1, name2, fnum2) > 0) {
@@ -2342,8 +2364,11 @@ _netcmp_verify(ClientData clientData,
    if (ElementClasses == NULL || NodeClasses == NULL) {
       if (index == EQUIV_IDX || index == UNIQUE_IDX)
 	 Tcl_SetObjResult(interp, Tcl_NewIntObj(-1));
+      else if (CurrentCell != NULL)
+	 Fprintf(stdout, "Verify:  cell %s has no elements and/or nodes."
+		"  Not checked.\n", CurrentCell->name);
       else
-	 Fprintf(stdout, "Cell has no elements and/or nodes.  Not checked.\n");
+	 Fprintf(stdout, "Verify:  no current cell to verify.\n");
       return TCL_OK;
    }
    else {
@@ -2691,7 +2716,10 @@ _netcmp_equate(ClientData clientData,
 
       case ELEM_IDX:
 	 if (ElementClasses == NULL) {
-	    Fprintf(stderr, "Cell has no elements.\n");
+	    if (CurrentCell == NULL)
+		Fprintf(stderr, "Equate elements:  no current cell.\n");
+	    Fprintf(stderr, "Equate elements:  cell %s and/or %s has no elements.\n",
+			name1, name2);
 	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
 	    return TCL_OK;
 	 }
@@ -2707,7 +2735,10 @@ _netcmp_equate(ClientData clientData,
 
       case PINS_IDX:
 	 if (ElementClasses == NULL) {
-	    Fprintf(stderr, "Cell has no elements.\n");
+	    if (CurrentCell == NULL)
+		Fprintf(stderr, "Equate elements:  no current cell.\n");
+	    Fprintf(stderr, "Equate pins:  cell %s and/or %s has no elements.\n",
+			name1, name2);
 	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
 	    return TCL_OK;
 	 }

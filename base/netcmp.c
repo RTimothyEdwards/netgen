@@ -2486,14 +2486,16 @@ int FirstElementPass(struct Element *E, int noflat)
 	   if (Ecorr->hashval == 0) {
 	      if (Ecorr->graph == Circuit2->file) {
 		 tp = LookupCellFile(Ecorr->object->model.class, Circuit2->file);
-		 if (tp == tp2) {
+		 // if (tp == tp2) {
+		 if (tp && tp2 && (tp->classhash == tp2->classhash)) {
 		    Ecorr->hashval = 1;
 		    C2++;
 	         }
 	      }
 	      else if (Ecorr->graph == Circuit1->file) {
 		 tp = LookupCellFile(Ecorr->object->model.class, Circuit1->file);
-		 if (tp == tp1) {
+		 // if (tp == tp1) {
+		 if (tp && tp1 && (tp->classhash == tp1->classhash)) {
 		    Ecorr->hashval = 1;
 		    C1++;
 		 }
@@ -2535,7 +2537,8 @@ int FirstElementPass(struct Element *E, int noflat)
 	   if (Ecorr->hashval == 0) {
 	      if (Ecorr->graph == Circuit2->file) {
 		 tp = LookupCellFile(Ecorr->object->model.class, Circuit2->file);
-		 if (tp == tp2) {
+		 // if (tp == tp2) {
+		 if (tp->classhash == tp2->classhash) {
 		    Ecorr->hashval = 1;
 		    C2++;
 	         }
@@ -2648,8 +2651,14 @@ void MatchFail(char *name1, char *name2)
    tc1 = LookupCell(name1);
    tc2 = LookupCell(name2);
 
-   tc1->flags &= ~CELL_MATCHED;
-   tc2->flags &= ~CELL_MATCHED;
+   if (!(tc1->flags & CELL_DUPLICATE) && !(tc2->flags & CELL_DUPLICATE)) {
+      tc1->flags &= ~CELL_MATCHED;
+      tc2->flags &= ~CELL_MATCHED;
+   }
+   else if (tc1->flags & CELL_DUPLICATE)
+      tc1->flags &= ~CELL_MATCHED;
+   else if (tc2->flags & CELL_DUPLICATE)
+      tc2->flags &= ~CELL_MATCHED;
 }
 
 /*--------------------------------------------------------------*/
@@ -2666,7 +2675,7 @@ int FlattenUnmatched(struct nlist *tc, char *parent, int stoplevel, int loclevel
       Fprintf(stdout, "Flattening unmatched subcell %s in circuit %s ",
 				tc->name, parent);
       changed = flattenInstancesOf(parent, tc->file, tc->name);
-      Fprintf(stdout, "(%d instances)\n", changed);
+      Fprintf(stdout, "(%d instance%s)\n", changed, ((changed == 1) ? "" : "s"));
       return 1;
    }
 
@@ -2722,8 +2731,15 @@ void DescendCompareQueue(struct nlist *tc, struct nlist *tctop, int stoplevel,
    struct nlist *tcsub, *tc2, *tctest;
    struct objlist *ob;
    struct Correspond *scomp, *newcomp;
+   char *sdup = NULL;
 
    if (loclevel == stoplevel && !(tc->flags & CELL_MATCHED)) {
+
+      // Any duplicate cell should be name-matched against a non-duplicate
+      if (tc->flags & CELL_DUPLICATE) {
+	 sdup = strstr(tc->name, "[[");
+	 if (sdup) *sdup = '\0';
+      }
 
       // Find exact-name equivalents or cells that have been specified
       // as equivalent using the "equate class" command.
@@ -2742,9 +2758,14 @@ void DescendCompareQueue(struct nlist *tc, struct nlist *tctop, int stoplevel,
 
          if (tc2 != NULL) {
 	    tctest = LookupPrematchedClass(tc2, tc->file);
-	    if (tctest != NULL && tctest != tc) return;
+	    if (tctest != NULL && tctest != tc) {
+	       if (sdup) *sdup = '[';
+	       return;
+	    }
          }
       }
+
+      if (sdup) *sdup = '[';
 
       if (tc2 != NULL) {
 	 newcomp = (struct Correspond *)CALLOC(1, sizeof(struct Correspond));
@@ -3272,8 +3293,8 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
    /* Check if there are any properties to match */
 
    if ((tp1 == NULL) && (tp2 == NULL)) return 0;
-   if (tp1 != NULL) t1type = tp1->type;
-   if (tp2 != NULL) t2type = tp2->type;
+   t1type = (tp1 != NULL) ? tp1->type : 0;
+   t2type = (tp2 != NULL) ? tp2->type : 0;
 
    if (tp1 == NULL)
       if (t2type != PROPERTY) return 0;  
@@ -4319,8 +4340,9 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
 {
    char *class1, *class2;
    struct Correspond *newc;
-   struct nlist *tp, *tp2;
+   struct nlist *tp, *tp2, *tpx;
    unsigned char need_new_seed = 0;
+   int reverse = 0;
 
    if (file1 != -1 && file2 != -1) {
 
@@ -4328,19 +4350,31 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
       if (tp && (*matchfunc)(tp->name, name2))
 	 return 1;	/* Already equivalent */
 
+      tp = LookupCellFile(name1, file1);
+      tp2 = LookupCellFile(name2, file2);
+      if (tp->classhash == tp2->classhash)
+	 return 1;	/* Already equivalent */
+
+      /* Where cells with duplicate cell names have been checked and	*/
+      /* found to be equivalent, the original keeps the hash value.	*/
+
+      if (tp->flags & CELL_DUPLICATE)
+	 reverse = 1;
+
       /* Do a cross-check for each name in the other netlist.  If 	*/
       /* conflicting names exist, then alter the classhash to make it	*/
-      /* unique.							*/
+      /* unique.  In the case of duplicate cells, don't do this.	*/
 
-      tp = LookupCellFile(name1, file2);
-      if (tp != NULL) need_new_seed = 1;
-      tp = LookupCellFile(name2, file1);
-      if (tp != NULL) need_new_seed = 1;
+      if (!(tp->flags & CELL_DUPLICATE) && !(tp2->flags & CELL_DUPLICATE)) {
+	 tpx = LookupCellFile(name1, file2);
+	 if (tpx != NULL) need_new_seed = 1;
+	 tpx = LookupCellFile(name2, file1);
+	 if (tpx != NULL) need_new_seed = 1;
+      }
 
       /* Now make the classhash values the same so that these cells	*/
       /* are indistinguishable by the netlist comparator.		*/
 
-      tp = LookupCellFile(name1, file1);
       if (need_new_seed == 1) {
 	 char *altname;
 	 while (need_new_seed == 1) {
@@ -4356,8 +4390,11 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
 	    FREE(altname);
 	 }
       }
-      tp2 = LookupCellFile(name2, file2);
-      tp2->classhash = tp->classhash;
+
+      if (reverse)
+         tp->classhash = tp2->classhash;
+      else
+         tp2->classhash = tp->classhash;
       return 1;
    }
 
@@ -4421,8 +4458,14 @@ int reorderpins(struct hashlist *p, int file)
 		firstpin = ob;
 		ob2 = tc2->cell;
 		for (i = 0; i < numports; i++) {
-		    nodes[ob2->model.port] = ob->node;
-		    names[ob2->model.port] = ob->name;
+		    if (ob2->model.port >= numports) {
+			Fprintf(stderr, "Port number %d greater than number "
+				"of ports %d\n", ob2->model.port + 1, numports);
+		    }
+		    else {
+		        nodes[ob2->model.port] = ob->node;
+		        names[ob2->model.port] = ob->name;
+		    }
 		    ob = ob->next;
 		    ob2 = ob2->next;
 		}
@@ -4735,7 +4778,42 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
       }
    }
 
-   /* Find the end of the pin list in tc1 */
+   /* Do any unmatched pins have the same name? 		  */
+   /* (This should not happen if unconnected pins are eliminated) */
+
+   ob1 = tc1->cell;
+   for (i = 0; i < numorig; i++) {
+      if (*(cover + i) == (char)0) {
+	 j = 0;
+         for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
+	    if (!IsPort(ob2)) break;
+	    if ((*matchfunc)(ob1->name, ob2->name)) {
+	       ob2->model.port = i;		/* save order */
+	       *(cover + i) = (char)1;
+
+	       if (Debug == 0) {
+		  for (m = 0; m < 43; m++) *(ostr + m) = ' ';
+		  for (m = 44; m < 87; m++) *(ostr + m) = ' ';
+		  sprintf(ostr, "%s", ob1->name);
+		  sprintf(ostr + 44, "%s", ob2->name);
+		  for (m = 0; m < 88; m++)
+		     if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+		  Fprintf(stdout, ostr);
+	       }
+	       else {
+		  Fprintf(stdout, "Circuit %s port %d \"%s\""
+				" = cell %s port %d \"%s\"\n",
+				tc1->name, i, ob1->name,
+				tc2->name, j, ob2->name);
+	       }
+	    }
+	    j++;
+	 }
+      }
+      ob1 = ob1->next;
+   }
+
+   /* Find the end of the pin list in tc1, for adding proxy pins */
 
    for (ob1 = tc1->cell; ob1 != NULL; ob1 = ob1->next) {
       if (ob1 && ob1->next && ob1->next->type != PORT)
@@ -4806,29 +4884,21 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
       }
    }
 
+   /* Find the end of the pin list in tc2, for adding proxy pins */
+
+   for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
+      if (ob2 && ob2->next && ob2->next->type != PORT)
+	 break;
+   }
+
    /* If cell 2 has fewer nodes than cell 1, then add dummy (unconnected)  */
    /* pins to cell 2.  If these correspond to numbers missing in the match */
    /* sequence, then fill in the missing numbers.  Otherwise, add the	   */
    /* extra nodes to the end.						   */
 
    j = 0;
-   for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
-      j++;
-      if (ob2->next->type != PORT) break;
-   }
-
-   if (numnodes > numorig) {
-      ctemp = (char *)CALLOC(numnodes, sizeof(char));
-      for (i = 0; i < numorig; i++)
-	 ctemp[i] = cover[i];
-      FREE(cover);
-      cover = ctemp;
-   }
-
-   i = 0;
-   while (j < numnodes) {
-      while (*(cover + i) != (char)0) i++;
-      if (i >= numnodes) break;
+   for (i = 0; i < numorig; i++) {
+      if (*(cover + i) == (char)1) continue;
 
       /* If the equivalent node in tc1 is not disconnected	*/
       /* (node != -1) then we should report a match error,	*/
@@ -4838,6 +4908,14 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
       ob1 = tc1->cell;
       for (k = i; k > 0 && ob1 != NULL; k--)
 	 ob1 = ob1->next;
+
+      if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0) {
+	 /* Check if ob1->node might really be disconnected */
+	 for (obn = ob1->next; obn; obn = obn->next) {
+	    if (obn->node == ob1->node) break;
+	 }
+	 if (obn == NULL) ob1->node = -1;	/* Make disconnected */
+      }
 
       if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0) {
 
@@ -4852,7 +4930,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
             sprintf(obn->name, "proxy%s", ob1->name);
 	 }
          obn->type = UNKNOWN;
-         obn->model.port = i;
+         obn->model.port = (i - j);
          obn->instance.name = NULL;
          obn->node = -1;
          obn->next = ob2->next;
@@ -4861,9 +4939,18 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
 	 hasproxy2 = 1;
 
 	 HashPtrInstall(obn->name, obn, tc2->objtab, OBJHASHSIZE);
+      }
 
-         j++;
-         i++;
+      else if (ob1 != NULL && ob1->type == PORT) {
+	 /* Disconnected node was not meaningful, has no pin match in	*/
+	 /* the compared circuit, and so should be discarded.		*/
+	 needclean1 = 1;
+
+	 /* Adjust numbering around removed node */
+	 for (ob2s = tc2->cell; ob2s != NULL && ob2s->type == PORT; ob2s = ob2s->next) {
+	    if (ob2s->model.port > (i - j)) ob2s->model.port--;
+	 }
+	 j++;
       }
    }
    FREE(cover);
