@@ -1441,10 +1441,18 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		if (ecomp->cell1)
+		if (ecomp->cell1) {
+		    Fprintf(stdout, "Flattening instances of %s in cell %s"
+				" makes a better match\n", ecomp->cell1->name,
+				name1);
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
-		if (ecomp->cell2)
+		}
+		if (ecomp->cell2) {
+		    Fprintf(stdout, "Flattening instances of %s in cell %s"
+				" makes a better match\n", ecomp->cell2->name,
+				name2);
 		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
+		}
 		modified++;
 	    }
 
@@ -1523,8 +1531,12 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		if (ecomp->cell2)
+		if (ecomp->cell2) {
+		    Fprintf(stdout, "Flattening instances of %s in cell %s"
+				" makes a better match\n", ecomp->cell2->name,
+				name2);
 		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
+		}
 		modified++;
 	    }
 
@@ -1578,8 +1590,12 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		if (ecomp->cell1)
+		if (ecomp->cell1) {
+		    Fprintf(stdout, "Flattening instances of %s in cell %s"
+				" makes a better match\n", ecomp->cell1->name,
+				name1);
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
+		}
 		modified++;
 	    }
 
@@ -1656,6 +1672,11 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					if (found) break;
 				    }
 				    if (found) {
+					Fprintf(stdout, "Removing zero-valued device"
+						"%s from cell %s makes a better match\n",
+						tsub1->name,
+						tc1->name);
+
 					/* merge node of endpoints */
 					for (ob2 = tc1->cell; ob2; ob2 = ob2->next) {
 					    if (ob2->node == node2)
@@ -1755,6 +1776,11 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					if (found) break;
 				    }
 				    if (found) {
+					Fprintf(stdout, "Removing zero-valued device"
+						"%s from cell %s makes a better match\n",
+						tsub2->name,
+						tc2->name);
+
 					/* merge node of endpoints */
 					for (ob1 = tc2->cell; ob1; ob1 = ob1->next) {
 					    if (ob1->node == node2)
@@ -1811,9 +1837,11 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 
     // Finally, check all entries in listX0 vs. all entries in list0X to see
     // if flattening one side will improve the matching.  Ignore entries
-    // that are duplicates (already matched).
+    // that are duplicates (already matched).  Also do this only if there
+    // are no other modifications, as this rule is relaxed compared to other
+    // rules, and the other rules should be exhaustively applied first.
 
-    if ((listX0 != NULL) && (list0X != NULL)) {
+    if ((listX0 != NULL) && (list0X != NULL) && (modified == 0)) {
 	ECompare *ecomp0X, *ecompX0;
 	ECompList *elist0X, *elistX0;
 	for (elistX0 = listX0; elistX0; elistX0 = elistX0->next) {
@@ -1839,6 +1867,9 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					ecompX0->cell1->file, comptab, OBJHASHSIZE);
 			    if (dstr) *dstr = '[';
 			    if ((ncomp == ecomp0X) && (ecomp0X->num2 <= ecompX0->num1)) {
+				Fprintf(stdout, "Flattening instances of %s in cell %s"
+					" makes a better match\n", ecompX0->cell1->name,
+					name1);
 				flattenInstancesOf(name1, file1, ecompX0->cell1->name); 
 			        ecompX0->num1 = 0;
 			        ecomp0X->num1 += ecompX0->num1;
@@ -1862,6 +1893,9 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					ecomp0X->cell2->file, comptab, OBJHASHSIZE);
 			    if (dstr) *dstr = '[';
 			    if ((ncomp == ecompX0) && (ecompX0->num1 <= ecomp0X->num2)) {
+				Fprintf(stdout, "Flattening instances of %s in cell %s"
+					" makes a better match\n", ecomp0X->cell2->name,
+					name2);
 				flattenInstancesOf(name2, file2, ecomp0X->cell2->name); 
 			        ecomp0X->num2 = 0;
 			        ecompX0->num2 += ecomp0X->num2;
@@ -1896,6 +1930,5 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	FREE(list0X);
 	list0X = nextptr;
     }
-
     return modified;
 }
