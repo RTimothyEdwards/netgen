@@ -249,6 +249,7 @@ void flattenCell(char *name, int file)
 int flattenInstancesOf(char *name, int fnum, char *instance)
 {
   struct objlist *ParentParams;
+  struct objlist *ParentProps;
   struct objlist *NextObj;
   struct objlist *ChildObjList;
   struct nlist *ThisCell;
@@ -307,6 +308,14 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 			CLASS_SUBCKT) ? "no" : "yes");
       if (ChildCell->class != CLASS_SUBCKT) continue;
       if (ChildCell == ThisCell) continue;	// Avoid infinite loop
+
+      /* Does the parent cell have properties?  If so, save a pointer to them */
+      for (ParentProps = ParentParams->next; ParentProps &&
+		ParentProps->type != FIRSTPIN;
+		ParentProps = ParentProps->next) {
+	 if (ParentProps->type == PROPERTY) break;
+      }
+      if (ParentProps && (ParentProps->type != PROPERTY)) ParentProps = NULL;
 
       /* not primitive, so need to flatten this instance */
       notdone = 1;
@@ -406,7 +415,9 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       prefixlength = strlen(tmpstr);
 #endif
       for (tmp = ChildObjList; tmp != NULL; tmp = tmp->next) {
-	if (tmp->type == PROPERTY) continue;
+	if (tmp->type == PROPERTY)
+	    continue;
+
 	else if (IsGlobal(tmp)) {
 	   /* Keep the name but search for node of same name in parent	*/
 	   /* and replace the node number, if found.			*/
@@ -455,6 +466,31 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	  HashPtrInstall(tmp->instance.name, tmp, ThisCell->insttab, OBJHASHSIZE);
       }
 
+      /* do property inheritance */
+      if (ParentProps) {
+         for (ob2 = ChildObjList; ob2 != NULL; ob2=ob2->next) {
+
+	    /* If the parent cell has properties to declare, then	*/
+	    /* pass them on to children.				*/
+
+	    if (ob2->type == PROPERTY) {
+		struct valuelist *vl;
+		int i;
+		for (i == 0;; i++) {
+		    vl = &(ob2->instance.props[i]);
+		    if (vl->type == PROP_ENDLIST) break;
+		    else if (vl->type == PROP_EXPRESSION) {
+			/* Only expressions take substitutions */
+			struct tokstack *token;
+			for (token = vl->value.stack; token; token = token->next) {
+			    /* WIP */
+			}
+		    }
+		}
+	    }
+         }
+      }
+
       /* splice instance out of parent */
       if (ParentParams == ThisCell->cell) {
 	/* ParentParams are the very first thing in the list */
@@ -468,6 +504,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	   for (ob2->next = ChildObjList; ob2->next != NULL; ob2 = ob2->next) ;
       }
       /* now, ob2 is last element in child list, so skip and reclaim parent */
+
       tmp = ParentParams;
       do {
 	tmp = tmp->next;

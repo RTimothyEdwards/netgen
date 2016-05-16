@@ -193,28 +193,27 @@ int TokGetValue(char *estr, struct nlist *parent, int glob, double *dval)
 				spiceparams, OBJHASHSIZE);
 	    if (kl != NULL) {
 		result = ConvertStringToFloat(kl->pdefault.string, dval);
+		return ((result == 0) ? -1 : 1);
 	    }
 	}
     }
-    else {
-	/* Check local parameters */
-	kl = (struct property *)HashLookup(estr,
-				parent->proptab, OBJHASHSIZE);
-	if (kl != NULL) {
-	    switch(kl->type) {
-		case PROP_STRING:
-		    result = ConvertStringToFloat(kl->pdefault.string, dval);
-		    break;
-		case PROP_DOUBLE:
-		case PROP_VALUE:
-		    *dval = kl->pdefault.dval;
-		    result = 1;
-		    break;
-		case PROP_INTEGER:
-		    *dval = (double)kl->pdefault.ival;
-		    result = 1;
-		    break;
-	    }
+
+    /* Check local parameters */
+    kl = (struct property *)HashLookup(estr, parent->proptab, OBJHASHSIZE);
+    if (kl != NULL) {
+	switch(kl->type) {
+	    case PROP_STRING:
+		result = ConvertStringToFloat(kl->pdefault.string, dval);
+		break;
+	    case PROP_DOUBLE:
+	    case PROP_VALUE:
+		*dval = kl->pdefault.dval;
+		result = 1;
+		break;
+	    case PROP_INTEGER:
+		*dval = (double)kl->pdefault.ival;
+		result = 1;
+		break;
 	}
     }
     return ((result == 0) ? -1 : 1);
@@ -1924,10 +1923,6 @@ void DeleteProperties(struct keyvalue **topptr)
 /* to relate them to the cell that is being instanced.  Because this	*/
 /* is used to link the same properties multiple times for parallel	*/
 /* devices, copy the list (a refcount would work better. . .)		*/
-/*									*/
-/* If "isdefault" is "true", then the record is installed in the	*/
-/* object hash under the name "defaults";  otherwise, it gets the	*/
-/* name "properties" and is not added to the object hash.		*/
 /*----------------------------------------------------------------------*/
 
 struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
@@ -1953,10 +1948,6 @@ struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
 	return NULL;
     }
     cell = LookupCellFile(model, filenum);
-    if (cell == NULL) {
-	Printf("No cell '%s' found to link properties to.\n", model);
-	return NULL;
-    }
 
     tp = GetObject();
     tp->type = PROPERTY;
@@ -1977,6 +1968,27 @@ struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
 	/* No promotion to types other than string at this point */
 	newkv->type = PROP_STRING;
 	newkv->value.string = strsave(kv->value);
+
+	if (cell != NULL) {
+	    struct property *kl = NULL;
+
+	    /* If there is a matching cell, make sure that the property */
+	    /* key exists.  If not, create it and flag a warning.	*/
+
+	    kl = (struct property *)HashLookup(newkv->key, cell->proptab, OBJHASHSIZE);
+	    if (kl == NULL) {
+		Fprintf(stderr, "Warning:  Property %s passed to cell %s which "
+			"does not define a default.\n",
+			newkv->key, cell->name);
+		kl = NewProperty();
+		kl->key = strsave(newkv->key);
+		kl->idx = 0;
+		kl->type = PROP_STRING;
+		kl->slop.ival = 0;
+		kl->pdefault.string = NULL;
+		HashPtrInstall(kl->key, kl, cell->proptab, OBJHASHSIZE);
+	    }
+	}
     }
 
     /* Final entry marks the end of the list */
@@ -1987,6 +1999,40 @@ struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
 
     AddToCurrentCellNoHash(tp);
     return tp;
+}
+
+/*----------------------------------------------------------------------*/
+/* SetPropertyDefault() ---						*/
+/*									*/
+/* If a cell does not set property defaults, but an instance of that	*/
+/* cell passes a property to it, then there will be a default value	*/
+/* with a string type and a NULL value.  Set the default to be equal	*/
+/* to the instance type and value.					*/
+/*----------------------------------------------------------------------*/
+
+int SetPropertyDefault(struct property *prop, struct valuelist *vl)
+{
+    if (prop == NULL || vl == NULL) return -1;
+    if (prop->type != PROP_STRING || prop->pdefault.string != NULL) return 1;
+
+    prop->type = vl->type;
+
+    switch (vl->type) {
+	case PROP_STRING:
+	    prop->pdefault.string = strsave(vl->value.string);
+	    break;
+	case PROP_INTEGER:
+	    prop->pdefault.ival = vl->value.ival;
+	    break;
+	case PROP_DOUBLE:
+	case PROP_VALUE:
+	    prop->pdefault.dval = vl->value.dval;
+	    break;
+	case PROP_EXPRESSION:
+	    prop->pdefault.stack = CopyTokStack(vl->value.stack);
+	    break;
+    }
+    return 1;
 }
 
 /*----------------------------------------------------------------------*/

@@ -3206,11 +3206,16 @@ _netcmp_property(ClientData clientData,
 			if (result != TCL_OK) return result;
 
 			result = Tcl_GetIntFromObj(interp, tobj2, &ival);
-			if (result != TCL_OK) Tcl_ResetResult(interp);
-			if ((result = Tcl_GetDoubleFromObj(interp, tobj2, &dval))
-				!= TCL_OK)
-			    return result;
-
+			if (result != TCL_OK) {
+			    Tcl_ResetResult(interp);
+			    if (!strncasecmp(Tcl_GetString(tobj2), "inf", 3)) {
+				ival = 1<<30;
+				dval = 1.0E+300;
+			    }
+			    else if ((result = Tcl_GetDoubleFromObj(interp, tobj2, &dval))
+					!= TCL_OK)
+				return result;
+			}
 			PropertyTolerance(tp->name, fnum, Tcl_GetString(tobj1),
 					ival, dval);
 		    }

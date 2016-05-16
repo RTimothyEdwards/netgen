@@ -3327,8 +3327,8 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	    }
 	}
 	if (vl2->type != PROP_ENDLIST) {
-	    if (do_print) Fprintf(stdout, "Circuit 2 %s instance %s does not"
-			" define required properties.\n",
+	    if (do_print) Fprintf(stdout, "Circuit 2 %s instance %s missing"
+			" required properties.\n",
 			Circuit2->name, ob2->instance.name);
 	    return -1;
 	}
@@ -3352,8 +3352,8 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	    }
 	}
 	if (vl1->type != PROP_ENDLIST) {
-	    if (do_print) Fprintf(stdout, "Circuit 1 %s instance %s does not"
-			" define required properties.\n",
+	    if (do_print) Fprintf(stdout, "Circuit 1 %s instance %s missing"
+			" required properties.\n",
 			Circuit1->name, ob1->instance.name);
 	    return -1;
 	}
@@ -3388,6 +3388,14 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
       /* Both device classes must agree on the properties to compare */
       kl2 = (struct property *)HashLookup(vl2->key, tc2->proptab, OBJHASHSIZE);
       if (kl2 == NULL) continue;
+
+      /* Watch out for uninitialized entries in cell def */
+      if (vl1->type == vl2->type) {
+	 if (kl1->type == PROP_STRING && kl1->pdefault.string == NULL)
+	    SetPropertyDefault(kl1, vl1);
+	 if (kl2->type == PROP_STRING && kl2->pdefault.string == NULL)
+	    SetPropertyDefault(kl2, vl2);
+      }
 
       if (vl1->type != vl2->type) {
 	 if (kl1->type != vl1->type) PromoteProperty(kl1, vl1);

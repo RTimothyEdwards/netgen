@@ -903,9 +903,9 @@ skip_ends:
 	    if (!strcasecmp(nexttok, "M"))
 		sscanf(eqptr + 1, "%d", &ndev);
 	    else if (!strcasecmp(nexttok, "L"))
-		AddProperty(&kvlist, "length", eqptr + 1);
+		AddProperty(&kvlist, "L", eqptr + 1);
 	    else if (!strcasecmp(nexttok, "W"))
-		AddProperty(&kvlist, "width", eqptr + 1);
+		AddProperty(&kvlist, "W", eqptr + 1);
 	    else 
 		AddProperty(&kvlist, nexttok, eqptr + 1);
 	 }
