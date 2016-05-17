@@ -1977,9 +1977,14 @@ struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
 
 	    kl = (struct property *)HashLookup(newkv->key, cell->proptab, OBJHASHSIZE);
 	    if (kl == NULL) {
-		Fprintf(stderr, "Warning:  Property %s passed to cell %s which "
-			"does not define a default.\n",
-			newkv->key, cell->name);
+		/* Ideally, for devices, one should check against all	*/
+		/* known standard properties.  That's a pain, so	*/
+		/* instead just assume that the property is correct.	*/
+
+		if (cell->class == CLASS_SUBCKT)
+		    Fprintf(stderr, "Warning:  Property %s passed to cell %s which "
+				"does not define a default.\n",
+				newkv->key, cell->name);
 		kl = NewProperty();
 		kl->key = strsave(newkv->key);
 		kl->idx = 0;
