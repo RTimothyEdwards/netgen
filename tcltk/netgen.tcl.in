@@ -145,8 +145,8 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out}} {
       if {[verify equivalent]} {
 	 # Resolve automorphisms by pin and property
          netgen::run resolve
-	 set result [verify unique]
-         if {$result == 0} {
+	 set uresult [verify unique]
+         if {$uresult == 0} {
 	    netgen::log put "   Networks match locally but not globally.\n"
 	    netgen::log put "   Probably connections are swapped.\n"
 	    netgen::log put "   Check the end of logfile ${logfile} for implicated nodes.\n"
@@ -169,7 +169,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out}} {
 	    }
             netgen::log echo on
 	 }
-	 if {$result == 2} {lappend properr [lindex $endval 0]}
+	 if {$uresult == 2} {lappend properr [lindex $endval 0]}
       } else {
 	 # Flatten the non-matching subcircuit (but not the top-level cells)
          if {[netgen::print queue] != {}} {
