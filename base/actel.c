@@ -39,7 +39,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 	
 #define ACTELHASHSIZE 99
 static long actelhashbase = 0xA00;
-static struct hashlist *actelnametab[ACTELHASHSIZE];
+static struct hashdict actelnamedict;
 static FILE *actelfile;
 
 char *ActelName(char *Name);
@@ -53,16 +53,16 @@ void PrintActelNames(char *filename)
 {
   if (filename == NULL) actelfile = stdout;
   else actelfile = fopen(filename,"w");
-  RecurseHashTable(actelnametab, ACTELHASHSIZE, PrintActelName);
+  RecurseHashTable(&actelnamedict, PrintActelName);
   if (actelfile != stdout) fclose(actelfile);
 }
 
 long ActelNameHash(char *name)
-/* hashes name into nametab if necessary, then returns address of entry */
+/* hashes name into namedict if necessary, then returns address of entry */
 {
   struct hashlist *p;
 
-  p = HashInstall(name, actelnametab, ACTELHASHSIZE);
+  p = HashInstall(name, &actelnamedict);
   if (p == NULL) return(0);
   if (p->ptr != NULL) return ((long)(p->ptr));
   actelhashbase++;
@@ -403,7 +403,7 @@ void Actel(char *name, char *filename)
     return;
   }
   ClearDumpedList();
-  InitializeHashTable(actelnametab, ACTELHASHSIZE);
+  InitializeHashTable(&actelnamedict, ACTELHASHSIZE);
   if (LookupCell(name) != NULL) 
     actelCell(name);
   CloseFile(FileName);

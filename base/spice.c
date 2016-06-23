@@ -40,7 +40,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "print.h"
 
 // Global storage for parameters from .PARAM
-struct hashlist **spiceparams;
+struct hashdict spiceparams;
 
 void SpiceSubCell(struct nlist *tp, int IsSubCell)
 {
@@ -358,6 +358,12 @@ int renamepins(struct hashlist *p, int file)
 	 obp = ob;
 	 for (ob2 = tc->cell; ob2 != NULL; ob2 = ob2->next) {
 	    if (ob2->type != PORT) break;
+	    else if ((obp->type < FIRSTPIN) || (obp->type == FIRSTPIN && obp != ob)) {
+	       Fprintf(stderr, "Pin count mismatch between cell and instance of %s\n",
+			tc->name);
+	       InputParseError(stderr);
+	       break;
+	    }
 	    if (!matchnocase(ob2->name, obp->name + strlen(obp->instance.name) + 1)) {
 	       // Printf("Cell %s pin correspondence: %s vs. %s\n",
 	       // 	tc->name, obp->name, ob2->name);
@@ -778,7 +784,7 @@ skip_ends:
 	    kl->type = PROP_STRING;
 	    kl->slop.ival = 0;
 	    kl->pdefault.string = strsave(eqptr + 1);
-	    HashPtrInstall(nexttok, kl, spiceparams, OBJHASHSIZE);
+	    HashPtrInstall(nexttok, kl, &spiceparams);
 	 }
       }
     }
@@ -1844,8 +1850,7 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
   matchintfunc = matchfilenocase;
   hashfunc = hashnocase;
 
-  spiceparams = (struct hashlist **)CALLOC(OBJHASHSIZE,
-	sizeof(struct hashlist *));
+  InitializeHashTable(&spiceparams, OBJHASHSIZE);
 
   /* All spice files should start with a comment line,	*/
   /* but we won't depend upon it.  Any comment line	*/
@@ -1857,10 +1862,8 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
   // Cleanup
   while (CellStack != NULL) PopStack(&CellStack);
 
-  RecurseHashTable(spiceparams, OBJHASHSIZE, freeprop);
-  HashKill(spiceparams, OBJHASHSIZE);
-  FREE(spiceparams);
-  spiceparams = NULL;
+  RecurseHashTable(&spiceparams, freeprop);
+  HashKill(&spiceparams);
 
   // Important:  If the file is a library, containing subcircuit
   // definitions but no components, then it needs to be registered

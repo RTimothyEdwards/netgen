@@ -37,6 +37,7 @@ extern struct property *PropertyString(char *name, int fnum, char *key,
 extern int  PropertyDelete(char *name, int fnum, char *key);
 extern int  PropertyTolerance(char *name, int fnum, char *key, int ival,
 		double dval);
+extern int  PropertyMerge(char *name, int fnum, char *key, int merge_type);
 extern void ResolveProperties(char *name1, int file1, char *name2, int file2);
 extern void CopyProperties(struct objlist *obj_to, struct objlist *obj_from);
 extern int PromoteProperty(struct property *, struct valuelist *);

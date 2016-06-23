@@ -251,18 +251,18 @@ void PrintMemoryStats(void)
 
 
 #define CELLHASHSIZE 1000
-static struct hashlist *cell_hashtab[CELLHASHSIZE]; 
+static struct hashdict cell_dict;
 
 void InitCellHashTable(void)
 {
-	hashfunc = hash;
-	matchfunc = match;
-	InitializeHashTable(cell_hashtab, CELLHASHSIZE);
+    hashfunc = hash;
+    matchfunc = match;
+    InitializeHashTable(&cell_dict, CELLHASHSIZE);
 }
 
 struct nlist *LookupCell(char *s)
 {
-  return((struct nlist *)HashLookup(s, cell_hashtab, CELLHASHSIZE));
+    return((struct nlist *)HashLookup(s, &cell_dict));
 }
 
 /* Similar hash lookup to the above, but will check if the matching	*/
@@ -274,7 +274,7 @@ struct nlist *LookupCellFile(char *s, int f)
    struct nlist *he;
 
    if (f == -1) return LookupCell(s);
-   return HashIntLookup(s, f, cell_hashtab, CELLHASHSIZE);
+   return HashIntLookup(s, f, &cell_dict);
 }
 
 struct nlist *InstallInCellHashTable(char *name, int fnum)
@@ -291,34 +291,23 @@ struct nlist *InstallInCellHashTable(char *name, int fnum)
   if (p == NULL) return(NULL);
   if ((p->name = strsave(name)) == NULL) goto fail;
   p->file = fnum;
-  if ((p->objtab = (struct hashlist **)CALLOC(OBJHASHSIZE, 
-	    sizeof(struct hashlist *))) == NULL) goto fail;
-  if ((p->insttab = (struct hashlist **)CALLOC(OBJHASHSIZE, 
-	    sizeof(struct hashlist *))) == NULL) goto fail;
-  if ((p->proptab = (struct hashlist **)CALLOC(OBJHASHSIZE, 
-	    sizeof(struct hashlist *))) == NULL) goto fail;
+  InitializeHashTable(&(p->objdict), OBJHASHSIZE);
+  InitializeHashTable(&(p->instdict), OBJHASHSIZE);
+  InitializeHashTable(&(p->propdict), OBJHASHSIZE);
   p->permutes = NULL;
 
   // Hash size 0 indicates to hash function that no binning is being done
   p->classhash = (*hashfunc)(name, 0);
 
-  ptr = HashIntPtrInstall(name, fnum, p, cell_hashtab, CELLHASHSIZE);
+  ptr = HashIntPtrInstall(name, fnum, p, &cell_dict);
   if (ptr == NULL) return(NULL);
   return(p);
  fail:
   if (p->name != NULL) FREE(p->name);
-  if (p->objtab != NULL) {
-    HashKill(p->objtab, OBJHASHSIZE);
-    FREE(p->objtab);
-  }
-  if (p->insttab != NULL) {
-    HashKill(p->insttab, OBJHASHSIZE);
-    FREE(p->insttab);
-  }
-  if (p->proptab != NULL) {
-    HashKill(p->proptab, OBJHASHSIZE);
-    FREE(p->proptab);
-  }
+  HashKill(&(p->objdict));
+  HashKill(&(p->instdict));
+  RecurseHashTable(&(p->propdict), freeprop);
+  HashKill(&(p->propdict));
   FREE(p);
   return(NULL);
 }
@@ -341,9 +330,9 @@ void CellRehash(char *name, char *newname, int file)
   FREE(tp->name);
   tp->name = strsave(newname);
 
-  ptr = HashIntPtrInstall(newname, file, (void *)tp, cell_hashtab, CELLHASHSIZE);
+  ptr = HashIntPtrInstall(newname, file, (void *)tp, &cell_dict);
   if (ptr != NULL)
-     HashIntDelete(name, file, cell_hashtab, CELLHASHSIZE);
+     HashIntDelete(name, file, &cell_dict);
 
   // Change the classhash to reflect the new name
   tp->classhash = (*hashfunc)(newname, 0);
@@ -365,7 +354,7 @@ int deleteclass(struct hashlist *p, int file)
       nob = ob->next;
       if ((ob->type == FIRSTPIN) && (ob->model.class != NULL)) {
 	 if ((*matchfunc)(ob->model.class, OldCell->name)) {
-	    HashDelete(ob->instance.name, ptr->insttab, OBJHASHSIZE);
+	    HashDelete(ob->instance.name, &(ptr->instdict));
 	    while (1) {
 	       FreeObjectAndHash(ob, ptr);
 	       ob = nob;
@@ -482,22 +471,13 @@ void CellDelete(char *name, int fnum)
     return;
   }
 
-  HashIntDelete(name, fnum, cell_hashtab, CELLHASHSIZE);
+  HashIntDelete(name, fnum, &cell_dict);
   /* now make sure that we free all the fields of the nlist struct */
   if (tp->name != NULL) FREE(tp->name);
-  if (tp->objtab != NULL) {
-    HashKill(tp->objtab, OBJHASHSIZE);
-    FREE(tp->objtab);
-  }
-  if (tp->insttab != NULL) {
-    HashKill(tp->insttab, OBJHASHSIZE);
-    FREE(tp->insttab);
-  }
-  if (tp->proptab != NULL) {
-    RecurseHashTable(tp->proptab, OBJHASHSIZE, freeprop);
-    HashKill(tp->proptab, OBJHASHSIZE);
-    FREE(tp->proptab);
-  }
+  HashKill(&(tp->objdict));
+  HashKill(&(tp->instdict));
+  RecurseHashTable(&(tp->propdict), freeprop);
+  HashKill(&(tp->propdict));
   FreeNodeNames(tp);
   ob = tp->cell;
   while (ob != NULL) {
@@ -548,8 +528,8 @@ void PrintCellHashTable(int full, int filenum)
 
   TopFile = filenum;
 
-  bins  = RecurseHashTable(cell_hashtab, CELLHASHSIZE, CountHashTableBinsUsed);
-  total = RecurseHashTable(cell_hashtab, CELLHASHSIZE, CountHashTableEntries);
+  bins  = RecurseHashTable(&cell_dict, CountHashTableBinsUsed);
+  total = RecurseHashTable(&cell_dict, CountHashTableEntries);
   if (full != 2)
      Printf("Hash table: %d of %d bins used; %d cells total (%.2f per bin)\n",
 		bins, CELLHASHSIZE, total, (bins == 0) ? 0 :
@@ -557,7 +537,7 @@ void PrintCellHashTable(int full, int filenum)
 	
   OldDebug = Debug;
   Debug = full;
-  RecurseHashTable(cell_hashtab, CELLHASHSIZE, PrintCellHashTableElement);
+  RecurseHashTable(&cell_dict, PrintCellHashTableElement);
   Debug = OldDebug;
 #ifndef TCL_NETGEN
   if (full == 2) Printf("\n");
@@ -566,12 +546,12 @@ void PrintCellHashTable(int full, int filenum)
 
 struct nlist *FirstCell(void)
 {
-  return((struct nlist *)HashFirst(cell_hashtab, CELLHASHSIZE));
+  return((struct nlist *)HashFirst(&cell_dict));
 }
 
 struct nlist *NextCell(void)
 {
-  return((struct nlist *)HashNext(cell_hashtab, CELLHASHSIZE));
+  return((struct nlist *)HashNext(&cell_dict));
 }
 
 static int ClearDumpedElement(struct hashlist *np)
@@ -585,17 +565,17 @@ static int ClearDumpedElement(struct hashlist *np)
 
 void ClearDumpedList(void)
 {
-	RecurseHashTable(cell_hashtab, CELLHASHSIZE, ClearDumpedElement);
+	RecurseHashTable(&cell_dict, ClearDumpedElement);
 }
 
 int RecurseCellHashTable(int (*foo)(struct hashlist *np))
 {
-  return RecurseHashTable(cell_hashtab, CELLHASHSIZE, foo);
+  return RecurseHashTable(&cell_dict, foo);
 }
 
 int RecurseCellFileHashTable(int (*foo)(struct hashlist *, int), int value)
 {
-  return RecurseHashTableValue(cell_hashtab, CELLHASHSIZE, foo, value);
+  return RecurseHashTableValue(&cell_dict, foo, value);
 }
 
 /* Yet another version, passing one parameter that is a pointer */
@@ -603,7 +583,7 @@ int RecurseCellFileHashTable(int (*foo)(struct hashlist *, int), int value)
 struct nlist *RecurseCellHashTable2(struct nlist *(*foo)(struct hashlist *,
 	void *), void *pointer)
 {
-  return RecurseHashTablePointer(cell_hashtab, CELLHASHSIZE, foo, pointer);
+  return RecurseHashTablePointer(&cell_dict, foo, pointer);
 }
 
 /************************** WILD-CARD STUFF *******************************/
@@ -914,13 +894,13 @@ struct objlist *CopyObjList(struct objlist *oldlist)
 
 struct objlist *LookupObject(char *name, struct nlist *WhichCell)
 {
-   return((struct objlist *)HashLookup(name, WhichCell->objtab, OBJHASHSIZE));
+   return((struct objlist *)HashLookup(name, &(WhichCell->objdict)));
 }
 
 struct objlist *LookupInstance(char *name, struct nlist *WhichCell)
 /* searches for exact match of instance 'name' in cell 'WhichCell' */
 {
-   return((struct objlist *)HashLookup(name, WhichCell->insttab, OBJHASHSIZE));
+   return((struct objlist *)HashLookup(name, &(WhichCell->instdict)));
 }
 
 
@@ -939,7 +919,7 @@ void AddToCurrentCell(struct objlist *ob)
 
    /* add to object hash table for this cell */
    if (CurrentCell != NULL) {
-      HashPtrInstall(ob->name, ob, CurrentCell->objtab, OBJHASHSIZE);
+      HashPtrInstall(ob->name, ob, &(CurrentCell->objdict));
    }
 }
 
@@ -966,13 +946,13 @@ void AddToCurrentCellNoHash(struct objlist *ob)
 void AddInstanceToCurrentCell(struct objlist *ob)
 {
   /* add to instance hash table for this cell */
-  HashPtrInstall(ob->instance.name, ob, CurrentCell->insttab, OBJHASHSIZE);
+  HashPtrInstall(ob->instance.name, ob, &(CurrentCell->instdict));
 }
 
 void FreeObject(struct objlist *ob)
 {
   /* This just frees the object record.  Beware of pointer left	*/
-  /* in the objtab hash table.  Hash table records should be	*/
+  /* in the objlist hash table.  Hash table records should be	*/
   /* removed first.						*/
 
   if (ob->name != NULL) FreeString(ob->name);
@@ -1013,7 +993,7 @@ void FreeObject(struct objlist *ob)
 
 void FreeObjectAndHash(struct objlist *ob, struct nlist *ptr)
 {
-   HashDelete(ob->name, ptr->objtab, OBJHASHSIZE);
+   HashDelete(ob->name, &(ptr->objdict));
    FreeObject(ob);
 }
 

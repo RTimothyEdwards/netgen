@@ -177,7 +177,7 @@ void flattenCell(char *name, int file)
 		 }
 	      }
 	   }
-	   HashPtrInstall(tmp->name, tmp, ThisCell->objtab, OBJHASHSIZE);
+	   HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
 	   continue;
 	}
 
@@ -198,9 +198,9 @@ void flattenCell(char *name, int file)
 #endif
 	FreeString(tmp->instance.name);
 	tmp->instance.name = strsave(tmpstr);
-	HashPtrInstall(tmp->name, tmp, ThisCell->objtab, OBJHASHSIZE);
+	HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
 	if (tmp->type == FIRSTPIN) 
-	  HashPtrInstall(tmp->instance.name, tmp, ThisCell->insttab, OBJHASHSIZE);
+	  HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
       }
 
       /* splice instance out of parent */
@@ -440,7 +440,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	   }
 	   // Don't hash this if the parent had a port of this name
 	   if (!ob2 || ob2->type != PORT)
-	      HashPtrInstall(tmp->name, tmp, ThisCell->objtab, OBJHASHSIZE);
+	      HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
 	   continue;
 	}
 
@@ -461,9 +461,9 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 #endif
 	FreeString(tmp->instance.name);
 	tmp->instance.name = strsave(tmpstr);
-	HashPtrInstall(tmp->name, tmp, ThisCell->objtab, OBJHASHSIZE);
+	HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
 	if (tmp->type == FIRSTPIN) 
-	  HashPtrInstall(tmp->instance.name, tmp, ThisCell->insttab, OBJHASHSIZE);
+	  HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
       }
 
       /* do property inheritance */
@@ -704,7 +704,7 @@ void convertGlobalsOf(char *name, int fnum, char *instance)
 	 newnode->instance.name = NULL;
 	 newnode->model.class = NULL;
 	 newpin->node = maxnode;
-	 HashPtrInstall(newnode->name, newnode, ThisCell->objtab, OBJHASHSIZE);
+	 HashPtrInstall(newnode->name, newnode, &(ThisCell->objdict));
       }
 
       // Remove any references to the net as a GLOBAL type in the instance
@@ -727,7 +727,7 @@ void convertGlobalsOf(char *name, int fnum, char *instance)
       // Now there should be only one object of this name in the instance,
       // which is the pin, and we will set the hash table to point to it.
 
-      HashPtrInstall(newpin->name, newpin, ThisCell->objtab, OBJHASHSIZE);
+      HashPtrInstall(newpin->name, newpin, &(ThisCell->objdict));
 
    }
    CacheNodeNames(ThisCell);
@@ -840,7 +840,7 @@ void ConvertGlobals(char *name, int filenum)
 			strsave(ObjList->instance.name) : NULL;
 	 NewObj->name = (ObjList->name) ? strsave(ObjList->name) : NULL;
 
-	 HashPtrInstall(NewObj->name, NewObj, ThisCell->objtab, OBJHASHSIZE);
+	 HashPtrInstall(NewObj->name, NewObj, &(ThisCell->objdict));
 
 	 /* Find all parent cells of this cell.  Find the global node	*/
 	 /* if it exists or create it if it doesn't.  Add the node to	*/
@@ -959,11 +959,11 @@ struct nlist *uniquepins(struct hashlist *p, void *clientdata)
 	       modified = 1;
 
 	       // Check if the node we're about to remove is in the
-	       // objtab hash table;  if so, replace it with the one
+	       // objdict hash table;  if so, replace it with the one
 	       // that we are going to keep.
 
 	       if (LookupObject(ob->name, ptr) == ob) {
-		  HashPtrInstall(ob->name, saveob, ptr->objtab, OBJHASHSIZE);
+		  HashPtrInstall(ob->name, saveob, &(ptr->objdict));
 	       }
 	    }
 	    tob = tob->next;
@@ -998,7 +998,7 @@ struct nlist *uniquepins(struct hashlist *p, void *clientdata)
 
 	 // Renumber the pins in order.  Since when removing duplicates, the
 	 // first entry is always kept, the first pin is never changed, so
- 	 // the insttab record is never corrupted.
+ 	 // the instdict record is never corrupted.
 
 	 i = FIRSTPIN;
 	 firstpin->type = i++;
@@ -1093,8 +1093,7 @@ int UniquePins(char *name, int filenum)
 	     // The hash table is pointing at the cell we are
 	     // about to delete.  Hash the one we're keeping instead.
 
-	     HashPtrInstall(ob->name, firstport[ob->node],
-			ThisCell->objtab, OBJHASHSIZE);
+	     HashPtrInstall(ob->name, firstport[ob->node], &(ThisCell->objdict));
 	 }
 
 	 if (lob == NULL) {
@@ -1131,7 +1130,7 @@ int UniquePins(char *name, int filenum)
 /* Callback function for CleanupPins			*/
 /* Note that if the first pin of the instance is a	*/
 /* disconnected node, then removing it invalidates the	*/
-/* insttab hash.					*/
+/* instdict hash.					*/
 /*------------------------------------------------------*/
 
 struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
@@ -1181,9 +1180,9 @@ struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
 		}
 
 	        // Check if the node we're about to remove is in the
-	        // objtab hash table
+	        // objdict hash table
 	        if (LookupObject(ob->name, ptr) == ob) {
-		   HashDelete(ob->name, ptr->objtab, OBJHASHSIZE);
+		   HashDelete(ob->name, &(ptr->objdict));
 	        }
 
 		FREE(ob->name);
@@ -1199,10 +1198,9 @@ struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
 	     obt = obt->next;
 	  }
 
-	  /* Rehash the insttab, in case the first pin got removed */
+	  /* Rehash the instdict, in case the first pin got removed */
 	  if (firstpin && (firstpin->type == FIRSTPIN))
-	     HashPtrInstall(firstpin->instance.name, firstpin, ptr->insttab,
-			OBJHASHSIZE);
+	     HashPtrInstall(firstpin->instance.name, firstpin, &(ptr->instdict));
       }
    }
    return NULL;		/* Keep the search going */
@@ -1272,9 +1270,9 @@ int CleanupPins(char *name, int filenum)
 	 }
 
 	 // Check if the node we're about to remove is in the
-	 // objtab hash table
+	 // objdict hash table
 	 if (LookupObject(ob->name, ThisCell) == ob) {
-	     HashDelete(ob->name, ThisCell->objtab, OBJHASHSIZE);
+	     HashDelete(ob->name, &(ThisCell->objdict));
 	 }
 
 	 FREE(ob->name);
@@ -1307,11 +1305,151 @@ typedef struct ecomplist {
 } ECompList;
 
 /*------------------------------------------------------*/
-/* Survey the contents of a cell and 
+/* Survey a specific device in a cell and sort into a	*/
+/* hash by critical property.				*/
 /*------------------------------------------------------*/
 
 void
-SurveyCell(struct nlist *tc, struct hashlist **comptab, int file1, int file2, int which)
+SurveyDevice(struct nlist *tc, struct hashdict *devdict,
+		struct nlist *cell, struct property *kl,
+		int file1, int file2, int which)
+{
+    struct objlist *ob, *ob2;
+    struct nlist *tsub, *teq;
+    ECompare *dcomp, *ncomp, *qcomp;
+    int file = (which == 0) ? file1 : file2;
+    int ofile = (which == 0) ? file2 : file1;
+    char *p1str, *p2str, *d1str, *d2str;
+
+    for (ob = tc->cell; ob; ob = ob->next) {
+	if (ob->type == FIRSTPIN) {
+
+	    tsub = LookupCellFile(ob->model.class, file);
+	    if (tsub == cell) {
+
+		p1str = (char *)MALLOC(strlen(ob->model.class) + 20);
+		sprintf(p1str, "%s", ob->model.class);
+
+		if (tsub->flags & CELL_DUPLICATE) {
+		    // Always register a duplicate under the original name
+		    d1str = strstr(p1str, "[[");
+		    if (d1str) *d1str = '\0';
+		}
+		d1str = p1str + strlen(p1str);
+		sprintf(d1str, "::");
+		d1str += 2;
+
+		teq = LookupClassEquivalent(ob->model.class, file, ofile);
+		p2str = (char *)MALLOC(strlen(teq->name) + 20);
+	        sprintf(p2str, "%s", teq->name);
+
+		if (teq->flags & CELL_DUPLICATE) {
+		    // Always register a duplicate under the original name
+		    d2str = strstr(p2str, "[[");
+		    if (d2str) *d2str = '\0';
+		}
+		d2str = p2str + strlen(p2str);
+		sprintf(d2str, "::");
+		d2str += 2;
+
+		// Advance ob to property list
+		for (ob2 = ob->next; ob2 && ob2->type != FIRSTPIN; ob2 = ob2->next) {
+		    if (ob2->type == PROPERTY) {
+			struct valuelist *kv;
+			int i;
+			for (i = 0; ; i++) {
+			    kv = &(ob2->instance.props[i]);
+			    if (kv->type == PROP_ENDLIST) break;
+			    if ((*matchfunc)(kv->key, kl->key)) {
+				switch(kv->type) {
+				    case PROP_INTEGER:
+					sprintf(d1str, "%d", kv->value.ival);
+					sprintf(d2str, "%d", kv->value.ival);
+					break;
+				    case PROP_DOUBLE:
+				    case PROP_VALUE:
+					// To-do:  Round to tolerance
+					sprintf(d1str, "%g", kv->value.dval);
+					sprintf(d2str, "%g", kv->value.dval);
+					break;
+				}
+			        break;
+			    }
+			}
+			break;
+		    }
+		}
+		if (*d1str == '\0') {
+		    // No critical property instanced, so use default
+		    switch(kl->type) {
+			case PROP_INTEGER:
+			    sprintf(d1str, "%d", kl->pdefault.ival);
+			    sprintf(d2str, "%d", kl->pdefault.ival);
+			    break;
+			case PROP_DOUBLE:
+			case PROP_VALUE:
+			    // To-do:  Round to tolerance
+			    sprintf(d1str, "%g", kl->pdefault.dval);
+			    sprintf(d2str, "%g", kl->pdefault.dval);
+			    break;
+		    }
+		}
+
+		// Create hash key from object class and the critical
+		// property affecting the device count.
+
+		dcomp = (ECompare *)HashInt2Lookup(p1str, file, devdict);
+
+		// Fill in the values for this device::property combination
+
+		if (dcomp == NULL) {
+		    ncomp = (ECompare *)MALLOC(sizeof(ECompare));
+		    if (which == 0) {
+			ncomp->num1 = 1;
+			ncomp->num2 = 0;
+			ncomp->cell1 = tsub;
+			ncomp->cell2 = teq;
+		    }
+		    else {
+			ncomp->num1 = 0;
+			ncomp->num2 = 1;
+			ncomp->cell2 = tsub;
+			ncomp->cell1 = teq;
+		    }
+		    ncomp->add1 = 0;
+		    ncomp->add2 = 0;
+		    ncomp->refcount = (char)1;
+
+		    HashInt2PtrInstall(p1str, file, ncomp, devdict);
+		    if (teq != NULL) {
+			qcomp = (ECompare *)HashInt2Lookup(p2str, ofile,
+					devdict);
+			if (qcomp == NULL) {
+			    HashInt2PtrInstall(p2str, ofile, ncomp, devdict);
+			    ncomp->refcount++;
+			}
+		    }
+		}
+		else {
+		    if (which == 0) 
+			dcomp->num1++;
+		    else
+			dcomp->num2++;
+		}
+
+		FREE(p1str);
+		FREE(p2str);
+	    }
+	}
+    }
+}
+
+/*------------------------------------------------------*/
+/* Survey the contents of a cell and sort into a hash	*/
+/*------------------------------------------------------*/
+
+void
+SurveyCell(struct nlist *tc, struct hashdict *compdict, int file1, int file2, int which)
 {
     struct objlist *ob;
     struct nlist *tsub, *teq;
@@ -1331,8 +1469,7 @@ SurveyCell(struct nlist *tc, struct hashlist **comptab, int file1, int file2, in
 	    else dstr = NULL;
 
 	    teq = LookupClassEquivalent(ob->model.class, file, ofile);
-	    ecomp = (ECompare *)HashInt2Lookup(ob->model.class, file,
-			comptab, OBJHASHSIZE);
+	    ecomp = (ECompare *)HashInt2Lookup(ob->model.class, file, compdict);
 
 	    if (ecomp == NULL) {
 		ncomp = (ECompare *)MALLOC(sizeof(ECompare));
@@ -1352,19 +1489,16 @@ SurveyCell(struct nlist *tc, struct hashlist **comptab, int file1, int file2, in
 		ncomp->add2 = 0;
 		ncomp->refcount = (char)1;
 
-		HashInt2PtrInstall(ob->model.class, file, ncomp, comptab,
-			OBJHASHSIZE);
+		HashInt2PtrInstall(ob->model.class, file, ncomp, compdict);
 		if (teq != NULL) {
 		    char *bstr = NULL;
 		    if (teq->flags & CELL_DUPLICATE) {
 			bstr = strstr(teq->name, "[[");
 			if (bstr) *bstr = '\0';
 		    }
-		    qcomp = (ECompare *)HashInt2Lookup(teq->name, ofile,
-				comptab, OBJHASHSIZE);
+		    qcomp = (ECompare *)HashInt2Lookup(teq->name, ofile, compdict);
 		    if (qcomp == NULL) {
-			HashInt2PtrInstall(teq->name, ofile, ncomp, comptab,
-				OBJHASHSIZE);
+			HashInt2PtrInstall(teq->name, ofile, ncomp, compdict);
 			ncomp->refcount++;
 		    }
 		    if (bstr) *bstr = '[';
@@ -1393,7 +1527,7 @@ SurveyCell(struct nlist *tc, struct hashlist **comptab, int file1, int file2, in
 /*							*/
 /* If there is a mismatch between instances of low-	*/
 /* level devices, determine if the mismatches can be	*/
-/* resolved by parallel/serial combining, accoring to	*/
+/* resolved by parallel/serial combining, according to	*/
 /* combination rules.					*/
 /* 							*/
 /* Return the number of modifications made.		*/
@@ -1404,7 +1538,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 {
     struct nlist *tc1, *tc2, *tsub1, *tsub2;
     struct objlist *ob1, *ob2, *lob;
-    struct hashlist **comptab;
+    struct hashdict compdict;
     ECompare *ecomp, *ncomp;
     ECompList *list0X, *listX0;
     int match, modified = 0;
@@ -1421,14 +1555,13 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 
     if (tc1 == NULL || tc2 == NULL) return;
 
-    comptab = (struct hashlist **)CALLOC(OBJHASHSIZE,
-		sizeof(struct hashlist *));
+    InitializeHashTable(&compdict, OBJHASHSIZE);
 
     // Gather information about instances of cell "name1"
-    SurveyCell(tc1, comptab, file1, file2, 0);
+    SurveyCell(tc1, &compdict, file1, file2, 0);
 
     // Gather information about instances of cell "name2"
-    SurveyCell(tc2, comptab, file1, file2, 1);
+    SurveyCell(tc2, &compdict, file1, file2, 1);
 
     // Find all instances of one cell that have fewer in
     // the compared circuit.  Check whether subcircuits
@@ -1436,7 +1569,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     // or subcircuits that have more in the compared circuit.
 
     listX0 = list0X = NULL;
-    ecomp = (ECompare *)HashFirst(comptab, OBJHASHSIZE);
+    ecomp = (ECompare *)HashFirst(&compdict);
     while (ecomp != NULL) {
 
 	/* Case 1:  Both cell1 and cell2 classes are subcircuits, */
@@ -1452,7 +1585,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
 	   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
-				ecomp->cell2->file, comptab, OBJHASHSIZE);
+				ecomp->cell2->file, &compdict);
 		    if (ncomp != NULL) {
 			if ((ncomp->num1 > ncomp->num2) &&
 				((ncomp->add2 + ecomp->num2) >=
@@ -1498,8 +1631,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
 		    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
-					ecomp->cell2->file, comptab,
-					OBJHASHSIZE);
+					ecomp->cell2->file, &compdict);
 		    if (ncomp != NULL) {
 			if (match) {
 			    ncomp->num1 += ncomp->add1;
@@ -1549,7 +1681,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
 	   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
-				ecomp->cell2->file, comptab, OBJHASHSIZE);
+				ecomp->cell2->file, &compdict);
 		    if (ncomp != NULL) {
 			if ((ncomp->num1 > ncomp->num2) &&
 				((ncomp->add2 + ecomp->num2) <=
@@ -1582,8 +1714,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
 		    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
-					ecomp->cell2->file, comptab,
-					OBJHASHSIZE);
+					ecomp->cell2->file, &compdict);
 		    if (ncomp != NULL) {
 			if (match) {
 			    ncomp->num2 += ncomp->add2;
@@ -1608,7 +1739,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    for (ob2 = ecomp->cell1->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
 	   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
-				ecomp->cell1->file, comptab, OBJHASHSIZE);
+				ecomp->cell1->file, &compdict);
 		    if (ncomp != NULL) {
 			if ((ncomp->num2 > ncomp->num1) &&
 				((ncomp->add1 + ecomp->num1) <=
@@ -1641,8 +1772,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    for (ob2 = ecomp->cell1->cell; ob2; ob2 = ob2->next) {
 		if (ob2->type == FIRSTPIN) {
 		    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
-					ecomp->cell1->file, comptab,
-					OBJHASHSIZE);
+					ecomp->cell1->file, &compdict);
 		    if (ncomp != NULL) {
 			if (match) {
 			    ncomp->num1 += ncomp->add1;
@@ -1656,13 +1786,85 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    }
 	    ecomp->add1 = 0;
 	}
-	ecomp = (ECompare *)HashNext(comptab, OBJHASHSIZE);
+	ecomp = (ECompare *)HashNext(&compdict);
+    }
+
+    // Check for cells, either low-level devices or subcircuits,
+    // that have properties allowing devices to be merged.  If
+    // the classes of both cells are the same, and the number of
+    // instances is different, and merging the device with more
+    // instances improves the matching, then perform the merge.
+
+    ecomp = (ECompare *)HashFirst(&compdict);
+    while (ecomp != NULL) {
+
+	if ((ecomp->num1 != ecomp->num2) &&
+			(ecomp->cell1 != NULL) &&
+			(ecomp->cell2 != NULL) &&
+			(ecomp->cell1->classhash == ecomp->cell2->classhash)) {
+
+	    struct hashdict devdict;
+	    ECompare *dcomp;
+
+	    // Determine if either device has mergeable properties.  If so,
+	    // sort the device into bins by critical (mergeable) property,
+	    // and merge devices where merging makes a better match.
+
+	    struct property *kl1, *kl2;
+
+	    kl1 = (struct property *)HashFirst(&(ecomp->cell1->propdict));
+	    while (kl1 != NULL) {
+		if (kl1->merge == MERGE_ADD_CRIT || kl1->merge == MERGE_PAR_CRIT)
+		    break;
+		kl1 = (struct property *)HashNext(&(ecomp->cell1->propdict));
+	    }
+	    kl2 = (struct property *)HashFirst(&(ecomp->cell2->propdict));
+	    while (kl2 != NULL) {
+		if (kl2->merge == MERGE_ADD_CRIT || kl2->merge == MERGE_PAR_CRIT)
+		    break;
+		kl2 = (struct property *)HashNext(&(ecomp->cell1->propdict));
+	    }
+	    if (kl1 != NULL || kl2 != NULL) {
+
+		// Create the device hash table
+
+		InitializeHashTable(&devdict, OBJHASHSIZE);
+
+		// Populate the device hash table
+
+		SurveyDevice(tc1, &devdict, ecomp->cell1, kl1, file1, file2, 0);
+		SurveyDevice(tc2, &devdict, ecomp->cell2, kl2, file1, file2, 0);
+
+		// Scan the device hash table.  If devices can be merged
+		// and this improves the matching between cells, then do
+		// the merge.
+
+		dcomp = (ECompare *)HashFirst(&devdict);
+		while (dcomp != NULL) {
+		    if (dcomp->num1 != dcomp->num2) {
+			/* XXX WIP WIP WIP XXX */
+		    }
+		    dcomp = (ECompare *)HashNext(&devdict);
+		}
+
+		// Free the device hash table
+
+		dcomp = (ECompare *)HashFirst(&devdict);
+		while (dcomp != NULL) {
+		    if (--dcomp->refcount == (char)0) FREE(dcomp);
+		    dcomp = (ECompare *)HashNext(&devdict);
+		}
+		HashKill(&devdict);
+	    }
+	}
+
+	ecomp = (ECompare *)HashNext(&compdict);
     } 
 
     // Remove non-matching zero-value devices.  This can
     // be done on a per-instance basis.
 
-    ecomp = (ECompare *)HashFirst(comptab, OBJHASHSIZE);
+    ecomp = (ECompare *)HashFirst(&compdict);
     while (ecomp != NULL) {
 	if ((ecomp->num1 != ecomp->num2) && (ecomp->cell1 != NULL) &&
 			(ecomp->cell1->class == CLASS_RES)) {
@@ -1869,7 +2071,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	}
-	ecomp = (ECompare *)HashNext(comptab, OBJHASHSIZE);
+	ecomp = (ECompare *)HashNext(&compdict);
     }
 
     // Finally, check all entries in listX0 vs. all entries in list0X to see
@@ -1901,7 +2103,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				if (dstr) *dstr = '\0';
 			    }
 		   	    ncomp = (ECompare *)HashInt2Lookup(ob1->model.class,
-					ecompX0->cell1->file, comptab, OBJHASHSIZE);
+					ecompX0->cell1->file, &compdict);
 			    if (dstr) *dstr = '[';
 			    if ((ncomp == ecomp0X) && (ecomp0X->num2 <= ecompX0->num1)) {
 				Fprintf(stdout, "Flattening instances of %s in cell %s"
@@ -1927,7 +2129,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				if (dstr) *dstr = '\0';
 			    }
 		   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,
-					ecomp0X->cell2->file, comptab, OBJHASHSIZE);
+					ecomp0X->cell2->file, &compdict);
 			    if (dstr) *dstr = '[';
 			    if ((ncomp == ecompX0) && (ecompX0->num1 <= ecomp0X->num2)) {
 				Fprintf(stdout, "Flattening instances of %s in cell %s"
@@ -1948,13 +2150,12 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 
     // Free the hash table and its contents.
 
-    ecomp = (ECompare *)HashFirst(comptab, OBJHASHSIZE);
+    ecomp = (ECompare *)HashFirst(&compdict);
     while (ecomp != NULL) {
 	if (--ecomp->refcount == (char)0) FREE(ecomp);
-	ecomp = (ECompare *)HashNext(comptab, OBJHASHSIZE);
+	ecomp = (ECompare *)HashNext(&compdict);
     } 
-    HashKill(comptab, OBJHASHSIZE);
-    FREE(comptab);
+    HashKill(&compdict);
 
     // Free the 0:X and X:0 lists
     while (listX0 != NULL) {

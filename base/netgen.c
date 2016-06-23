@@ -54,7 +54,7 @@ extern int errno;	/* Defined in stdlib.h */
 static char staticstrings[MAX_STATIC_STRINGS][200];
 static int laststring;
 
-extern struct hashlist **spiceparams;	/* From spice.c */
+extern struct hashdict spiceparams;	/* From spice.c */
 
 char *Str(char *format, ...)
 {
@@ -188,18 +188,15 @@ int TokGetValue(char *estr, struct nlist *parent, int glob, double *dval)
 
     if (glob == TRUE) {
 	/* Check global parameters */
-	if (spiceparams != NULL) {
-	    kl = (struct property *)HashLookup(estr,
-				spiceparams, OBJHASHSIZE);
-	    if (kl != NULL) {
-		result = ConvertStringToFloat(kl->pdefault.string, dval);
-		return ((result == 0) ? -1 : 1);
-	    }
+	kl = (struct property *)HashLookup(estr, &spiceparams);
+	if (kl != NULL) {
+	    result = ConvertStringToFloat(kl->pdefault.string, dval);
+	    return ((result == 0) ? -1 : 1);
 	}
     }
 
     /* Check local parameters */
-    kl = (struct property *)HashLookup(estr, parent->proptab, OBJHASHSIZE);
+    kl = (struct property *)HashLookup(estr, &(parent->propdict));
     if (kl != NULL) {
 	switch(kl->type) {
 	    case PROP_STRING:
@@ -834,19 +831,17 @@ PropertyDelete(char *name, int fnum, char *key)
 
 	/* key == NULL means delete all properties. */
 
-	RecurseHashTable(tc->proptab, OBJHASHSIZE, freeprop);
-	HashKill(tc->proptab, OBJHASHSIZE);
-	FREE(tc->proptab);
-	tc->proptab = (struct hashlist **)CALLOC(OBJHASHSIZE,
-                 sizeof(struct hashlist *));
+	RecurseHashTable(&(tc->propdict), freeprop);
+	HashKill(&(tc->propdict));
+	InitializeHashTable(&(tc->propdict), OBJHASHSIZE);
     }
     else {
-	kl = (struct property *)HashLookup(key, tc->proptab, OBJHASHSIZE);
+	kl = (struct property *)HashLookup(key, &(tc->propdict));
 	if (kl != NULL) {
 	    if (kl->type == PROP_STRING || kl->type == PROP_EXPRESSION)
 		FREE(kl->pdefault.string);
 	    FREE(kl->key);
-	    HashDelete(key, tc->proptab, OBJHASHSIZE);
+	    HashDelete(key, &(tc->propdict));
 	}
 	else {
 	    Printf("No property %s found for device %s\n", key, name);
@@ -879,7 +874,7 @@ PropertyTolerance(char *name, int fnum, char *key, int ival, double dval)
 	return -1;
     }
 
-    kl = (struct property *)HashLookup(key, tc->proptab, OBJHASHSIZE);
+    kl = (struct property *)HashLookup(key, &(tc->propdict));
     if (kl == NULL) {
 	Printf("No property %s found for device %s\n", key, name);
 	return -1;
@@ -896,6 +891,40 @@ PropertyTolerance(char *name, int fnum, char *key, int ival, double dval)
 		kl->slop.ival = ival;
 		break;
 	}
+    }
+    return 0;
+}
+
+/*----------------------------------------------------------------------*/
+/* Set the merge type of a property in the master cell record.		*/
+/*----------------------------------------------------------------------*/
+
+int
+PropertyMerge(char *name, int fnum, char *key, int merge_type)
+{
+    struct property *kl = NULL;
+    struct nlist *tc;
+    int result;
+
+    if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
+	result = PropertyMerge(name, Circuit1->file, key, merge_type);
+	result = PropertyMerge(name, Circuit2->file, key, merge_type);
+	return result;
+    }
+
+    tc = LookupCellFile(name, fnum);
+    if (tc == NULL) {
+	Printf("No device %s found for PropertyTolerance()\n", name);
+	return -1;
+    }
+
+    kl = (struct property *)HashLookup(key, &(tc->propdict));
+    if (kl == NULL) {
+	Printf("No property %s found for device %s\n", key, name);
+	return -1;
+    }
+    else {
+	kl->merge = merge_type;
     }
     return 0;
 }
@@ -923,18 +952,18 @@ struct property *PropertyValue(char *name, int fnum, char *key,
    tc = LookupCellFile(name, fnum);
    if (tc == NULL) 
       Printf("No device %s found for PropertyValue()\n", name);
-   else if ((kl = (struct property *)HashLookup(key, tc->proptab,
-		OBJHASHSIZE)) != NULL) {
+   else if ((kl = (struct property *)HashLookup(key, &(tc->propdict))) != NULL) {
       Printf("Device %s already has property named \"%s\"\n", name, key);
    }
    else {
       kl = NewProperty();
       kl->key = strsave(key);
       kl->idx = 0;
+      kl->merge = MERGE_NONE;
       kl->type = PROP_VALUE;
       kl->slop.dval = slop;
       kl->pdefault.dval = pdefault;
-      HashPtrInstall(kl->key, kl, tc->proptab, OBJHASHSIZE);
+      HashPtrInstall(kl->key, kl, &(tc->propdict));
    }
    return kl;
 }
@@ -958,18 +987,18 @@ struct property *PropertyDouble(char *name, int fnum, char *key,
    tc = LookupCellFile(name, fnum);
    if (tc == NULL) 
       Printf("No device %s found for PropertyDouble()\n", name);
-   else if ((kl = (struct property *)HashLookup(key, tc->proptab,
-		OBJHASHSIZE)) != NULL) {
+   else if ((kl = (struct property *)HashLookup(key, &(tc->propdict))) != NULL) {
       Printf("Device %s already has property named \"%s\"\n", name, key);
    }
    else {
       kl = NewProperty();
       kl->key = strsave(key);
       kl->idx = 0;
+      kl->merge = MERGE_NONE;
       kl->type = PROP_DOUBLE;
       kl->slop.dval = slop;
       kl->pdefault.dval = pdefault;
-      HashPtrInstall(kl->key, kl, tc->proptab, OBJHASHSIZE);
+      HashPtrInstall(kl->key, kl, &(tc->propdict));
    }
    return kl;
 }
@@ -991,18 +1020,18 @@ struct property *PropertyInteger(char *name, int fnum, char *key,
    tc = LookupCellFile(name, fnum);
    if (tc == NULL) 
       Printf("No device %s found for PropertyInteger()\n", name);
-   else if ((kl = (struct property *)HashLookup(key, tc->proptab,
-		OBJHASHSIZE)) != NULL) {
+   else if ((kl = (struct property *)HashLookup(key, &(tc->propdict))) != NULL) {
       Printf("Device %s already has property named \"%s\"\n", name, key);
    }
    else {
       kl = NewProperty();
       kl->key = strsave(key);
       kl->idx = 0;
+      kl->merge = MERGE_NONE;
       kl->type = PROP_INTEGER;
       kl->slop.ival = slop;
       kl->pdefault.ival = pdefault;
-      HashPtrInstall(kl->key, kl, tc->proptab, OBJHASHSIZE);
+      HashPtrInstall(kl->key, kl, &(tc->propdict));
    }
    return kl;
 }
@@ -1024,21 +1053,21 @@ struct property *PropertyString(char *name, int fnum, char *key, int range,
    tc = LookupCellFile(name, fnum);
    if (tc == NULL) 
       Printf("No device %s found for PropertyString()\n", name);
-   else if ((kl = (struct property *)HashLookup(key, tc->proptab,
-		OBJHASHSIZE)) != NULL) {
+   else if ((kl = (struct property *)HashLookup(key, &(tc->propdict))) != NULL) {
       Printf("Device %s already has property named \"%s\"\n", name, key);
    }
    else {
       kl = NewProperty();
       kl->key = strsave(key);
       kl->idx = 0;
+      kl->merge = MERGE_NONE;
       kl->type = PROP_STRING;
       kl->slop.ival = (range >= 0) ? range : 0;
       if (pdefault != NULL)
          kl->pdefault.string = strsave(pdefault);
       else
          kl->pdefault.string = NULL;
-      HashPtrInstall(kl->key, kl, tc->proptab, OBJHASHSIZE);
+      HashPtrInstall(kl->key, kl, &(tc->propdict));
    }
    return kl;
 }
@@ -1975,7 +2004,7 @@ struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
 	    /* If there is a matching cell, make sure that the property */
 	    /* key exists.  If not, create it and flag a warning.	*/
 
-	    kl = (struct property *)HashLookup(newkv->key, cell->proptab, OBJHASHSIZE);
+	    kl = (struct property *)HashLookup(newkv->key, &(cell->propdict));
 	    if (kl == NULL) {
 		/* Ideally, for devices, one should check against all	*/
 		/* known standard properties.  That's a pain, so	*/
@@ -1988,10 +2017,11 @@ struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
 		kl = NewProperty();
 		kl->key = strsave(newkv->key);
 		kl->idx = 0;
+		kl->merge = MERGE_NONE;
 		kl->type = PROP_STRING;
 		kl->slop.ival = 0;
 		kl->pdefault.string = NULL;
-		HashPtrInstall(kl->key, kl, cell->proptab, OBJHASHSIZE);
+		HashPtrInstall(kl->key, kl, &(cell->propdict));
 	    }
 	}
     }
@@ -2183,7 +2213,7 @@ struct nlist *resolveprops(struct hashlist *p, void *clientdata)
 	    for (i = 0;; i++) {
 	       vl = &(ob->instance.props[i]);
 	       if (vl->type == PROP_ENDLIST) break;
-	       prop = (struct property *)HashLookup(vl->key, tc->proptab, OBJHASHSIZE);
+	       prop = (struct property *)HashLookup(vl->key, &(tc->propdict));
 
 	       /* Warning:  prop should never be null, but condition	*/
 	       /* should be handled.					*/
@@ -2238,7 +2268,7 @@ void ResolveProperties(char *name1, int file1, char *name2, int file2)
     /* index.  If the property does not exist in the second cell, then	*/
     /* create it.							*/
 
-    kl1 = (struct property *)HashFirst(tp1->proptab, OBJHASHSIZE);
+    kl1 = (struct property *)HashFirst(&(tp1->propdict));
     /* If indexes are not zero, then properties have already been matched. */
     if (kl1 == NULL) return;	/* Cell has no properties */
     if (kl1->idx != 0) return;
@@ -2247,7 +2277,7 @@ void ResolveProperties(char *name1, int file1, char *name2, int file2)
     while (kl1 != NULL) {
 	kl1->idx = i;
 
-	kl2 = (struct property *)HashLookup(kl1->key, tp2->proptab, OBJHASHSIZE);
+	kl2 = (struct property *)HashLookup(kl1->key, &(tp2->propdict));
 	if (kl2 == NULL) {
 	    /* No such property in tp2 */
 	    switch (kl1->type) {
@@ -2270,16 +2300,16 @@ void ResolveProperties(char *name1, int file1, char *name2, int file2)
 	    }
 	}
 	if (kl2 != NULL) kl2->idx = i;
-	kl1 = (struct property *)HashNext(tp1->proptab, OBJHASHSIZE);
+	kl1 = (struct property *)HashNext(&(tp1->propdict));
 	i++;
     }
 
     /* Now check tp2 for properties not in tp1 */
 
-    kl2 = (struct property *)HashFirst(tp2->proptab, OBJHASHSIZE);
+    kl2 = (struct property *)HashFirst(&(tp2->propdict));
 
     while (kl2 != NULL) {
-	kl1 = (struct property *)HashLookup(kl2->key, tp1->proptab, OBJHASHSIZE);
+	kl1 = (struct property *)HashLookup(kl2->key, &(tp1->propdict));
 	if (kl1 == NULL) {
 	    /* No such property in tp1 */
 	    switch (kl2->type) {
@@ -2302,7 +2332,7 @@ void ResolveProperties(char *name1, int file1, char *name2, int file2)
 	    }
 	}
 	if (kl1 != NULL) kl1->idx = i;
-	kl2 = (struct property *)HashNext(tp1->proptab, OBJHASHSIZE);
+	kl2 = (struct property *)HashNext(&(tp1->propdict));
 	i++;
     }
 

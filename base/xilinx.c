@@ -36,7 +36,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #define XILINXHASHSIZE 99
 static long xilinxhashbase = 0xA00;
-static struct hashlist *xilinxnametab[XILINXHASHSIZE];
+static struct hashdict xilinxnamedict;
 static FILE *xilinxfile;
 
 char *gndnet = "0";
@@ -156,7 +156,7 @@ Xilinx(cellname, filename)
 		return;
 	}
 	ClearDumpedList();
-	InitializeHashTable(xilinxnametab, XILINXHASHSIZE);
+	InitializeHashTable(&xilinxnamedict, XILINXHASHSIZE);
 	if (LookupCell(cellname) != NULL)
 		xilinxCell(cellname);
 	CloseFile(FileName);

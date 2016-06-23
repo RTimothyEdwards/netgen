@@ -3,6 +3,10 @@
 #ifndef _OBJLIST_H
 #define _OBJLIST_H
 
+#ifndef _HASH_H
+#include "hash.h"
+#endif
+
 #define SEPARATOR "/"
 #define INSTANCE_DELIMITER "#"
 #define PORT_DELIMITER "."
@@ -99,10 +103,22 @@ struct valuelist {
 
 /* Part 3:  Keys & Defaults (kept in the cell record as a hash table) */
 
+#define MERGE_NONE	0	/* Property does not change when devices merge */
+#define MERGE_ADD	1	/* Properties sum with device merge */
+#define MERGE_ADD_CRIT	2	/* Properties sum with device merge */
+#define MERGE_PAR	3	/* Properties add in parallel with device merge */
+#define MERGE_PAR_CRIT	4	/* Properties add in parallel with device merge */
+
+/* Note:  A "critical" merge means that the property causes the number of	*/
+/* devices to change.  e.g., transistor width is critical;  transistor drain	*/
+/* area sums when devices are merged, but does not change the number of devices.*/
+/* More than one property can be critical.  e.g., width and number of fingers.	*/
+
 struct property {
   char *key;			/* name of the property */
   unsigned char idx;		/* index into valuelist */
   unsigned char type;		/* string, integer, double, value, expression */
+  unsigned char merge;		/* how property changes when devices are merged */
   union {
      char *string;
      double dval;
@@ -172,9 +188,9 @@ struct nlist {
   unsigned long classhash;	/* randomized hash value for cell class */
   struct Permutation *permutes;	/* list of permuting pins */
   struct objlist *cell;
-  struct hashlist **objtab;  /* hash table of object names */
-  struct hashlist **insttab; /* hash table of instance names */
-  struct hashlist **proptab; /* hash table of property keys */
+  struct hashdict objdict;  /* hash table of object names */
+  struct hashdict instdict; /* hash table of instance names */
+  struct hashdict propdict; /* hash table of property keys */
   struct objlist **nodename_cache;
   long nodename_cache_maxnodenum;  /* largest node number in cache */
   void *embedding;   /* this will be cast to the appropriate data structure */

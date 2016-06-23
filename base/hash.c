@@ -33,22 +33,25 @@ unsigned long (*hashfunc)(char *, int) = NULL;
 int (*matchfunc)(char *, char *) = NULL;
 int (*matchintfunc)(char *, char *, int, int) = NULL;
 
-void InitializeHashTable(struct hashlist **tab, int size)
+void InitializeHashTable(struct hashdict *dict, int size)
 {
-	int i;
-	for (i = 0; i < size; i++) tab[i] = NULL;
+    struct hashlist **hashtab;
+
+    dict->hashtab = (struct hashlist **)CALLOC(size, sizeof(struct hashlist *));
+    dict->hashsize = size;
+    dict->hashfirstindex = 0;
+    dict->hashfirstptr = NULL;
 }
 
-int RecurseHashTable(struct hashlist **hashtab, int hashsize,
-	int (*func)(struct hashlist *elem))
+int RecurseHashTable(struct hashdict *dict, int (*func)(struct hashlist *elem))
 /* returns the sum of the return values of (*func) */
 {
 	int i, sum;
 	struct hashlist *p;
 	
 	sum = 0;
-	for (i = 0; i < hashsize; i++)
-		for (p = hashtab[i]; p != NULL; p = p->next) 
+	for (i = 0; i < dict->hashsize; i++)
+		for (p = dict->hashtab[i]; p != NULL; p = p->next) 
 			sum += (*func)(p);
 	return(sum);
 }
@@ -57,15 +60,15 @@ int RecurseHashTable(struct hashlist **hashtab, int hashsize,
  * type int value to the function.
  */
 
-int RecurseHashTableValue(struct hashlist **hashtab, int hashsize,
+int RecurseHashTableValue(struct hashdict *dict,
 	int (*func)(struct hashlist *elem, int), int value)
 {
 	int i, sum;
 	struct hashlist *p;
 	
 	sum = 0;
-	for (i = 0; i < hashsize; i++)
-		for (p = hashtab[i]; p != NULL; p = p->next) 
+	for (i = 0; i < dict->hashsize; i++)
+		for (p = dict->hashtab[i]; p != NULL; p = p->next) 
 			sum += (*func)(p, value);
 	return(sum);
 }
@@ -76,7 +79,7 @@ int RecurseHashTableValue(struct hashlist **hashtab, int hashsize,
  * function through that structure.
  */
 
-struct nlist *RecurseHashTablePointer(struct hashlist **hashtab, int hashsize,
+struct nlist *RecurseHashTablePointer(struct hashdict *dict,
 	struct nlist *(*func)(struct hashlist *elem, void *),
 	void *pointer)
 {
@@ -84,8 +87,8 @@ struct nlist *RecurseHashTablePointer(struct hashlist **hashtab, int hashsize,
     struct hashlist *p;
     struct nlist *tp;
  
-    for (i = 0; i < hashsize; i++) {
-	for (p = hashtab[i]; p != NULL; p = p->next) {
+    for (i = 0; i < dict->hashsize; i++) {
+	for (p = dict->hashtab[i]; p != NULL; p = p->next) {
 	    tp = (*func)(p, pointer);
 	    if (tp != NULL) return tp;
 	}
@@ -164,14 +167,14 @@ unsigned long genhash(char *s, int c, int hashsize)
 /* return the 'ptr' field of the hash table entry, or NULL if not found */
 /*----------------------------------------------------------------------*/
 
-void *HashLookup(char *s, struct hashlist **hashtab, int hashsize)
+void *HashLookup(char *s, struct hashdict *dict)
 {
   struct hashlist *np;
   unsigned long hashval;
 	
-  hashval = (*hashfunc)(s, hashsize);
+  hashval = (*hashfunc)(s, dict->hashsize);
 	
-  for (np = hashtab[hashval]; np != NULL; np = np->next)
+  for (np = dict->hashtab[hashval]; np != NULL; np = np->next)
     if ((*matchfunc)(s, np->name)) return (np->ptr);	/* correct match */
   return (NULL); /* not found */
 }
@@ -183,14 +186,14 @@ void *HashLookup(char *s, struct hashlist **hashtab, int hashsize)
 /* passed integer value i						*/
 /*----------------------------------------------------------------------*/
 
-void *HashIntLookup(char *s, int i, struct hashlist **hashtab, int hashsize)
+void *HashIntLookup(char *s, int i, struct hashdict *dict)
 {
   struct hashlist *np;
   unsigned long hashval;
 	
-  hashval = (*hashfunc)(s, hashsize);
+  hashval = (*hashfunc)(s, dict->hashsize);
 
-  for (np = hashtab[hashval]; np != NULL; np = np->next) {
+  for (np = dict->hashtab[hashval]; np != NULL; np = np->next) {
     if (np->ptr == NULL) {
        if ((*matchintfunc)(s, np->name, i, -1))
 	  return NULL;
@@ -209,14 +212,14 @@ void *HashIntLookup(char *s, int i, struct hashlist **hashtab, int hashsize)
 /* first, then the character string.					*/
 /*----------------------------------------------------------------------*/
 
-void *HashInt2Lookup(char *s, int c, struct hashlist **hashtab, int hashsize)
+void *HashInt2Lookup(char *s, int c, struct hashdict *dict)
 {
   struct hashlist *np;
   unsigned long hashval;
 	
-  hashval = genhash(s, c, hashsize);
+  hashval = genhash(s, c, dict->hashsize);
 	
-  for (np = hashtab[hashval]; np != NULL; np = np->next)
+  for (np = dict->hashtab[hashval]; np != NULL; np = np->next)
     if (!strcmp(s, np->name))
       return (np->ptr);	/* correct match */
 
@@ -228,14 +231,13 @@ void *HashInt2Lookup(char *s, int c, struct hashlist **hashtab, int hashsize)
 /* return the hashlist entry, after (re)initializing its 'ptr' field */
 /*----------------------------------------------------------------------*/
 
-struct hashlist *HashPtrInstall(char *name, void *ptr, 
-				struct hashlist **hashtab, int hashsize)
+struct hashlist *HashPtrInstall(char *name, void *ptr, struct hashdict *dict)
 {
   struct hashlist *np;
   unsigned long hashval;
 	
-  hashval = (*hashfunc)(name,hashsize);
-  for (np = hashtab[hashval]; np != NULL; np = np->next)
+  hashval = (*hashfunc)(name, dict->hashsize);
+  for (np =  dict->hashtab[hashval]; np != NULL; np = np->next)
     if ((*matchfunc)(name, np->name)) {
       np->ptr = ptr;
       return (np);		/* match found in hash table */
@@ -246,8 +248,8 @@ struct hashlist *HashPtrInstall(char *name, void *ptr,
     return (NULL);
   if ((np->name = strsave(name)) == NULL) return (NULL);
   np->ptr = ptr;
-  np->next = hashtab[hashval];
-  return(hashtab[hashval] = np);
+  np->next =  dict->hashtab[hashval];
+  return(dict->hashtab[hashval] = np);
 }
 
 /*----------------------------------------------------------------------*/
@@ -256,13 +258,13 @@ struct hashlist *HashPtrInstall(char *name, void *ptr,
 /*----------------------------------------------------------------------*/
 
 struct hashlist *HashIntPtrInstall(char *name, int value, void *ptr,
-			struct hashlist **hashtab, int hashsize)
+			struct hashdict *dict)
 {
   struct hashlist *np;
   unsigned long hashval;
 	
-  hashval = (*hashfunc)(name,hashsize);
-  for (np = hashtab[hashval]; np != NULL; np = np->next)
+  hashval = (*hashfunc)(name, dict->hashsize);
+  for (np =  dict->hashtab[hashval]; np != NULL; np = np->next)
     if ((*matchintfunc)(name, np->name, value, (int)(*((int *)np->ptr)))) {
       np->ptr = ptr;
       return (np);		/* match found in hash table */
@@ -273,8 +275,8 @@ struct hashlist *HashIntPtrInstall(char *name, int value, void *ptr,
     return (NULL);
   if ((np->name = strsave(name)) == NULL) return (NULL);
   np->ptr = ptr;
-  np->next = hashtab[hashval];
-  return(hashtab[hashval] = np);
+  np->next = dict->hashtab[hashval];
+  return(dict->hashtab[hashval] = np);
 }
 
 /*----------------------------------------------------------------------*/
@@ -282,13 +284,13 @@ struct hashlist *HashIntPtrInstall(char *name, int value, void *ptr,
 /*----------------------------------------------------------------------*/
 
 struct hashlist *HashInt2PtrInstall(char *name, int c, void *ptr,
-			struct hashlist **hashtab, int hashsize)
+			struct hashdict *dict)
 {
   struct hashlist *np;
   unsigned long hashval;
 	
-  hashval = genhash(name, c, hashsize);
-  for (np = hashtab[hashval]; np != NULL; np = np->next)
+  hashval = genhash(name, c, dict->hashsize);
+  for (np = dict->hashtab[hashval]; np != NULL; np = np->next)
     if (!strcmp(name, np->name)) {
       np->ptr = ptr;
       return (np);		/* match found in hash table */
@@ -299,27 +301,31 @@ struct hashlist *HashInt2PtrInstall(char *name, int c, void *ptr,
     return (NULL);
   if ((np->name = strsave(name)) == NULL) return (NULL);
   np->ptr = ptr;
-  np->next = hashtab[hashval];
-  return(hashtab[hashval] = np);
+  np->next = dict->hashtab[hashval];
+  return(dict->hashtab[hashval] = np);
 }
 
 /*----------------------------------------------------------------------*/
 /* destroy a hash table, freeing associated memory 			*/
 /*----------------------------------------------------------------------*/
 
-void *HashKill(struct hashlist **hashtab, int hashsize)
+void *HashKill(struct hashdict *dict)
 {
   struct hashlist *np, *p;
   int i;
 
-  for (i = 0; i < hashsize; i++) {
-    for (p = hashtab[i]; p != NULL; ) {
+  if (dict->hashtab == NULL) return;	// Hash not initialized
+
+  for (i = 0; i < dict->hashsize; i++) {
+    for (p = dict->hashtab[i]; p != NULL; ) {
       np = p->next;
       FREE(p->name);
       FREE(p);
       p = np;
     }
   }
+  FREE(dict->hashtab);
+  dict->hashtab = NULL;
 }
 
 /*----------------------------------------------------------------------*/
@@ -327,14 +333,13 @@ void *HashKill(struct hashlist **hashtab, int hashsize)
 /* to the new hash entry.						*/
 /*----------------------------------------------------------------------*/
 
-struct hashlist *HashInstall(char *name, 
-			     struct hashlist **hashtab, int hashsize)
+struct hashlist *HashInstall(char *name, struct hashdict *dict)
 {
   struct hashlist *np;
   unsigned long hashval;
 	
-  hashval = (*hashfunc)(name,hashsize);
-  for (np = hashtab[hashval]; np != NULL; np = np->next)
+  hashval = (*hashfunc)(name, dict->hashsize);
+  for (np = dict->hashtab[hashval]; np != NULL; np = np->next)
     if ((*matchfunc)(name, np->name)) return (np); /* match found in hash table */
 
   /* not in table, so install it */
@@ -342,27 +347,27 @@ struct hashlist *HashInstall(char *name,
     return (NULL);
   if ((np->name = strsave(name)) == NULL) return (NULL);
   np->ptr = NULL;
-  np->next = hashtab[hashval];
-  return(hashtab[hashval] = np);
+  np->next = dict->hashtab[hashval];
+  return(dict->hashtab[hashval] = np);
 }
 
 /*----------------------------------------------------------------------*/
 /* frees a hash table entry, (but not the 'ptr' field) 			*/
 /*----------------------------------------------------------------------*/
 
-void HashDelete(char *name, struct hashlist **hashtab, int hashsize)
+void HashDelete(char *name, struct hashdict *dict)
 {
   unsigned long hashval;
   struct hashlist *np;
   struct hashlist *np2;
   
-  hashval = (*hashfunc)(name, hashsize);
-  np = hashtab[hashval];
+  hashval = (*hashfunc)(name, dict->hashsize);
+  np = dict->hashtab[hashval];
   if (np == NULL) return;
 
   if ((*matchfunc)(name, np->name)) {
     /* it is the first element in the list */
-    hashtab[hashval] = np->next;
+    dict->hashtab[hashval] = np->next;
     FREE(np->name);
     FREE(np);
     return;
@@ -385,19 +390,19 @@ void HashDelete(char *name, struct hashlist **hashtab, int hashsize)
 /* HashDelete with additional integer value matching			*/
 /*----------------------------------------------------------------------*/
 
-void HashIntDelete(char *name, int value, struct hashlist **hashtab, int hashsize)
+void HashIntDelete(char *name, int value, struct hashdict *dict)
 {
   unsigned long hashval;
   struct hashlist *np;
   struct hashlist *np2;
   
-  hashval = (*hashfunc)(name, hashsize);
-  np = hashtab[hashval];
+  hashval = (*hashfunc)(name, dict->hashsize);
+  np = dict->hashtab[hashval];
   if (np == NULL) return;
 
   if ((*matchintfunc)(name, np->name, value, (int)(*((int *)np->ptr)))) {
     /* it is the first element in the list */
-    hashtab[hashval] = np->next;
+    dict->hashtab[hashval] = np->next;
     FREE(np->name);
     FREE(np);
     return;
@@ -418,32 +423,34 @@ void HashIntDelete(char *name, int value, struct hashlist **hashtab, int hashsiz
 }
 
 /*----------------------------------------------------------------------*/
+/* Hash key iterator							*/
+/* returns 'ptr' field of next element, NULL when done 			*/
+/*----------------------------------------------------------------------*/
 
-static int hashfirstindex; /* was long */
-static struct hashlist *hashfirstptr;
-
-void *HashNext(struct hashlist **hashtab, int hashsize)
-/* returns 'ptr' field of next element, NULL when done */
+void *HashNext(struct hashdict *dict)
 {
-  if (hashfirstptr != NULL && hashfirstptr->next != NULL) {
-    hashfirstptr = hashfirstptr->next;
-    return(hashfirstptr->ptr);
-  }
-  while (hashfirstindex < hashsize) {
-    if ((hashfirstptr = hashtab[hashfirstindex++]) != NULL) {
-      return(hashfirstptr->ptr);
-    }
-  }
-  hashfirstindex = 0;
-  hashfirstptr = NULL;
-  return(NULL);
+   if (dict->hashfirstptr != NULL && dict->hashfirstptr->next != NULL) {
+      dict->hashfirstptr = dict->hashfirstptr->next;
+      return(dict->hashfirstptr->ptr);
+   }
+   while (dict->hashfirstindex < dict->hashsize) {
+      if ((dict->hashfirstptr = dict->hashtab[dict->hashfirstindex++]) != NULL) {
+         return(dict->hashfirstptr->ptr);
+      }
+   }
+
+   dict->hashfirstindex = 0;
+   dict->hashfirstptr = NULL;
+   return(NULL);
 }
 
-void *HashFirst(struct hashlist **hashtab, int hashsize)
+/*----------------------------------------------------------------------*/
+/* Hash key iterator setup						*/
+/*----------------------------------------------------------------------*/
+
+void *HashFirst(struct hashdict *dict)
 {
-  hashfirstindex = 0;
-  hashfirstptr = NULL;
-  return(HashNext(hashtab,hashsize));
+   dict->hashfirstindex = 0;
+   dict->hashfirstptr = NULL;
+   return HashNext(dict);
 }
-
-

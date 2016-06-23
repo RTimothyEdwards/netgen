@@ -3319,7 +3319,7 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	    if (vl2->type == PROP_ENDLIST) break;
 	    if (vl2 == NULL) continue;
 	    if (vl2->key == NULL) continue;
-	    kl2 = (struct property *)HashLookup(vl2->key, tc2->proptab, OBJHASHSIZE);
+	    kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
 	    if (kl2 != NULL) break;	// Property is required
 	    else if ((*matchfunc)(vl2->key, "M")) {
 		if (vl2->type == PROP_INTEGER)
@@ -3344,7 +3344,7 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	    if (vl1->type == PROP_ENDLIST) break;
 	    if (vl1 == NULL) continue;
 	    if (vl1->key == NULL) continue;
-	    kl1 = (struct property *)HashLookup(vl1->key, tc1->proptab, OBJHASHSIZE);
+	    kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
 	    if (kl1 != NULL) break;	// Property is required
 	    else if ((*matchfunc)(vl1->key, "M")) {
 		if (vl1->type == PROP_INTEGER)
@@ -3369,7 +3369,7 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
       if (vl1->key == NULL) continue;
 
       /* Check if this is a "property of interest". */
-      kl1 = (struct property *)HashLookup(vl1->key, tc1->proptab, OBJHASHSIZE);
+      kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
       if (kl1 == NULL) continue;
 
       /* Find the matching property in vl2.  With luck, they're in order. */
@@ -3386,7 +3386,7 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
       if (vl2->key == NULL) continue;
 
       /* Both device classes must agree on the properties to compare */
-      kl2 = (struct property *)HashLookup(vl2->key, tc2->proptab, OBJHASHSIZE);
+      kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
       if (kl2 == NULL) continue;
 
       /* Watch out for uninitialized entries in cell def */
@@ -4488,7 +4488,7 @@ int reorderpins(struct hashlist *p, int file)
 		      ob->node = nodes[i];
 		      ob->name = names[i];
 		   }
-		   HashPtrInstall(ob->name, ob, ptr->objtab, OBJHASHSIZE);
+		   HashPtrInstall(ob->name, ob, &(ptr->objdict));
 		   ob = ob->next;
 		   names[i] = NULL;
 		}
@@ -4566,12 +4566,11 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 	     lob = obn;
 
 	     // Hash the new pin record for "LookupObject()"
-	     HashPtrInstall(obn->name, obn, ptr->objtab, OBJHASHSIZE);
+	     HashPtrInstall(obn->name, obn, &(ptr->objdict));
 
 	     if (tob == tc->cell) {
-		// Rehash the instance in insttab
-		HashPtrInstall(firstpin->instance.name, firstpin,
-				ptr->insttab, OBJHASHSIZE);
+		// Rehash the instance in instdict
+		HashPtrInstall(firstpin->instance.name, firstpin, &(ptr->instdict));
 	     }
 	  }
 	  else {
@@ -4595,7 +4594,7 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
        obn->next = NULL;
        lob->next = obn;
        lob = obn;
-       HashPtrInstall(obn->name, obn, ptr->objtab, OBJHASHSIZE);
+       HashPtrInstall(obn->name, obn, &(ptr->objdict));
     }
 
     // We messed with the node name list, so have to re-cache them
@@ -4888,7 +4887,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
          ob1 = obn;
 	 hasproxy1 = 1;
 
-	 HashPtrInstall(obn->name, obn, tc1->objtab, OBJHASHSIZE);
+	 HashPtrInstall(obn->name, obn, &(tc1->objdict));
       }
    }
 
@@ -4946,7 +4945,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2)
          ob2 = obn;
 	 hasproxy2 = 1;
 
-	 HashPtrInstall(obn->name, obn, tc2->objtab, OBJHASHSIZE);
+	 HashPtrInstall(obn->name, obn, &(tc2->objdict));
       }
 
       else if (ob1 != NULL && ob1->type == PORT) {

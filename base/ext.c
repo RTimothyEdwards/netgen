@@ -544,10 +544,10 @@ void simCell(char *name, int filenum)
 	    if (ob2 && ob2->type == PROPERTY) {
 	       struct property *kl;
 	       struct valuelist *vl;
-	       kl = (struct property *)HashLookup("length", tp2->proptab, OBJHASHSIZE);
+	       kl = (struct property *)HashLookup("length", &(tp2->propdict));
 	       vl = (struct valuelist *)ob2->instance.name;
 	       l = 1.0e6 * vl[kl->idx].value.dval;	/* m -> um */
-	       kl = (struct property *)HashLookup("width", tp2->proptab, OBJHASHSIZE);
+	       kl = (struct property *)HashLookup("width", &(tp2->propdict));
 	       w = 1.0e6 * vl[kl->idx].value.dval;	/* m -> um */
 	    }
 	    FlushString(" %g %g\n", l, w);   
@@ -579,7 +579,7 @@ void simCell(char *name, int filenum)
 	    if (ob2 && ob2->type == PROPERTY) {
 	       struct property *kl;
 	       struct valuelist *vl;
-	       kl = (struct property *)HashLookup("value", tp2->proptab, OBJHASHSIZE);
+	       kl = (struct property *)HashLookup("value", &(tp2->propdict));
 	       vl = (struct valuelist *)ob2->instance.name;
 	       if (tp2->class == CLASS_CAP)
 	          v = 1.0e15 * vl[kl->idx].value.dval;	/* F -> fF */

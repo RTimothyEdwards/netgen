@@ -2970,6 +2970,7 @@ _netcmp_equate(ClientData clientData,
 /*	add	  --- add new property			*/
 /*	remove	  --- delete existing property		*/
 /*	tolerance --- set property tolerance		*/
+/*	merge	  --- set property merge behavior	*/
 /* Formerly: (none)					*/
 /* Results:						*/
 /* Side Effects:					*/
@@ -2987,10 +2988,10 @@ _netcmp_property(ClientData clientData,
     int ival, argstart;
 
     char *options[] = {
-	"add", "create", "remove", "delete", "tolerance", NULL
+	"add", "create", "remove", "delete", "tolerance", "merge", NULL
     };
     enum OptionIdx {
-	ADD_IDX, CREATE_IDX, REMOVE_IDX, DELETE_IDX, TOLERANCE_IDX
+	ADD_IDX, CREATE_IDX, REMOVE_IDX, DELETE_IDX, TOLERANCE_IDX, MERGE_IDX
     };
     int result, index, idx2;
 
@@ -2999,6 +3000,13 @@ _netcmp_property(ClientData clientData,
     };
     enum SubOptionIdx {
 	INTEGER_IDX, DOUBLE_IDX, VALUE_IDX, STRING_IDX
+    };
+
+    char *mergeoptions[] = {
+	"none", "add", "add_critical", "par", "par_critical", NULL
+    };
+    enum MergeOptionIdx {
+	NONE_IDX, ADD_ONLY_IDX, ADD_CRIT_IDX, PAR_ONLY_IDX, PAR_CRIT_IDX
     };
 
     if (objc < 2) {
@@ -3012,7 +3020,7 @@ _netcmp_property(ClientData clientData,
 	/* Print all properties of the cell as key/type/tolerance triplets */
 	tobj1 = Tcl_NewListObj(0, NULL);
 
-	kl = (struct property *)HashFirst(tp->proptab, OBJHASHSIZE);
+	kl = (struct property *)HashFirst(&(tp->propdict));
 	while (kl != NULL) {
 	    tobj2 = Tcl_NewListObj(0, NULL);
 
@@ -3039,7 +3047,7 @@ _netcmp_property(ClientData clientData,
 
 	    Tcl_ListObjAppendElement(interp, tobj1, tobj2);
 
-	    kl = (struct property *)HashNext(tp->proptab, OBJHASHSIZE);
+	    kl = (struct property *)HashNext(&(tp->propdict));
 	}
 	Tcl_SetObjResult(interp, tobj1);
     }
@@ -3175,11 +3183,9 @@ _netcmp_property(ClientData clientData,
 		if (objc == 3) {
 		    /* "remove" without additional arguments means	*/
 		    /* delete all properties.				*/
-		    RecurseHashTable(tp->proptab, OBJHASHSIZE, freeprop);
-		    HashKill(tp->proptab, OBJHASHSIZE);
-		    FREE(tp->proptab);
-		    tp->proptab = (struct hashlist **)CALLOC(OBJHASHSIZE,
-				sizeof(struct hashlist *));
+		    RecurseHashTable(&(tp->propdict), freeprop);
+		    HashKill(&(tp->propdict));
+		    InitializeHashTable(&(tp->propdict), OBJHASHSIZE);
 		}
 		else {
 		    for (i = 3; i < objc; i++)
@@ -3218,6 +3224,53 @@ _netcmp_property(ClientData clientData,
 			}
 			PropertyTolerance(tp->name, fnum, Tcl_GetString(tobj1),
 					ival, dval);
+		    }
+		}
+		break;
+
+	    case MERGE_IDX:
+		if (objc == 3) {
+		    Tcl_WrongNumArgs(interp, 1, objv, "{property_key merge_type} ...");
+		    return TCL_ERROR;
+		}
+		for (i = 3; i < objc; i++) {
+		    // Each value must be a duplet
+		    result = Tcl_ListObjLength(interp, objv[i], &llen);
+		    if ((result != TCL_OK) || (llen != 2)) {
+			Tcl_SetResult(interp, "Not a {key merge_type} pair list.",
+					NULL);
+		    }
+		    else {
+			int mergeval;
+
+			result = Tcl_ListObjIndex(interp, objv[i], 0, &tobj1);
+			if (result != TCL_OK) return result;
+			result = Tcl_ListObjIndex(interp, objv[i], 1, &tobj2);
+			if (result != TCL_OK) return result;
+
+			result = Tcl_GetIndexFromObj(interp, tobj2,
+				(CONST84 char **)mergeoptions,
+				"merge_type", 0, &idx2);
+			if (result != TCL_OK) return result;
+
+			switch (idx2) {
+			    case NONE_IDX:
+				mergeval = MERGE_NONE;
+				break;
+			    case ADD_ONLY_IDX:
+				mergeval = MERGE_ADD;
+				break;
+			    case ADD_CRIT_IDX:
+				mergeval = MERGE_ADD_CRIT;
+				break;
+			    case PAR_ONLY_IDX:
+				mergeval = MERGE_PAR;
+				break;
+			    case PAR_CRIT_IDX:
+				mergeval = MERGE_PAR_CRIT;
+				break;
+			}
+			PropertyMerge(tp->name, fnum, Tcl_GetString(tobj1), mergeval);
 		    }
 		}
 		break;
