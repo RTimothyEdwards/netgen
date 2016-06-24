@@ -4476,6 +4476,11 @@ int reorderpins(struct hashlist *p, int file)
 		    }
 		    ob = ob->next;
 		    ob2 = ob2->next;
+		    if (ob == NULL) {
+			Fprintf(stderr, "Instance of %s has only %d of %d ports\n",
+				tc2->name, i + 1, numports);
+			break;
+		    }
 		}
 		
 		ob = firstpin;
@@ -4491,6 +4496,7 @@ int reorderpins(struct hashlist *p, int file)
 		   HashPtrInstall(ob->name, ob, &(ptr->objdict));
 		   ob = ob->next;
 		   names[i] = NULL;
+		   if (ob == NULL) break;	// Error message already output
 		}
 	    }
 	    else

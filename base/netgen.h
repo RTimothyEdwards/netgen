@@ -43,8 +43,8 @@ extern void CopyProperties(struct objlist *obj_to, struct objlist *obj_from);
 extern int PromoteProperty(struct property *, struct valuelist *);
 extern int SetPropertyDefault(struct property *, struct valuelist *);
 extern struct objlist *LinkProperties(char *model, struct keyvalue *topptr);
-extern int ReduceExpressions(struct objlist *instprop, struct nlist *parent,
-		int glob);
+extern int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
+		struct nlist *parent, int glob);
 extern void Node(char *name);
 extern void Global(char *name);
 extern void UniqueGlobal(char *name);

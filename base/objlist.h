@@ -232,7 +232,7 @@ extern int ListLength(char *list_template);
 extern struct nlist *LookupPrematchedClass(struct nlist *, int);
 extern struct objlist *LookupObject(char *name, struct nlist *WhichCell);
 extern struct objlist *LookupInstance(char *name, struct nlist *WhichCell);
-extern struct objlist *CopyObjList(struct objlist *oldlist);
+extern struct objlist *CopyObjList(struct objlist *oldlist, unsigned char doforall);
 extern void UpdateNodeNumbers(struct objlist *lst, int from, int to);
 
 /* Function pointer to List or ListExact, allowing regular expressions	*/

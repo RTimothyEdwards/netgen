@@ -24,6 +24,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "config.h"
 
 #include <stdio.h>
+#include <math.h>
 
 #ifdef IBMPC
 #include <alloc.h>
@@ -38,6 +39,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "objlist.h"
 #include "print.h"
 #include "netcmp.h"
+
+extern struct hashdict spiceparams;
 
 #define OLDPREFIX 1
 
@@ -95,7 +98,7 @@ void flattenCell(char *name, int file)
       if (ChildCell->dumped == 0) flattenCell(ParentParams->model.class,
 			ChildCell->file);
 
-      ChildObjList = CopyObjList(ChildCell->cell);
+      ChildObjList = CopyObjList(ChildCell->cell, 1);
 
       /* update node numbers in child to unique numbers */
       oldmax = 0;
@@ -322,7 +325,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       /* if this is a new instance, flatten it */
       /* if (ChildCell->dumped == 0) flattenCell(ParentParams->model.class, file); */
 
-      ChildObjList = CopyObjList(ChildCell->cell);
+      ChildObjList = CopyObjList(ChildCell->cell, 1);
       numflat++;
 
       /* update node numbers in child to unique numbers */
@@ -466,28 +469,19 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	  HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
       }
 
-      /* do property inheritance */
+      /* Do property inheritance */
+
       if (ParentProps) {
          for (ob2 = ChildObjList; ob2 != NULL; ob2=ob2->next) {
 
 	    /* If the parent cell has properties to declare, then	*/
-	    /* pass them on to children.				*/
+	    /* pass them on to children.  Use globals only if the	*/
+	    /* spiceparams dictionary is active (during file reading	*/
+	    /* only).							*/
 
-	    if (ob2->type == PROPERTY) {
-		struct valuelist *vl;
-		int i;
-		for (i == 0;; i++) {
-		    vl = &(ob2->instance.props[i]);
-		    if (vl->type == PROP_ENDLIST) break;
-		    else if (vl->type == PROP_EXPRESSION) {
-			/* Only expressions take substitutions */
-			struct tokstack *token;
-			for (token = vl->value.stack; token; token = token->next) {
-			    /* WIP */
-			}
-		    }
-		}
-	    }
+	    if (ob2->type == PROPERTY)
+		ReduceExpressions(ob2, ParentProps, ChildCell,
+			(spiceparams.hashtab == NULL) ? 0 : 1);
          }
       }
 
@@ -508,7 +502,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       tmp = ParentParams;
       do {
 	tmp = tmp->next;
-      } while ((tmp != NULL) && (tmp->type > FIRSTPIN));
+      } while ((tmp != NULL) && ((tmp->type > FIRSTPIN) || (tmp->type == PROPERTY)));
       if (ob2) ob2->next = tmp;
       while (ParentParams != tmp) {
 	ob2 = ParentParams->next;
@@ -526,8 +520,8 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 
 void Flatten(char *name, int file)
 {
-	ClearDumpedList(); /* keep track of flattened cells */
-	flattenCell(name, file);
+    ClearDumpedList(); /* keep track of flattened cells */
+    flattenCell(name, file);
 }
 
 
@@ -1305,6 +1299,88 @@ typedef struct ecomplist {
 } ECompList;
 
 /*------------------------------------------------------*/
+/* Split a device into multiple devices based on a	*/
+/* critical property; e.g., MOSFET width.  Devices with	*/
+/* property name equal to kl->key and value "value"	*/
+/* will be split into "ndev" devices with the property	*/
+/* of each divided down by "ndev".			*/
+/*------------------------------------------------------*/
+
+void
+SplitDevice(struct nlist *tc, struct nlist *cell, struct property *kl,
+	double value, int ndev, int file1, int file2, int which)
+{
+    struct objlist *ob, *ob2, *newdevs, *ob3, *lastob, *nob;
+    struct nlist *tsub;
+    unsigned char found;
+    int file = (which == 0) ? file1 : file2;
+   
+    newdevs = NULL;  	/* Linked list of the copied devices */
+
+    for (ob = tc->cell; ob; ob = ob->next) {
+	if (ob->type == FIRSTPIN) {
+	    tsub = LookupCellFile(ob->model.class, file);
+	    if (tsub == cell) {
+
+		// Advance ob to property list
+		found = 0;
+		for (ob2 = ob->next; ob2 && ob2->type != FIRSTPIN; ob2 = ob2->next) {
+		    if (ob2->type == PROPERTY) {
+			struct valuelist *kv;
+			int i;
+			double dval = 0.0;
+			for (i = 0; ; i++) {
+			    kv = &(ob2->instance.props[i]);
+			    if (kv->type == PROP_ENDLIST) break;
+			    if ((*matchfunc)(kv->key, kl->key)) {
+				switch(kv->type) {
+				    case PROP_INTEGER:
+					dval = (double)kv->value.ival;
+					break;
+				    case PROP_DOUBLE:
+				    case PROP_VALUE:
+					dval = kv->value.dval;
+					break;
+				}
+				break;
+			    }
+			}
+
+			/* To-do:  Account for slop */
+
+			if (dval == value) {
+			    switch(kv->type) {
+				case PROP_INTEGER:
+				    kv->value.ival /= ndev;
+				    found = 1;
+				    break;
+				case PROP_DOUBLE:
+				case PROP_VALUE:
+				    kv->value.dval /= ndev;
+				    found = 1;
+				    break;
+			    }
+			}
+		    }
+		    if (found) break;
+		}
+		if (found) {
+		    int i;
+		    for (i = 1; i < ndev; i++) {
+			ob3 = CopyObjList(ob, 0);	// Make exact copy
+			for (nob = ob3; nob->next != NULL; nob = nob->next);
+			nob->next = newdevs;
+			newdevs = ob3;
+		    }
+		}
+	    }
+	}
+	lastob = ob;
+    }
+    lastob->next = newdevs;	// Append new devices to list
+}
+
+/*------------------------------------------------------*/
 /* Survey a specific device in a cell and sort into a	*/
 /* hash by critical property.				*/
 /*------------------------------------------------------*/
@@ -1353,6 +1429,8 @@ SurveyDevice(struct nlist *tc, struct hashdict *devdict,
 		d2str += 2;
 
 		// Advance ob to property list
+		// To-do:  Quantize values according to slop
+
 		for (ob2 = ob->next; ob2 && ob2->type != FIRSTPIN; ob2 = ob2->next) {
 		    if (ob2->type == PROPERTY) {
 			struct valuelist *kv;
@@ -1811,6 +1889,9 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    // and merge devices where merging makes a better match.
 
 	    struct property *kl1, *kl2;
+	    double slop = 0.0;
+
+	    // Look for a mergeable property in cell1
 
 	    kl1 = (struct property *)HashFirst(&(ecomp->cell1->propdict));
 	    while (kl1 != NULL) {
@@ -1818,13 +1899,63 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		    break;
 		kl1 = (struct property *)HashNext(&(ecomp->cell1->propdict));
 	    }
+
+	    // Look for the equivalent property in cell2 (mergeable or not).
+	    // If cell1 had no mergeable properties, then look for one is cell2.
+
 	    kl2 = (struct property *)HashFirst(&(ecomp->cell2->propdict));
 	    while (kl2 != NULL) {
-		if (kl2->merge == MERGE_ADD_CRIT || kl2->merge == MERGE_PAR_CRIT)
+		if (kl1 != NULL) {
+		   if ((*matchfunc)(kl1->key, kl2->key))
+		      break;
+		}
+		else if (kl2->merge == MERGE_ADD_CRIT || kl2->merge == MERGE_PAR_CRIT)
 		    break;
-		kl2 = (struct property *)HashNext(&(ecomp->cell1->propdict));
+		kl2 = (struct property *)HashNext(&(ecomp->cell2->propdict));
 	    }
-	    if (kl1 != NULL || kl2 != NULL) {
+	    if (kl2 != NULL) {
+		// Get slop value
+		switch (kl2->type) {
+		    case PROP_INTEGER:
+			slop = (double)kl2->slop.ival;
+			break;
+		    case PROP_DOUBLE:
+		    case PROP_VALUE:
+			slop = kl2->slop.dval;
+			break;
+		}
+	    }
+
+	    // If cell2 had a mergeable property but cell1 didn't, then look
+	    // through cell1 again to find the equivalent property.
+
+	    if ((kl1 == NULL) && (kl2 != NULL)) {
+		kl1 = (struct property *)HashFirst(&(ecomp->cell1->propdict));
+		while (kl1 != NULL) {
+		    if ((*matchfunc)(kl1->key, kl2->key))
+			break;
+		    kl1 = (struct property *)HashNext(&(ecomp->cell1->propdict));
+		}
+	    }
+	    if (kl1 != NULL) {
+		// Get slop value
+		switch (kl1->type) {
+		    case PROP_INTEGER:
+			slop = MAX(slop, (double)kl1->slop.ival);
+			break;
+		    case PROP_DOUBLE:
+		    case PROP_VALUE:
+			slop = MAX(slop, kl1->slop.dval);
+			break;
+		}
+	    }
+
+	    if ((kl1 != NULL) && (kl2 != NULL)) {
+
+		double dval, dval1, dval2, mindev, pd, df, dr;
+		unsigned char dosplit;
+		char *valptr;
+		int ndev;
 
 		// Create the device hash table
 
@@ -1833,18 +1964,63 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		// Populate the device hash table
 
 		SurveyDevice(tc1, &devdict, ecomp->cell1, kl1, file1, file2, 0);
-		SurveyDevice(tc2, &devdict, ecomp->cell2, kl2, file1, file2, 0);
+		SurveyDevice(tc2, &devdict, ecomp->cell2, kl2, file1, file2, 1);
 
 		// Scan the device hash table.  If devices can be merged
 		// and this improves the matching between cells, then do
 		// the merge.
 
+		mindev = 1E20;
+		dval1 = dval2 = 0.0;
+
 		dcomp = (ECompare *)HashFirst(&devdict);
 		while (dcomp != NULL) {
-		    if (dcomp->num1 != dcomp->num2) {
-			/* XXX WIP WIP WIP XXX */
+		    if ((dcomp->num1 == 0) || (dcomp->num2 == 0)) {
+			valptr = strstr(devdict.hashfirstptr->name, "::");
+			if (sscanf(valptr + 2, "%lg", &dval) == 1) {
+			    if (dval < mindev) mindev = dval;
+			    if (dcomp->num1 == 0)
+				dval2 += (dval * dcomp->num2) / dcomp->refcount;
+			    else
+				dval1 += (dval * dcomp->num1) / dcomp->refcount;
+			}
 		    }
 		    dcomp = (ECompare *)HashNext(&devdict);
+		}
+
+		// If dval2 and dval1 agree within slop, and both are
+		// divisible by mindev, then break up all devices into
+		// sizes of mindev.
+
+		dosplit = 0;
+		pd = 2 * fabs(dval1 - dval2) / (dval1 + dval2);
+		if (pd < slop) {
+		    df = dval1 / mindev;
+		    dr = round(df);
+		    pd = 2 * fabs(df - dr) / (df + dr);
+		    if (pd < slop) dosplit = 1;
+		}
+
+		if (dosplit) {
+		    dcomp = (ECompare *)HashFirst(&devdict);
+		    while (dcomp != NULL) {
+			if (dcomp->num1 == 0 || dcomp->num2 == 0) {
+			    valptr = strstr(devdict.hashfirstptr->name, "::");
+			    sscanf(valptr + 2, "%lg", &dval);
+			    ndev = (int)round(dval / mindev);
+			}
+			if (dcomp->num1 == 0) {
+			    SplitDevice(tc2, ecomp->cell2, kl2, dval, ndev,
+					file1, file2, 1);
+			    modified++;
+			}
+			else if (dcomp->num2 == 0) {
+			    SplitDevice(tc1, ecomp->cell1, kl1, dval, ndev,
+					file1, file2, 0);
+			    modified++;
+			}
+			dcomp = (ECompare *)HashNext(&devdict);
+		    }
 		}
 
 		// Free the device hash table

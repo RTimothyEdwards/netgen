@@ -843,7 +843,7 @@ int ListLength(char *list_template)
 
 
 
-struct objlist *CopyObjList(struct objlist *oldlist)
+struct objlist *CopyObjList(struct objlist *oldlist, unsigned char doforall)
 /* copies list pointed to by oldlist, creating
    a list whose head pointer is returned */
 {
@@ -880,6 +880,13 @@ struct objlist *CopyObjList(struct objlist *oldlist)
       tail->next = newob;
     tail = newob;
     tmp = tmp->next;
+
+    // If "doforall" is 0, then only copy one object;  otherwise,
+    // copy to the end of the list.
+    if (!doforall) {
+      if ((tmp == NULL) || ((tmp->type <= FIRSTPIN) && (tmp->type != PROPERTY)))
+	 break;
+    }
   }
   return (head);
 }

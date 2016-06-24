@@ -860,7 +860,7 @@ skip_ends:
          if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
 	 Cell(instname, model, collector, base, emitter);
 	 pobj = LinkProperties(model, kvlist);
-	 ReduceExpressions(pobj, CurrentCell, TRUE);
+	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	 ndev--;
       }
       DeleteProperties(&kvlist);
@@ -927,8 +927,8 @@ skip_ends:
 	 Port("gate");
 	 Port("source");
 	 Port("bulk");
-	 PropertyDouble(model, filenum, "length", 0.01, 0.0);
-	 PropertyDouble(model, filenum, "width", 0.01, 0.0);
+	 PropertyDouble(model, filenum, "L", 0.01, 0.0);
+	 PropertyDouble(model, filenum, "W", 0.01, 0.0);
 	 SetClass(CLASS_FET);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -946,7 +946,7 @@ skip_ends:
          if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
 	 Cell(instname, model, drain, gate, source, bulk);
 	 pobj = LinkProperties(model, kvlist);
-	 ReduceExpressions(pobj, CurrentCell, TRUE);
+	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	 ndev--;
       }
       DeleteProperties(&kvlist);
@@ -1049,7 +1049,7 @@ skip_ends:
 	   else
               Cap((*CellStackPtr)->cellname, instname, ctop, cbot);
 	   pobj = LinkProperties(model, kvlist);
-	   ReduceExpressions(pobj, CurrentCell, TRUE);
+	   ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	   ndev--;
 	}
 	DeleteProperties(&kvlist);
@@ -1151,7 +1151,7 @@ skip_ends:
 	   else
               Res((*CellStackPtr)->cellname, instname, rtop, rbot);
 	   pobj = LinkProperties(model, kvlist);
-	   ReduceExpressions(pobj, CurrentCell, TRUE);
+	   ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	   ndev--;
 	}
 	DeleteProperties(&kvlist);
@@ -1215,7 +1215,7 @@ skip_ends:
          if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
 	 Cell(instname, model, anode, cathode);
 	 pobj = LinkProperties(model, kvlist);
-	 ReduceExpressions(pobj, CurrentCell, TRUE);
+	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	 ndev--;
       }
       DeleteProperties(&kvlist);
@@ -1307,7 +1307,7 @@ skip_ends:
               XLine((*CellStackPtr)->cellname, instname, node1, node2,
 			node3, node4);
 	   pobj = LinkProperties(model, kvlist);
-	   ReduceExpressions(pobj, CurrentCell, TRUE);
+	   ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	   ndev--;
 	}
 	DeleteProperties(&kvlist);
@@ -1397,7 +1397,7 @@ skip_ends:
 	 else
 	    Inductor((*CellStackPtr)->cellname, instname, end_a, end_b);
 	 pobj = LinkProperties(model, kvlist);
-	 ReduceExpressions(pobj, CurrentCell, TRUE);
+	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	 ndev--;
       }
       DeleteProperties(&kvlist);
@@ -1457,7 +1457,7 @@ skip_ends:
       }
       Cell(instname, model, pos, neg);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, CurrentCell, TRUE);
+      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'I') {	/* current source */
@@ -1510,7 +1510,7 @@ skip_ends:
       }
       Cell(instname, model, pos, neg);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, CurrentCell, TRUE);
+      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'E') {	/* controlled voltage source */
@@ -1574,7 +1574,7 @@ skip_ends:
       }
       Cell(instname, model, pos, neg, ctrlp, ctrln);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, CurrentCell, TRUE);
+      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
 
@@ -1720,7 +1720,7 @@ skip_ends:
 	 }
          Instance(subcktname, instancename);
 	 pobj = LinkProperties(subcktname, kvlist);
-	 ReduceExpressions(pobj, CurrentCell, TRUE);
+	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	 ndev--;
 
          /* (Diagnostic) */

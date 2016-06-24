@@ -168,12 +168,18 @@ struct tokstack *CopyTokStack(struct tokstack *stack)
 /* value was successfully converted, 0 if there was no value to	*/
 /* convert (empty string), and -1 if unable to convert the	*/
 /* string to a value (e.g., unknown parameter name).		*/
+/*								*/
+/* Inheritance is taken from "parprops" (instanced property	*/
+/* values) if available, and from parent->propdict if not, or	*/
+/* if the property is not instanced.				*/
 /*--------------------------------------------------------------*/
 
-int TokGetValue(char *estr, struct nlist *parent, int glob, double *dval)
+int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
+		int glob, double *dval)
 {
     struct property *kl = NULL;
-    int result;
+    struct valuelist *kv;
+    int i, result;
 
     if (*estr == '\0') return 0;
 
@@ -195,22 +201,50 @@ int TokGetValue(char *estr, struct nlist *parent, int glob, double *dval)
 	}
     }
 
-    /* Check local parameters */
-    kl = (struct property *)HashLookup(estr, &(parent->propdict));
-    if (kl != NULL) {
-	switch(kl->type) {
-	    case PROP_STRING:
-		result = ConvertStringToFloat(kl->pdefault.string, dval);
+    /* Check local instanced parameters */
+    result = 0;
+    if ((parprops != NULL) && (parprops->type == PROPERTY)) {
+	for (i = 0; ; i++) {
+	    kv = &(parprops->instance.props[i]);
+	    if (kv->type == PROP_ENDLIST) break;
+	    else if ((*matchfunc)(estr, kv->key)) {
+		switch (kv->type) {
+		    case PROP_STRING:
+			result = ConvertStringToFloat(kv->value.string, dval);
+			break;
+		    case PROP_DOUBLE:
+		    case PROP_VALUE:
+			*dval = kv->value.dval;
+			result = 1;
+			break;
+		    case PROP_INTEGER:
+			*dval = (double)kv->value.ival;
+			result = 1;
+			break;
+		}
 		break;
-	    case PROP_DOUBLE:
-	    case PROP_VALUE:
-		*dval = kl->pdefault.dval;
-		result = 1;
-		break;
-	    case PROP_INTEGER:
-		*dval = (double)kl->pdefault.ival;
-		result = 1;
-		break;
+	    }
+	}
+    }
+
+    /* Check local parent parameters */
+    if (result == 0) {
+	kl = (struct property *)HashLookup(estr, &(parent->propdict));
+	if (kl != NULL) {
+	    switch(kl->type) {
+		case PROP_STRING:
+		    result = ConvertStringToFloat(kl->pdefault.string, dval);
+		    break;
+		case PROP_DOUBLE:
+		case PROP_VALUE:
+		    *dval = kl->pdefault.dval;
+		    result = 1;
+		    break;
+		case PROP_INTEGER:
+		    *dval = (double)kl->pdefault.ival;
+		    result = 1;
+		    break;
+	    }
 	}
     }
     return ((result == 0) ? -1 : 1);
@@ -228,14 +262,14 @@ int TokGetValue(char *estr, struct nlist *parent, int glob, double *dval)
 /* single value, then replace the property type.		*/
 /*--------------------------------------------------------------*/
 
-int ReduceExpressions(struct objlist *instprop,
+int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
         struct nlist *parent, int glob) {
 
     struct tokstack *expstack, *stackptr, *lptr, *nptr;
     struct valuelist *kv;
     struct property *kl = NULL;
     char *estr, *tstr, *sstr;
-    int toktype, functype, i, result, modified, numlast;
+    int toktype, functype, i, result, modified, numlast, savetok;
     double dval;
 
     if (instprop == NULL) return 0;	// Nothing to do
@@ -245,7 +279,9 @@ int ReduceExpressions(struct objlist *instprop,
 
 	kv = &(instprop->instance.props[i]);
 
-	if (kv->type == PROP_EXPRESSION) {
+	if (kv->type == PROP_ENDLIST) 
+	    break;
+	else if (kv->type == PROP_EXPRESSION) {
 	    expstack = kv->value.stack;
 	}
 	else if (kv->type == PROP_STRING) {
@@ -269,7 +305,7 @@ int ReduceExpressions(struct objlist *instprop,
 			}
 			/* Not a number, so must be arithmetic */
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			PushTok(TOK_PLUS, NULL, &expstack);
@@ -289,7 +325,7 @@ int ReduceExpressions(struct objlist *instprop,
 			}
 			/* Not a number, so must be arithmetic */
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			PushTok(TOK_MINUS, NULL, &expstack);
@@ -310,7 +346,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case '/':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			PushTok(TOK_DIVIDE, NULL, &expstack);
@@ -320,7 +356,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case '*':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			PushTok(TOK_MULTIPLY, NULL, &expstack);
@@ -339,7 +375,7 @@ int ReduceExpressions(struct objlist *instprop,
 			else {
 			    /* Treat as a parenthetical grouping */
 
-			    result = TokGetValue(estr, parent, glob, &dval);
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
 			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			    PushTok(TOK_FUNC_OPEN, NULL, &expstack);
@@ -350,8 +386,15 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case ')':
 			*tstr = '\0';
+
 			if (expstack == NULL) break;
-			switch (expstack->toktype) {
+			savetok = expstack->toktype;
+
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
+			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+
+			switch (savetok) {
 			    case TOK_FUNC_THEN:
 				PushTok(TOK_FUNC_ELSE, NULL, &expstack);
 				break;
@@ -365,7 +408,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case '\'':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			PushTok(TOK_SGL_QUOTE, NULL, &expstack);
@@ -375,7 +418,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case '"':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			PushTok(TOK_DBL_QUOTE, NULL, &expstack);
@@ -385,7 +428,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case '{':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			PushTok(TOK_GROUP_OPEN, NULL, &expstack);
@@ -395,7 +438,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case '}':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			PushTok(TOK_GROUP_CLOSE, NULL, &expstack);
 			estr = tstr + 1;
@@ -405,7 +448,7 @@ int ReduceExpressions(struct objlist *instprop,
 		    case '!':
 			if (*(tstr + 1) == '=') {
 			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, glob, &dval);
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
 			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			    PushTok(TOK_NE, NULL, &expstack);
@@ -416,7 +459,7 @@ int ReduceExpressions(struct objlist *instprop,
 		    case '=':
 			if (*(tstr + 1) == '=') {
 	 		    *tstr = '\0';
-	 		    result = TokGetValue(estr, parent, glob, &dval);
+	 		    result = TokGetValue(estr, parent, parprops, glob, &dval);
 	 		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 	 		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			    PushTok(TOK_EQ, NULL, &expstack);
@@ -426,7 +469,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case '>':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 
@@ -442,7 +485,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case '<':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 
@@ -458,7 +501,7 @@ int ReduceExpressions(struct objlist *instprop,
 
 		    case ',':
 			*tstr = '\0';
-			result = TokGetValue(estr, parent, glob, &dval);
+			result = TokGetValue(estr, parent, parprops, glob, &dval);
 			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 			if (expstack == NULL) break;
@@ -483,7 +526,7 @@ int ReduceExpressions(struct objlist *instprop,
 		}
 		tstr++;
 	    }
-	    result = TokGetValue(estr, parent, glob, &dval);
+	    result = TokGetValue(estr, parent, parprops, glob, &dval);
 	    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 	    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 
@@ -754,7 +797,7 @@ int ReduceExpressions(struct objlist *instprop,
 		switch (stackptr->toktype) {
 		    case TOK_STRING:
 			result = TokGetValue(stackptr->data.string, parent,
-				glob, &dval);
+				parprops, glob, &dval);
 			if (result == 1) {
 			    stackptr->toktype = TOK_DOUBLE;
 			    FREE(stackptr->data.string);
