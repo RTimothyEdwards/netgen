@@ -126,7 +126,6 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out}} {
       }
    } else {
       netgen::permute default	;# transistors and resistors
-      netgen::combine default	;# standard parallel/serial allowances
    }
 
    puts stdout "Comparison output logged to file $logfile"

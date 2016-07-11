@@ -1800,11 +1800,12 @@ struct Node *CreateNodeList(char *name, short graph)
   return (head);
 }
 
-void CreateLists(char *name, short graph)
 /* creates two lists of the correct 'shape', then traverses nodes
-   in sequence to link up 'subelement' field of ElementList,
-	then 'node' field of NodeList structures.
-*/		
+ * in sequence to link up 'subelement' field of ElementList,
+ *	then 'node' field of NodeList structures.
+ */		
+
+void CreateLists(char *name, short graph)
 {
   struct Element *ElementScan;
   struct ElementList *EListScan;
@@ -1825,6 +1826,8 @@ void CreateLists(char *name, short graph)
     Fprintf(stderr, "Error: CreateLists() called more than twice without a reset.\n");
     return;
   }
+
+  CombineParallel(name, graph);
 
   Elements = CreateElementList(name, graph);
   Nodes = CreateNodeList(name, graph);
@@ -1952,6 +1955,7 @@ void CreateLists(char *name, short graph)
   }
 
   ConnectAllNodes(name, graph);
+  CombineParallel(name, graph);
 
   E = CreateElementList(name, graph);
   N = CreateNodeList(name, graph);
@@ -3256,6 +3260,272 @@ int Iterate(void)
 }
 
 /*--------------------------------------------------------------*/
+/* "ob" points to the first property record of an object	*/
+/* instance.  Check if there are multiple property records.  If	*/
+/* so, group them by same properties of interest, order them by	*/
+/* critical property (if defined), and merge devices with the	*/
+/* same properties (by summing property "M" for devices;  does	*/
+/* not apply to subcircuits, which must maintain individual	*/
+/* property records for each instance).				*/
+/*--------------------------------------------------------------*/
+
+typedef struct _proplink *proplinkptr;
+typedef struct _proplink {
+   struct property *prop;
+   proplinkptr next;
+} proplink;
+
+void PropertyOptimize(struct objlist *ob, struct nlist *tp)
+{
+   struct objlist *ob2, *obt;
+   struct property *kl, *m_rec, **plist;
+   struct valuelist ***vlist, *vl, *vl2, *newvlist;
+   proplinkptr plink, ptop;
+   int pcount, p, i, j, icount, pmatch, ival, crit, ctype;
+   double dval;
+   static struct valuelist nullvl;
+
+   nullvl.type = PROP_INTEGER;
+   nullvl.value.ival = 0;
+
+   // How many property records are there?
+   // If there are not at least two property records then there
+   // is nothing to be optimized.
+   icount = 0;
+   for (ob2 = ob; ob2 && ob2->type == PROPERTY; ob2 = ob2->next) icount++;
+   if (icount < 2) return;
+
+   // Look through master cell property list and create
+   // an array of properties of interest to fill in order.
+
+   m_rec = NULL;
+   ptop = NULL;
+   pcount = 1;
+   crit = -1;
+   kl = (struct property *)HashFirst(&(tp->propdict));
+   while (kl != NULL) {
+      // Make a linked list so we don't have to iterate through the hash again 
+      plink = (proplinkptr)MALLOC(sizeof(proplink));
+      plink->prop = kl;
+      plink->next = ptop;
+      ptop = plink;
+      if ((*matchfunc)(kl->key, "M")) {
+	 kl->idx = 0;
+	 m_rec = kl;
+      }
+      else
+	 kl->idx = pcount++;
+
+      // Set critical property index, if there is one (TO-DO:  Handle types
+      // other than MERGE_ADD_CRIT, and deal with possibility of multiple
+      // critical properties per instance).
+      if (kl->merge == MERGE_ADD_CRIT) crit = kl->idx;
+
+      kl = (struct property *)HashNext(&(tp->propdict));
+   }
+   // Recast the linked list as an array
+   plist = (struct property **)CALLOC(pcount, sizeof(struct property *));
+   vlist = (struct valuelist ***)CALLOC(pcount, sizeof(struct valuelist **));
+   if (m_rec == NULL)
+      vlist[0] = (struct valuelist **)CALLOC(icount, sizeof(struct valuelist *));
+   pcount = 1;
+   while (ptop != NULL) {
+      if (ptop->prop == m_rec) {
+	 plist[0] = m_rec;
+	 vlist[0] = (struct valuelist **)CALLOC(icount,
+		sizeof(struct valuelist *));
+      }
+      else {
+	 plist[pcount] = ptop->prop;
+	 vlist[pcount++] = (struct valuelist **)CALLOC(icount,
+		sizeof(struct valuelist *));
+      }
+      plink = ptop;
+      FREE(ptop);
+      ptop = plink->next;
+   }
+
+   // Now, for each property record, sort the properties of interest
+   // so that they are all in order.  Property "M" goes in position
+   // zero.
+
+   i = 0;
+   for (ob2 = ob; ob2 && ob2->type == PROPERTY; ob2 = ob2->next) {
+      for (p = 0;; p++) {
+	 vl = &(ob2->instance.props[p]);
+	 if (vl->type == PROP_ENDLIST) break;
+	 if (vl->key == NULL) continue;
+	 kl = (struct property *)HashLookup(vl->key, &(tp->propdict));
+	 if (kl == NULL && m_rec == NULL) {
+	    if ((*matchfunc)(vl->key, "M")) {
+	       vlist[0][i] = vl;
+	    }
+	 }
+ 	 else if (kl != NULL) {
+	    vlist[kl->idx][i] = vl;
+	 }
+      }
+      i++;
+   }
+
+   // Now combine records with same properties by summing M.
+   for (i = 0; i < icount - 1; i++) {
+      for (j = 1; j < icount; j++) {
+	 pmatch = 0;
+	 for (p = 1; p < pcount; p++) {
+	    kl = plist[p];
+	    vl = vlist[p][i];
+	    vl2 = vlist[p][j];
+	    if (vl == NULL && vl2 == NULL) {
+	       pmatch++;
+	       continue;
+	    }
+	    // TO-DO:  If either value is missing, it takes kl->pdefault
+	    // and must apply promotions if necessary.
+	    else if (vl == NULL || vl2 == NULL) continue;
+
+	    // Critical properties will be multiplied up by M and do not
+	    // need to match.  May want a more nuanced comparison, though.
+	    if (p == crit) {
+	       pmatch++;
+	       continue;
+	    }
+
+	    switch(vl->type) {
+	       case PROP_DOUBLE:
+	       case PROP_VALUE:
+		  dval = fabs(vl->value.dval - vl2->value.dval);
+		  if (dval <= kl->slop.dval) pmatch++;
+		  break;
+	       case PROP_INTEGER:
+		  ival = abs(vl->value.ival - vl2->value.ival);
+		  if (ival <= kl->slop.ival) pmatch++; 
+		  break;
+	       case PROP_STRING:
+		  if ((*matchfunc)(vl->value.string, vl2->value.string)) pmatch++;
+		  break;
+
+	       /* will not attempt to match expressions, but it could
+		* be done with some minor effort by matching each
+		* stack token and comparing those that are strings.
+		*/
+	    }
+	 }
+	 if (pmatch == (pcount - 1)) {
+	    // Sum M (p == 0) records and remove one record
+	    if (vlist[0][i] == NULL) {
+	       // Add this to the end of the property record
+	       // find ith record in ob
+	       p = 0;
+	       for (ob2 = ob; p != i; ob2 = ob2->next, p++);
+	       // Count entries, add one, reallocate
+	       for (p = 0;; p++) {
+		  vl = &ob2->instance.props[p];
+		  if (vl->type == PROP_ENDLIST) break;
+	       }
+	       p++;
+	       newvlist = (struct valuelist *)CALLOC(p + 1,
+				sizeof(struct valuelist));
+	       // Move end record forward
+	       vl = &newvlist[p];
+	       vl->key = NULL;
+	       vl->type = PROP_ENDLIST;
+	       vl->value.ival = 0;
+
+	       // Add "M" record behind it
+	       vl = &newvlist[--p];
+	       vl->key = strdup("M");
+	       vl->type = PROP_INTEGER;
+	       vl->value.ival = 1;
+	       vlist[0][i] = vl;
+	       // Copy the rest of the records and regenerate vlist
+	       for (--p; p >= 0; p--) {
+	          vl = &newvlist[p];
+	          vl->key = ob2->instance.props[p].key;
+	          vl->type = ob2->instance.props[p].type;
+	          vl->value = ob2->instance.props[p].value;
+
+		  kl = (struct property *)HashLookup(vl->key, &(tp->propdict));
+		  if (kl != NULL) vlist[kl->idx][i] = vl;
+	       }
+
+	       // Replace instance properties with the new list
+	       FREE(ob2->instance.props);
+	       ob2->instance.props = newvlist;
+	    }
+
+	    // If there is a critical property, then M is never
+	    // greater than 1.
+	    if (crit >= 0) {
+	       if (vlist[0][i] != NULL) {
+	          if (vlist[0][i]->value.ival > 1) {
+		     vl = vlist[crit][i];
+		     if (vl->type == PROP_INTEGER)
+		        vl->value.ival *= vlist[0][i]->value.ival;
+		     else if (vl->type == PROP_DOUBLE)
+		        vl->value.dval *= (double)vlist[0][i]->value.ival;
+		     vlist[0][i]->value.ival = 1;
+		  }
+	       }
+	    }
+
+	    if (vlist[0][j] == NULL) {
+	       vlist[0][j] = &nullvl;	// Mark this position
+	       if (crit >= 0) {
+		  vl = vlist[crit][i];
+		  if (vl->type == PROP_INTEGER)
+		     vl->value.ival += vlist[crit][j]->value.ival;
+		  else if (vl->type == PROP_DOUBLE)
+		     vl->value.dval += vlist[crit][j]->value.dval;
+	       }
+	       else {
+	          vlist[0][i]->value.ival++;
+	       }
+	    }
+	    else if (vlist[0][i]->value.ival > 0) {
+	       if (crit >= 0) {
+		  vl = vlist[crit][i];
+		  if (vl->type == PROP_INTEGER)
+		     vl->value.ival += vlist[0][j]->value.ival *
+				vlist[crit][j]->value.ival;
+		  else if (vl->type == PROP_DOUBLE)
+		     vl->value.dval += (double)vlist[0][j]->value.ival *
+				vlist[crit][j]->value.dval;
+	       }
+	       else {
+	          vlist[0][i]->value.ival += vlist[0][j]->value.ival;
+	       }
+	       vlist[0][j]->value.ival = 0;
+	    }
+	 }
+         else j++;
+      }
+   }
+
+   // Remove entries with M = 0
+   ob2 = ob;
+   for (i = 1; i < icount; i++) {
+      vl = vlist[0][i];
+      if (vl != NULL && vl->value.ival == 0) {
+	 obt = ob2->next;
+	 ob2->next = ob2->next->next;
+	 FreeObjectAndHash(obt, tp);
+      }
+      else
+	 ob2 = ob2->next;
+   }
+
+   // Cleanup memory allocation
+   for (p = 0; p < pcount; p++) {
+      kl = (struct property *)plist[p];
+      if (kl) kl->idx = 0;
+      FREE(vlist[p]);
+   }
+   FREE(plist);
+   FREE(vlist);
+}
+
+/*--------------------------------------------------------------*/
 /* Compare the properties of two objects.  The passed values	*/
 /* ob1 and ob2 are pointers to the first entry (firstpin) of	*/
 /* each object.							*/
@@ -3309,6 +3579,10 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	t2type = UNKNOWN;
 
    if ((t1type != PROPERTY) && (t2type != PROPERTY)) return 0;  
+
+   // Organize and merge property records
+   if (t1type == PROPERTY) PropertyOptimize(tp1, tc1);
+   if (t2type == PROPERTY) PropertyOptimize(tp2, tc2);
 
    if (t1type != PROPERTY) {
 	// t1 has no properties.  See if t2's properties are required
@@ -3895,80 +4169,6 @@ int ResolveAutomorphisms()
 }
 
 /*------------------------------------------------------*/
-/* CombineSetup --					*/
-/* Add an entry to a cell describing the combination	*/
-/* allowances.						*/
-/* Return 1 if OK, 0 if error				*/
-/*------------------------------------------------------*/
-
-int CombineSetup(char *model, int filenum, int comb_type)
-{
-    struct nlist *tp;
-
-    // If -1 is passed as filenum, then re-run this routine on
-    // each of Circuit1 and Circuit2 models.
-
-    if (filenum == -1) {
-	if ((Circuit1 != NULL) && (Circuit1->file != -1))
-	    CombineSetup(model, Circuit1->file, comb_type);
-	if ((Circuit2 != NULL) && (Circuit2->file != -1))
-	    CombineSetup(model, Circuit2->file, comb_type);
-	return 1;
-    }
-
-    tp = LookupCellFile(model, filenum);
-    if (tp == NULL) {
-        Printf("No such model %s\n", model);
-       	return 0;
-    }
-
-    tp->flags |= comb_type;
-    return 1;
-}
-
-/*------------------------------------------------------*/
-/* CombineForget --					*/
-/* Remove combination allowances for a cell		*/
-/*							*/
-/* Return 1 if OK, 0 if error				*/
-/*							*/
-/* If comb_type is 0, then forget all allowed		*/
-/* combinations of the device.				*/
-/*------------------------------------------------------*/
-
-int CombineForget(char *model, int filenum, int comb_type)
-{
-    struct nlist *tp;
-
-    // If -1 is passed as filenum, then re-run this routine on
-    // each of Circuit1 and Circuit2 models.
-
-    if (filenum == -1) {
-	if ((Circuit1 != NULL) && (Circuit1->file != -1))
-	    CombineForget(model, Circuit1->file, comb_type);
-	if ((Circuit2 != NULL) && (Circuit2->file != -1))
-	    CombineForget(model, Circuit2->file, comb_type);
-	return 1;
-    }
-
-    tp = LookupCellFile(model, filenum);
-    if (tp == NULL) {
-        Printf("No such model %s\n", model);
-       	return 0;
-    }
-
-    if (comb_type != 0) {
-	/* Remove this specific combination allowance */
-	tp->flags &= ~comb_type;
-    }
-    else {
-	/* Blanket remove all combinations for this device */
-	tp->flags &= ~(COMB_SERIAL | COMB_PARALLEL);
-    }
-    return 1;
-}
-
-/*------------------------------------------------------*/
 /* PermuteSetup --					*/
 /* Add an entry to a cell's "permutes" linked list.	*/
 /* Return 1 if OK, 0 if error				*/
@@ -4476,10 +4676,19 @@ int reorderpins(struct hashlist *p, int file)
 		    }
 		    ob = ob->next;
 		    ob2 = ob2->next;
-		    if (ob == NULL) {
-			Fprintf(stderr, "Instance of %s has only %d of %d ports\n",
+		    if (i < numports - 1) {
+			if (ob == NULL || ob->type <= FIRSTPIN) {
+			    Fprintf(stderr, "Instance of %s has only "
+				"%d of %d ports\n",
 				tc2->name, i + 1, numports);
-			break;
+			    break;
+			}
+			else if (ob2 == NULL || ob2->type != PORT) {
+			    Fprintf(stderr, "Instance of %s has "
+				"%d ports, expected %d\n",
+				tc2->name, i + 1, numports);
+			    break;
+			}
 		    }
 		}
 		

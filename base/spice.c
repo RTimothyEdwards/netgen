@@ -73,7 +73,7 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
   for (ob = tp->cell; ob != NULL; ob = ob->next)
     if (ob->node > maxnode) maxnode = ob->node;
 
-/* was:  for (node = 0; node <= maxnode; node++)  */
+  /* was:  for (node = 0; node <= maxnode; node++)  */
   for (node = 1; node <= maxnode; node++) 
     FlushString("# %3d = %s\n", node, NodeName(tp, node));
 
@@ -153,7 +153,6 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 	}
 
 	/* caps and resistors, print out device value */
-
 
 	/* print out device type (model/subcircuit name) */
 
@@ -473,7 +472,7 @@ extern void IncludeSpice(char *, int, struct cellstack **, int);
 void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		int blackbox)
 {
-  int cdnum = 1, rdnum = 1, ndev, multi;
+  int cdnum = 1, rdnum = 1;
   int warnings = 0, update = 0, hasports = 0;
   char *eqptr, devtype, in_subckt;
   struct keyvalue *kvlist = NULL;
@@ -821,7 +820,6 @@ skip_ends:
       /* Read the device model */
       snprintf(model, 99, "%s", nexttok);
 
-      ndev = 1;
       while (nexttok != NULL)
       {
 	 /* Parse for M and other parameters */
@@ -831,10 +829,7 @@ skip_ends:
 	 if ((eqptr = strchr(nexttok, '=')) != NULL)
 	 {
 	    *eqptr = '\0';
-	    if (!strcasecmp(nexttok, "M"))
-		sscanf(eqptr + 1, "%d", &ndev);
-	    else 
-		AddProperty(&kvlist, nexttok, eqptr + 1);
+	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	 }
       }
 
@@ -843,6 +838,7 @@ skip_ends:
 	 Port("collector");
 	 Port("base");
 	 Port("emitter");
+	 PropertyInteger(model, filenum, "M", 0, 1);
 	 SetClass(CLASS_BJT);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -853,16 +849,10 @@ skip_ends:
 	 goto baddevice;
       }
 
-      multi = (ndev > 1) ? 1 : 0;
-      if (!multi) snprintf(instname, 255, "%s%s", model, inst);
-      while (ndev > 0)
-      {
-         if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
-	 Cell(instname, model, collector, base, emitter);
-	 pobj = LinkProperties(model, kvlist);
-	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
-	 ndev--;
-      }
+      snprintf(instname, 255, "%s%s", model, inst);
+      Cell(instname, model, collector, base, emitter);
+      pobj = LinkProperties(model, kvlist);
+      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'M') {
@@ -896,7 +886,6 @@ skip_ends:
       /* Read the device model */
       snprintf(model, 99, "%s", nexttok);
 
-      ndev = 1;
       while (nexttok != NULL)
       {
 	 /* Parse for parameters; treat "M" separately */
@@ -906,14 +895,7 @@ skip_ends:
 	 if ((eqptr = strchr(nexttok, '=')) != NULL)
 	 {
 	    *eqptr = '\0';
-	    if (!strcasecmp(nexttok, "M"))
-		sscanf(eqptr + 1, "%d", &ndev);
-	    else if (!strcasecmp(nexttok, "L"))
-		AddProperty(&kvlist, "L", eqptr + 1);
-	    else if (!strcasecmp(nexttok, "W"))
-		AddProperty(&kvlist, "W", eqptr + 1);
-	    else 
-		AddProperty(&kvlist, nexttok, eqptr + 1);
+	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	 }
       }
 
@@ -929,6 +911,7 @@ skip_ends:
 	 Port("bulk");
 	 PropertyDouble(model, filenum, "L", 0.01, 0.0);
 	 PropertyDouble(model, filenum, "W", 0.01, 0.0);
+	 PropertyInteger(model, filenum, "M", 0, 1);
 	 SetClass(CLASS_FET);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -939,16 +922,10 @@ skip_ends:
 	 goto baddevice;
       }
 
-      multi = (ndev > 1) ? 1 : 0;
-      if (!multi) snprintf(instname, 255, "%s%s", model, inst);
-      while (ndev > 0)
-      {
-         if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
-	 Cell(instname, model, drain, gate, source, bulk);
-	 pobj = LinkProperties(model, kvlist);
-	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
-	 ndev--;
-      }
+      snprintf(instname, 255, "%s%s", model, inst);
+      Cell(instname, model, drain, gate, source, bulk);
+      pobj = LinkProperties(model, kvlist);
+      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
       SpiceSkipNewLine();
     }
@@ -993,17 +970,13 @@ skip_ends:
 	   snprintf(model, 99, "%s", nexttok);
 
 	/* Any other device properties? */
-	ndev = 1;
         while (nexttok != NULL)
         {
 	   SpiceTokNoNewline();
 	   if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
 	   if ((eqptr = strchr(nexttok, '=')) != NULL) {
 	      *eqptr = '\0';
-	      if (!strcasecmp(nexttok, "M"))
-		 sscanf(eqptr + 1, "%d", &ndev);
-	      else
-	         AddProperty(&kvlist, nexttok, eqptr + 1);
+	      AddProperty(&kvlist, nexttok, eqptr + 1);
 	   }
 	   else if (!strncmp(nexttok, "$[", 2)) {
 	      // Support for CDL modeled capacitor format
@@ -1026,6 +999,7 @@ skip_ends:
 	      Port("top");
 	      Port("bottom");
 	      PropertyValue(model, filenum, "value", 0.01, 0.0);
+	      PropertyInteger(model, filenum, "M", 0, 1);
 	      SetClass(CLASS_CAP);
               EndCell();
 	      ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -1039,19 +1013,13 @@ skip_ends:
 	   usemodel = 1;
 	}
 
-	multi = (ndev > 1) ? 1 : 0;
-	if (!multi) snprintf(instname, 255, "%s%s", model, inst);
-
-	while (ndev > 0) {
-	   if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
-	   if (usemodel)
-              Cell(instname, model, ctop, cbot);
-	   else
-              Cap((*CellStackPtr)->cellname, instname, ctop, cbot);
-	   pobj = LinkProperties(model, kvlist);
-	   ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
-	   ndev--;
-	}
+	snprintf(instname, 255, "%s%s", model, inst);
+	if (usemodel)
+           Cell(instname, model, ctop, cbot);
+	else
+           Cap((*CellStackPtr)->cellname, instname, ctop, cbot);
+	pobj = LinkProperties(model, kvlist);
+	ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	DeleteProperties(&kvlist);
       }
     }
@@ -1096,16 +1064,12 @@ skip_ends:
 	   snprintf(model, 99, "%s", nexttok);
 
 	/* Any other device properties? */
-	ndev = 1;
         while (nexttok != NULL) {
 	   SpiceTokNoNewline();
 	   if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
 	   if ((eqptr = strchr(nexttok, '=')) != NULL) {
 	      *eqptr = '\0';
-	      if (!strcasecmp(nexttok, "M"))
-		 sscanf(eqptr + 1, "%d", &ndev);
-	      else
-	         AddProperty(&kvlist, nexttok, eqptr + 1);
+	       AddProperty(&kvlist, nexttok, eqptr + 1);
 	   }
 	   else if (!strncmp(nexttok, "$[", 2)) {
 	      // Support for CDL modeled resistor format
@@ -1126,6 +1090,7 @@ skip_ends:
 	      Port("end_a");
 	      Port("end_b");
 	      PropertyValue(model, filenum, "value", 0.01, 0.0);
+	      PropertyInteger(model, filenum, "M", 0, 1);
 	      SetClass(CLASS_RES);
               EndCell();
 	      ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -1141,19 +1106,13 @@ skip_ends:
 	else
 	   strcpy(model, "r");		/* Use default resistor model */
 
-	multi = (ndev > 1) ? 1 : 0;
-	if (!multi) snprintf(instname, 255, "%s%s", model, inst);
-
-	while (ndev > 0) {
-	   if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
-	   if (usemodel)
-	      Cell(instname, model, rtop, rbot);
-	   else
-              Res((*CellStackPtr)->cellname, instname, rtop, rbot);
-	   pobj = LinkProperties(model, kvlist);
-	   ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
-	   ndev--;
-	}
+	snprintf(instname, 255, "%s%s", model, inst);
+	if (usemodel)
+	   Cell(instname, model, rtop, rbot);
+	else
+           Res((*CellStackPtr)->cellname, instname, rtop, rbot);
+	pobj = LinkProperties(model, kvlist);
+	ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	DeleteProperties(&kvlist);
       }
     }
@@ -1178,7 +1137,6 @@ skip_ends:
       /* Read the device model */
       snprintf(model, 99, "%s", nexttok);
 
-      ndev = 1;
       while (nexttok != NULL)
       {
 	 /* Parse for M and other parameters */
@@ -1188,10 +1146,7 @@ skip_ends:
 	 if ((eqptr = strchr(nexttok, '=')) != NULL)
 	 {
 	    *eqptr = '\0';
-	    if (!strcasecmp(nexttok, "M"))
-		sscanf(eqptr + 1, "%d", &ndev);
-	    else 
-		AddProperty(&kvlist, nexttok, eqptr + 1);
+	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	 }
       }
 
@@ -1199,6 +1154,7 @@ skip_ends:
 	 CellDefNoCase(model, filenum);
 	 Port("anode");
 	 Port("cathode");
+         PropertyInteger(model, filenum, "M", 0, 1);
 	 SetClass(CLASS_DIODE);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -1208,16 +1164,10 @@ skip_ends:
 	 Fprintf(stderr, "Device \"%s\" has wrong number of ports for a diode.\n");
 	 goto baddevice;
       }
-      multi = (ndev > 1) ? 1 : 0;
-      if (!multi) snprintf(instname, 255, "%s%s", model, inst);
-      while (ndev > 0)
-      {
-         if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
-	 Cell(instname, model, anode, cathode);
-	 pobj = LinkProperties(model, kvlist);
-	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
-	 ndev--;
-      }
+      snprintf(instname, 255, "%s%s", model, inst);
+      Cell(instname, model, anode, cathode);
+      pobj = LinkProperties(model, kvlist);
+      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'T') {	/* transmission line */
@@ -1260,16 +1210,12 @@ skip_ends:
 	   snprintf(model, 99, "%s", nexttok);
 
 	/* Any other device properties? */
-	ndev = 1;
         while (nexttok != NULL) {
 	   SpiceTokNoNewline();
 	   if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
 	   if ((eqptr = strchr(nexttok, '=')) != NULL) {
 	      *eqptr = '\0';
-	      if (!strcasecmp(nexttok, "M"))
-		 sscanf(eqptr + 1, "%d", &ndev);
-	      else
-	         AddProperty(&kvlist, nexttok, eqptr + 1);
+	      AddProperty(&kvlist, nexttok, eqptr + 1);
 	   }
 	}
 
@@ -1281,6 +1227,7 @@ skip_ends:
 	      Port("node2");
 	      Port("node3");
 	      Port("node4");
+	      PropertyInteger(model, filenum, "M", 0, 1);
 	      SetClass(CLASS_XLINE);
               EndCell();
 	      ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -1296,20 +1243,15 @@ skip_ends:
 	else
 	   strcpy(model, "t");		/* Use default xline model */
 
-	multi = (ndev > 1) ? 1 : 0;
-	if (!multi) snprintf(instname, 255, "%s%s", model, inst);
+	snprintf(instname, 255, "%s%s", model, inst);
 
-	while (ndev > 0) {
-	   if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
-	   if (usemodel)
-	      Cell(instname, model, node1, node2, node3, node4);
-	   else
-              XLine((*CellStackPtr)->cellname, instname, node1, node2,
+	if (usemodel)
+	   Cell(instname, model, node1, node2, node3, node4);
+	else
+           XLine((*CellStackPtr)->cellname, instname, node1, node2,
 			node3, node4);
-	   pobj = LinkProperties(model, kvlist);
-	   ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
-	   ndev--;
-	}
+	pobj = LinkProperties(model, kvlist);
+	ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	DeleteProperties(&kvlist);
       }
     }
@@ -1349,7 +1291,6 @@ skip_ends:
 	  snprintf(model, 99, "%s", nexttok);
 
       /* Any other device properties? */
-      ndev = 1;
       while (nexttok != NULL)
       {
 	 /* Parse for M and other parameters */
@@ -1359,10 +1300,7 @@ skip_ends:
 	 if ((eqptr = strchr(nexttok, '=')) != NULL)
 	 {
 	    *eqptr = '\0';
-	    if (!strcasecmp(nexttok, "M"))
-		sscanf(eqptr + 1, "%d", &ndev);
-	    else 
-		AddProperty(&kvlist, nexttok, eqptr + 1);
+	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	 }
       }
 
@@ -1372,6 +1310,7 @@ skip_ends:
 	    CellDefNoCase(model, filenum);
 	    Port("end_a");
 	    Port("end_b");
+	    PropertyInteger(model, filenum, "M", 0, 1);
 	    SetClass(CLASS_INDUCTOR);
             EndCell();
 	    ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -1387,19 +1326,13 @@ skip_ends:
       else
 	 strcpy(model, "l");		/* Use default inductor model */
 
-      multi = (ndev > 1) ? 1 : 0;
-      if (!multi) snprintf(instname, 255, "%s%s", model, inst);
-      while (ndev > 0)
-      {
-         if (multi) snprintf(instname, 255, "%s%s.%d", model, inst, ndev);
-	 if (usemodel)
-	    Cell(instname, model, end_a, end_b);
-	 else
-	    Inductor((*CellStackPtr)->cellname, instname, end_a, end_b);
-	 pobj = LinkProperties(model, kvlist);
-	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
-	 ndev--;
-      }
+      snprintf(instname, 255, "%s%s", model, inst);
+      if (usemodel)
+	 Cell(instname, model, end_a, end_b);
+      else
+	 Inductor((*CellStackPtr)->cellname, instname, end_a, end_b);
+      pobj = LinkProperties(model, kvlist);
+      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
 
@@ -1445,6 +1378,7 @@ skip_ends:
 	 CellDefNoCase(model, filenum);
 	 Port("pos");
 	 Port("neg");
+	 PropertyInteger(model, filenum, "M", 0, 1);
 	 SetClass(CLASS_MODULE);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -1498,6 +1432,7 @@ skip_ends:
 	 CellDefNoCase(model, filenum);
 	 Port("pos");
 	 Port("neg");
+	 PropertyInteger(model, filenum, "M", 0, 1);
 	 SetClass(CLASS_MODULE);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -1562,6 +1497,7 @@ skip_ends:
 	 Port("neg");
 	 Port("ctrlp");
 	 Port("ctrln");
+	 PropertyInteger(model, filenum, "M", 0, 1);
 	 SetClass(CLASS_MODULE);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
@@ -1601,7 +1537,6 @@ skip_ends:
       head = NULL;
       tail = NULL;
       SpiceTokNoNewline();
-      ndev = 1;
       while (nexttok != NULL) {
 	/* must still be a node or a parameter */
 	struct portelement *new_port;
@@ -1629,10 +1564,7 @@ skip_ends:
 	    	((tp = LookupCellFile(nexttok, filenum)) == NULL))
 	{
 	    *eqptr = '\0';
-	    if (!strcasecmp(nexttok, "M"))
-		sscanf(eqptr + 1, "%d", &ndev);
-	    else 
-		AddProperty(&kvlist, nexttok, eqptr + 1);
+	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	}
 	else
 	{
@@ -1704,6 +1636,7 @@ skip_ends:
 	 if (head == NULL) {
 	    Port((char *)NULL);	// Must have something for pin 1
 	 }
+	 PropertyInteger(subcktname, filenum, "M", 0, 1);
 	 SetClass(CLASS_MODULE);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);		/* Reopen */
@@ -1711,38 +1644,30 @@ skip_ends:
       }
 
       /* nexttok is now NULL, scan->name points to class */
-      multi = (ndev > 1) ? 1 : 0;
-      if (multi) strcat(instancename, ".");
-      while (ndev > 0) {
-         if (multi) {
-	    char *dotptr = strrchr(instancename, '.');
-	    sprintf(dotptr + 1, "%d", ndev);
-	 }
-         Instance(subcktname, instancename);
-	 pobj = LinkProperties(subcktname, kvlist);
-	 ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
-	 ndev--;
+      Instance(subcktname, instancename);
+      pobj = LinkProperties(subcktname, kvlist);
+      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 
-         /* (Diagnostic) */
-         /* Fprintf(stderr, "instancing subcell: %s (%s):", subcktname, instancename); */
-         /*
+      /* (Diagnostic) */
+      /* Fprintf(stderr, "instancing subcell: %s (%s):", subcktname, instancename); */
+      /*
          for (scan = head; scan != NULL; scan = scan->next)
-	   Fprintf(stderr," %s", scan->name);
+	    Fprintf(stderr," %s", scan->name);
          Fprintf(stderr,"\n");
-         */
+      */
       
-         obptr = LookupInstance(instancename, CurrentCell);
-         if (obptr != NULL) {
-           scan = head;
-	   if (scan != NULL)
-           do {
-	     if (LookupObject(scan->name, CurrentCell) == NULL) Node(scan->name);
-	     join(scan->name, obptr->name);
-	     obptr = obptr->next;
-	     scan = scan->next;
-           } while (obptr != NULL && obptr->type > FIRSTPIN && scan != NULL);
+      obptr = LookupInstance(instancename, CurrentCell);
+      if (obptr != NULL) {
+         scan = head;
+	 if (scan != NULL)
+         do {
+	    if (LookupObject(scan->name, CurrentCell) == NULL) Node(scan->name);
+	    join(scan->name, obptr->name);
+	    obptr = obptr->next;
+	    scan = scan->next;
+         } while (obptr != NULL && obptr->type > FIRSTPIN && scan != NULL);
 
-           if ((obptr == NULL && scan != NULL) ||
+         if ((obptr == NULL && scan != NULL) ||
 		(obptr != NULL && scan == NULL && obptr->type > FIRSTPIN)) {
 	     if (warnings <= 100) {
 	        Fprintf(stderr,"Parameter list mismatch in %s: ", instancename);
@@ -1756,8 +1681,7 @@ skip_ends:
 	           Fprintf(stderr, "Too many warnings. . . will not report any more.\n");
              }
 	     warnings++;
-	   }
-         }	// repeat over ndev
+	  }
       }
       DeleteProperties(&kvlist);
 

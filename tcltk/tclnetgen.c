@@ -91,7 +91,6 @@ int _netcmp_automorphs(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_equate(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_ignore(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_permute(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_combine(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_property(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_exhaustive(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_restart(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
@@ -231,13 +230,6 @@ Command netcmp_cmds[] = {
 		"capacitor: enable capacitor permutations\n   "
 		"transistor: enable transistor permutations\n   "
 		"(none): enable transistor and resistor permutations"},
-	{"combine",		_netcmp_combine,
-		"[transistors|resistors|capacitors|<model>]\n   "
-		"<model> [<serial>|<parallel>]: enable combinations of device model\n   "
-		"resistor: enable resistor serial/parallel combinations\n   "
-		"capacitor: enable capacitor parallel combinations\n   "
-		"transistor: enable transistor parallel combinations\n   "
-		"(none): enable standard combinations"},
 	{"property",		_netcmp_property,
 		"<device>|<model> <property_key> [...]\n   "
 		"<device>: name of a device type (capacitor, etc.)\n  "
@@ -3277,175 +3269,6 @@ _netcmp_property(ClientData clientData,
 	}
     }
     return TCL_OK;
-}
-
-/*--------------------------------------------------------------*/
-/* Function name: _netcmp_combine				*/
-/* Syntax: netgen::combine [default]				*/
-/*	   netgen::combine combine_class			*/
-/*	   netgen::combine valid_cellname serial|parallel	*/
-/*	   netgen::combine forget valid_cellname		*/
-/*	   netgen::combine forget				*/
-/* Formerly: t							*/
-/* Results:							*/
-/* Side Effects:						*/
-/*--------------------------------------------------------------*/
-
-int
-_netcmp_combine(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-   char *model;
-   char *combineclass[] = {
-      "transistors", "resistors", "capacitors", "default", "forget",
-		"cell", NULL
-   };
-   enum OptionIdx {
-      TRANS_IDX, RES_IDX, CAP_IDX, DEFLT_IDX, FORGET_IDX, CELL_IDX
-   };
-   int result, index, index2, fnum = -1;
-   struct nlist *tp = NULL;
-
-   char *combinetype[] = {
-      "serial", "parallel", NULL
-   };
-   enum SubOptionIdx {
-      SERIAL_IDX, PARALLEL_IDX
-   };
-
-   if (objc > 3) {
-      Tcl_WrongNumArgs(interp, 1, objv, "?valid_cellname serial|parallel?");
-      return TCL_ERROR;
-   }
-   if (objc == 1) {
-      index = DEFLT_IDX;
-   }
-   else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)combineclass,
-		"combine class", 0, &index) != TCL_OK) {
-	    if (objc != 3) {
-		Tcl_WrongNumArgs(interp, 1, objv, "?valid_cellname serial|parallel?");
-		return TCL_ERROR;
-	    }
-	    result = CommonParseCell(interp, objv[1], &tp, &fnum);
-	    if (result != TCL_OK) {
-		Fprintf(stdout, "No such device \"%s\".\n",
-			Tcl_GetString(objv[1]));
-		return result;
-	    }
-	    index = CELL_IDX;
-	    if (Tcl_GetIndexFromObj(interp, objv[2],
-			(CONST84 char **)combinetype,
-			"combine type", 0, &index2) != TCL_OK) {
-	       Tcl_WrongNumArgs(interp, 1, objv,
-			"?valid_cellname serial|parallel?");
-	       return TCL_ERROR;
-	    }
-      }
-      else if (index == CELL_IDX) {
-	 if (objc != 4) {
-	    Tcl_WrongNumArgs(interp, 1, objv, "cell ?valid_cellname serial|parallel?");
-	    return TCL_ERROR;
-	 }
-	 result = CommonParseCell(interp, objv[2], &tp, &fnum);
-	 if (result != TCL_OK) {
-	     Fprintf(stdout, "No such device \"%s\".\n",
-			Tcl_GetString(objv[2]));
-	     return result;
-	 }
-	 if (Tcl_GetIndexFromObj(interp, objv[3],
-			(CONST84 char **)combinetype,
-			"combine type", 0, &index2) != TCL_OK) {
-	    Tcl_WrongNumArgs(interp, 1, objv,
-			"?valid_cellname serial|parallel?");
-	    return TCL_ERROR;
-	 }
-      }
-      else if (index == FORGET_IDX) {
-	 if (objc < 3) {
-	    /* General purpose combine forget */
-	    tp = FirstCell();
-	    while (tp != NULL) {
-	       CombineForget(tp->name, tp->file, NULL);
-	       tp = NextCell();
-	    }
-	    return TCL_OK;
-	 }
-	 else {
-	    /* Specific combine forget */
-	    result = CommonParseCell(interp, objv[2], &tp, &fnum);
-	    if (result != TCL_OK) {
-		Fprintf(stdout, "No such device \"%s\".\n",
-			Tcl_GetString(objv[2]));
-		return result;
-	    }
-	    if (objc != 4) {
-	       if (Tcl_GetIndexFromObj(interp, objv[3],
-				(CONST84 char **)combinetype,
-				"combine type", 0, &index2) != TCL_OK) {
-		    Tcl_WrongNumArgs(interp, 1, objv,
-				"?valid_cellname serial|parallel?");
-		    return TCL_ERROR;
-	       }
-	       if (CombineForget(tp->name, fnum, (index2 == SERIAL_IDX)
-				? COMB_SERIAL : COMB_PARALLEL))
-	          Fprintf(stdout, "Model %s combine %s\n", tp->name,
-			(index2 == SERIAL_IDX) ? "serial" : "parallel");
-	       else
-	          Fprintf(stderr, "Unable to reset model %s %s combination.\n",
-			tp->name, (index2 == SERIAL_IDX) ? "serial" : "parallel");
-	    }
-	    else {
-	       if (CombineForget(tp->name, fnum, NULL))
-	          Fprintf(stdout, "No combinations of circuit %s allowed\n", tp->name);
-	       else
-	          Fprintf(stderr, "Unable to reset model %s %s combinations\n",
-			tp->name, (index2 == SERIAL_IDX) ? "serial" : "parallel");
-	    }
-	    return TCL_OK;
-	 }
-      }
-   }
-
-   if (objc == 1 || objc == 2) {
-      tp = FirstCell();
-      while (tp != NULL) {
-	 switch (tp->class) {
-	    case CLASS_NMOS: case CLASS_PMOS: case CLASS_FET3:
-	    case CLASS_NMOS4: case CLASS_PMOS4: case CLASS_FET4:
-	    case CLASS_FET:
-	       if (index == TRANS_IDX || index == DEFLT_IDX)
-	          CombineSetup(tp->name, tp->file, COMB_PARALLEL);
-	       break;
-	    case CLASS_RES: case CLASS_RES3:
-	       if (index == RES_IDX || index == DEFLT_IDX) {
-	          CombineSetup(tp->name, tp->file, COMB_SERIAL);
-	          CombineSetup(tp->name, tp->file, COMB_PARALLEL);
-	       }
-	       break;
-	    case CLASS_CAP: case CLASS_ECAP: case CLASS_CAP3:
-	       if (index == CAP_IDX)
-	          CombineSetup(tp->name, tp->file, COMB_PARALLEL);
-	       break;
-	 }
-	 tp = NextCell();
-      }
-   }
-   else if (index == CELL_IDX) {
-      if (CombineSetup(tp->name, fnum, ((index2 == SERIAL_IDX) ?
-			COMB_SERIAL : COMB_PARALLEL)))
-         Fprintf(stdout, "Model %s allow %s combinations\n", tp->name,
-			(index2 == SERIAL_IDX) ? "serial" : "parallel");
-      else
-         Fprintf(stderr, "Unable to set model %s %s combinations.\n",
-			tp->name, (index2 == SERIAL_IDX) ?
-			"serial" : "parallel");
-   }
-   else {
-      Tcl_WrongNumArgs(interp, 1, objv, "?valid_cellname serial|parallel?");
-      return TCL_ERROR;
-   }
-   return TCL_OK;
 }
 
 /*--------------------------------------------------------------*/

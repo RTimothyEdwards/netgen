@@ -116,6 +116,7 @@ extern void FlattenCurrent();
 extern void ConvertGlobals(char *name, int fnum);
 extern int  CleanupPins(char *name, int fnum);
 extern void ConnectAllNodes(char *model, int fnum);
+extern void CombineParallel(char *model, int fnum);
 extern int  NoDisconnectedNodes;
 extern int  PropertyKeyMatch(char *, char *);
 extern int  PropertyValueMatch(char *, char *);

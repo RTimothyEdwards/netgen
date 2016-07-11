@@ -30,6 +30,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <alloc.h>
 #endif
 
+#ifdef TCL_NETGEN
+#include <tcl.h>
+#endif
+
 #include "netgen.h"
 #include "hash.h"
 #include "objlist.h"
@@ -278,261 +282,279 @@ int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
     for (i = 0;; i++) {
 
 	kv = &(instprop->instance.props[i]);
+	switch (kv->type) {
+	    case PROP_ENDLIST:
+		break;
 
-	if (kv->type == PROP_ENDLIST) 
-	    break;
-	else if (kv->type == PROP_EXPRESSION) {
-	    expstack = kv->value.stack;
-	}
-	else if (kv->type == PROP_STRING) {
-	    expstack = NULL;
-	    estr = kv->value.string;
-	    tstr = estr;
+	    case PROP_INTEGER:
+	    case PROP_DOUBLE:
+	    case PROP_VALUE:
+		continue;
 
-	    numlast = 0;
-	    while (*tstr != '\0') {
-		switch(*tstr) {
+	    case PROP_EXPRESSION:
+		expstack = kv->value.stack;
+		break;
+
+	    case PROP_STRING:
+
+		expstack = NULL;
+		estr = kv->value.string;
+		tstr = estr;
+
+		numlast = 0;
+		while (*tstr != '\0') {
+		    switch(*tstr) {
 		    
-		    case '+':
-			if (numlast == 0) {
-			    /* This is part of a number */
-			    dval = strtod(estr, &sstr);
-			    if (sstr > estr && sstr > tstr) {
-			        tstr = sstr - 1;
-			        numlast = 1;
-			    }
-			    break;
-			}
-			/* Not a number, so must be arithmetic */
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			PushTok(TOK_PLUS, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case '-':
-			if (numlast == 0) {
-			    /* This is part of a number */
-			    dval = strtod(estr, &sstr);
-			    if (sstr > estr && sstr > tstr) {
-			        tstr = sstr - 1;
-			        numlast = 1;
-			    }
-			    break;
-			}
-			/* Not a number, so must be arithmetic */
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			PushTok(TOK_MINUS, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case '1': case '2': case '3': case '4': case '5':
-		    case '6': case '7': case '8': case '9': case '0':
-			/* Numerical value.  Use strtod() to capture */
-			if (numlast == 1) break;
-			dval = strtod(estr, &sstr);
-			if (sstr > estr && sstr > tstr) {
-			    tstr = sstr - 1;
-			    numlast = 1;
-			}
-			break;
-
-		    case '/':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			PushTok(TOK_DIVIDE, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case '*':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			PushTok(TOK_MULTIPLY, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case '(':
-			*tstr = '\0';
-
-			/* Check for predefined function keywords */
-
-			if (!strcmp(estr, "IF")) {
-			    PushTok(TOK_FUNC_IF, NULL, &expstack);
-			}
-			else {
-			    /* Treat as a parenthetical grouping */
-
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_FUNC_OPEN, NULL, &expstack);
-			}
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case ')':
-			*tstr = '\0';
-
-			if (expstack == NULL) break;
-			savetok = expstack->toktype;
-
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-
-			switch (savetok) {
-			    case TOK_FUNC_THEN:
-				PushTok(TOK_FUNC_ELSE, NULL, &expstack);
+			case '+':
+			    if (numlast == 0) {
+				/* This is part of a number */
+				dval = strtod(estr, &sstr);
+				if (sstr > estr && sstr > tstr) {
+			            tstr = sstr - 1;
+			            numlast = 1;
+				}
 				break;
-			    default:
-				PushTok(TOK_FUNC_CLOSE, NULL, &expstack);
-				break;
-			}
-			numlast = 1;
-			estr = tstr + 1;
-			break;
-
-		    case '\'':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			PushTok(TOK_SGL_QUOTE, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case '"':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			PushTok(TOK_DBL_QUOTE, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case '{':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			PushTok(TOK_GROUP_OPEN, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case '}':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			PushTok(TOK_GROUP_CLOSE, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 1;
-			break;
-
-		    case '!':
-			if (*(tstr + 1) == '=') {
+			    }
+			    /* Not a number, so must be arithmetic */
 			    *tstr = '\0';
 			    result = TokGetValue(estr, parent, parprops, glob, &dval);
 			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
 			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_NE, NULL, &expstack);
-			}
-			numlast = 0;
-			break;
-
-		    case '=':
-			if (*(tstr + 1) == '=') {
-	 		    *tstr = '\0';
-	 		    result = TokGetValue(estr, parent, parprops, glob, &dval);
-	 		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-	 		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_EQ, NULL, &expstack);
+			    PushTok(TOK_PLUS, NULL, &expstack);
+			    estr = tstr + 1;
 			    numlast = 0;
-			}
-			break;
+			    break;
 
-		    case '>':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-
-			if (*(tstr + 1) == '=') {
-			    PushTok(TOK_GE, NULL, &expstack);
-			    tstr++;
-			}
-			else
-			    PushTok(TOK_GT, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case '<':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-
-			if (*(tstr + 1) == '=') {
-			    PushTok(TOK_LE, NULL, &expstack);
-			    tstr++;
-			}
-			else
-			    PushTok(TOK_LT, NULL, &expstack);
-			estr = tstr + 1;
-			numlast = 0;
-			break;
-
-		    case ',':
-			*tstr = '\0';
-			result = TokGetValue(estr, parent, parprops, glob, &dval);
-			if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			if (expstack == NULL) break;
-			lptr = expstack;
-			while (lptr->next) {
-			    lptr = lptr->next;
-			    if (lptr->toktype == TOK_FUNC_THEN) {
-				PushTok(TOK_FUNC_ELSE, NULL, &expstack);
+			case '-':
+			    if (numlast == 0) {
+				/* This is part of a number */
+				dval = strtod(estr, &sstr);
+				if (sstr > estr && sstr > tstr) {
+				    tstr = sstr - 1;
+				    numlast = 1;
+				}
 				break;
 			    }
-			    else if (lptr->toktype == TOK_FUNC_IF) {
-				PushTok(TOK_FUNC_THEN, NULL, &expstack);
-				break;
-			    }
-			}
-			estr = tstr + 1;
-			numlast = 0;
-			break;
+			    /* Not a number, so must be arithmetic */
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			    PushTok(TOK_MINUS, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
 
-		    default:
-			break;
+			case '1': case '2': case '3': case '4': case '5':
+			case '6': case '7': case '8': case '9': case '0':
+			    /* Numerical value.  Use strtod() to capture */
+			    if (numlast == 1) break;
+			    dval = strtod(estr, &sstr);
+			    if (sstr > estr && sstr > tstr) {
+				tstr = sstr - 1;
+				numlast = 1;
+			    }
+			    break;
+
+			case '/':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			    PushTok(TOK_DIVIDE, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			case '*':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			    PushTok(TOK_MULTIPLY, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			case '(':
+			    *tstr = '\0';
+
+			    /* Check for predefined function keywords */
+
+			    if (!strcmp(estr, "IF")) {
+				PushTok(TOK_FUNC_IF, NULL, &expstack);
+			    }
+			    else {
+			        /* Treat as a parenthetical grouping */
+
+			        result = TokGetValue(estr, parent, parprops,
+					glob, &dval);
+			        if (result == 1)
+				    PushTok(TOK_DOUBLE, &dval, &expstack);
+			        else if (result == -1)
+				    PushTok(TOK_STRING, estr, &expstack);
+			        PushTok(TOK_FUNC_OPEN, NULL, &expstack);
+			    }
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			case ')':
+			    *tstr = '\0';
+
+			    if (expstack == NULL) break;
+			    savetok = expstack->toktype;
+
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+
+			    switch (savetok) {
+				case TOK_FUNC_THEN:
+				    PushTok(TOK_FUNC_ELSE, NULL, &expstack);
+				    break;
+				default:
+				    PushTok(TOK_FUNC_CLOSE, NULL, &expstack);
+				    break;
+			    }
+			    numlast = 1;
+			    estr = tstr + 1;
+			    break;
+
+			case '\'':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			    PushTok(TOK_SGL_QUOTE, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			case '"':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			    PushTok(TOK_DBL_QUOTE, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			case '{':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			    PushTok(TOK_GROUP_OPEN, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			case '}':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    PushTok(TOK_GROUP_CLOSE, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 1;
+			    break;
+
+			case '!':
+			    if (*(tstr + 1) == '=') {
+				*tstr = '\0';
+				result = TokGetValue(estr, parent, parprops,
+					glob, &dval);
+				if (result == 1)
+				    PushTok(TOK_DOUBLE, &dval, &expstack);
+				else if (result == -1)
+				    PushTok(TOK_STRING, estr, &expstack);
+				PushTok(TOK_NE, NULL, &expstack);
+			    }
+			    numlast = 0;
+			    break;
+
+			case '=':
+			    if (*(tstr + 1) == '=') {
+	 			*tstr = '\0';
+	 			result = TokGetValue(estr, parent, parprops,
+						glob, &dval);
+	 			if (result == 1)
+				    PushTok(TOK_DOUBLE, &dval, &expstack);
+	 			else if (result == -1)
+				    PushTok(TOK_STRING, estr, &expstack);
+				PushTok(TOK_EQ, NULL, &expstack);
+				numlast = 0;
+			    }
+			    break;
+
+			case '>':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+
+			    if (*(tstr + 1) == '=') {
+				PushTok(TOK_GE, NULL, &expstack);
+				tstr++;
+			    }
+			    else
+				PushTok(TOK_GT, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			case '<':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+
+			    if (*(tstr + 1) == '=') {
+				PushTok(TOK_LE, NULL, &expstack);
+				tstr++;
+			    }
+			    else
+				PushTok(TOK_LT, NULL, &expstack);
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			case ',':
+			    *tstr = '\0';
+			    result = TokGetValue(estr, parent, parprops, glob, &dval);
+			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+			    if (expstack == NULL) break;
+			    lptr = expstack;
+			    while (lptr->next) {
+				lptr = lptr->next;
+				if (lptr->toktype == TOK_FUNC_THEN) {
+				    PushTok(TOK_FUNC_ELSE, NULL, &expstack);
+				    break;
+				}
+				else if (lptr->toktype == TOK_FUNC_IF) {
+				    PushTok(TOK_FUNC_THEN, NULL, &expstack);
+				    break;
+				}
+			    }
+			    estr = tstr + 1;
+			    numlast = 0;
+			    break;
+
+			default:
+			    break;
+		    }
+		    tstr++;
 		}
-		tstr++;
-	    }
-	    result = TokGetValue(estr, parent, parprops, glob, &dval);
-	    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-	    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		result = TokGetValue(estr, parent, parprops, glob, &dval);
+		if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 
-	    FREE(kv->value.string);
-	    kv->value.stack = expstack;
-	    kv->type = PROP_EXPRESSION;
+		FREE(kv->value.string);
+		kv->value.stack = expstack;
+		kv->type = PROP_EXPRESSION;
+		break;
 	}
 
 	// Find the beginning of the expression, which is the bottom of
@@ -1113,51 +1135,6 @@ struct property *PropertyString(char *name, int fnum, char *key, int range,
       HashPtrInstall(kl->key, kl, &(tc->propdict));
    }
    return kl;
-}
-
-/*----------------------------------------------------------------------*/
-/* Find all instances of type "instance" in cell "name".  For each one,	*/
-/* determine if it can be combined in parallel with other devices.	*/
-/* Capacitors add area or value.  Resistors add width, or run a		*/
-/* parallel calculation on value.  Transistors add width.		*/
-/* If "aggressive" is FALSE, then combinations may be made only if	*/
-/* the devices have the same properties (except "M"), and will combine	*/
-/* by incrementing "M".  If "aggressive" is TRUE, then the device	*/
-/* properties (width, area, etc.) will be modified in combination.	*/
-/* Devices with pin permutations are parallel if nodes match when	*/
-/* permuted.								*/
-/*----------------------------------------------------------------------*/
-
-void CombineParallel(char *name, int fnum, char *instance, int aggressive)
-{
-    struct nlist *tc, *tp;
-    struct objlist *ob1, *ob2;
-
-    if ((tc = LookupCellFile(name, fnum)) == NULL) return;
-    if ((tp = LookupCellFile(instance, fnum)) == NULL) return;
-
-    for (ob1 = tc->cell; ob1; ob1 = ob1->next) {
-	if (ob1->type == FIRSTPIN && (*matchfunc)(ob1->model.class, tc->name)) {
-	    for (ob2 = ob1->next; ob2; ob2 = ob2->next) {
-		if (ob2->type == FIRSTPIN && (*matchfunc)(ob2->model.class,
-				tc->name)) {
-		    /* To-do:  Handle permutations! */
-		    while (ob1->node == ob2->node) {
-			ob1 = ob1->next;
-			ob2 = ob2->next;
-			if (ob1 == NULL || ob1->type <= FIRSTPIN) break;
-			if (ob2 == NULL || ob2->type <= FIRSTPIN) break;
-		    }
-		    if ((ob1 && ob1->type == PROPERTY) &&
-				(ob2 && ob2->type == PROPERTY)) {
-			if (PropertyMatch(ob1, ob2, FALSE)) {
-			    /* WIP */
-			}
-		    }
-		}
-	    }
-	}
-    }
 }
 
 /*----------------------------------------------------------------------*/
@@ -2833,12 +2810,12 @@ void Array(char *Cell, int num)
 int NoDisconnectedNodes = 0;
 
 /*----------------------------------------------------------------------*/
+/* Within the definition of 'model', traverse the object list		*/
+/* and connect all the otherwise disconnected nodes (i.e., those	*/
+/* with node==-1) to unique node numbers 				*/
 /*----------------------------------------------------------------------*/
 
 void ConnectAllNodes(char *model, int file)
-/* Within the definition of 'model', traverse the object list
-   and connect all the otherwise disconnected nodes (i.e., those
-   with node==-1) to unique node numbers */
 {
   int nodenum;
   struct nlist *tp;
@@ -2855,6 +2832,190 @@ void ConnectAllNodes(char *model, int file)
 
   for (ob = tp->cell; ob != NULL; ob = ob->next)
     if (ob->node == -1) ob->node = nodenum++;
+}
+
+/*----------------------------------------------------------------------*/
+/* Find all devices that are of the same class and check for parallel	*/
+/* combinations, and combine them where found, adjusting property "M"	*/
+/* as needed.								*/
+/*									*/
+/* Procedure:  Hash each cell by the model name and a space-separated	*/
+/* list of node numbers connected to each pin, and the value of the 	*/
+/* property that affects number of devices (if any).  The hash stores	*/
+/* the instance record and property record (if any) of the first cell.	*/
+/* If there is a hash match, then the cell instance gets deleted and	*/
+/* the property M of the instance pointed to in the hash gets		*/
+/* incremented.	 If it has no property M, one is created and the value	*/
+/* set to 2.								*/
+/*									*/
+/* If the device has permutable pins, then duplicate hashes are made	*/
+/* for each permutation.						*/
+/*----------------------------------------------------------------------*/
+
+void CombineParallel(char *model, int file)
+{
+   struct nlist *tp, *tsub;
+   struct objlist *ob, *ob2, *nextob;
+   struct objlist *sob, *lob, *tlob, *nob, *pob, *obr;
+   struct hashdict devdict;
+   struct Permutation *perm;
+   size_t pcnt;
+   int dcnt = 0;
+   char *pstr, *p2str, *pptr;
+   struct valuelist *kv;
+
+   if ((tp = LookupCellFile(model, file)) == NULL) {
+      Printf("Cell: %s does not exist.\n", model);
+      return;
+   }
+
+   InitializeHashTable(&devdict, OBJHASHSIZE);
+
+   lob = NULL;
+   for (ob = tp->cell; ob; ) {
+      if (ob->type == FIRSTPIN) {
+
+	 /* ------------------------------------*/
+	 /* Generate hash key from pins 	*/
+	 /* Handle pin permuations		*/
+	 /* ------------------------------------*/
+
+	 tsub = LookupCellFile(ob->model.class, file);
+	 if ((tsub != NULL) && (tsub->permutes != NULL))
+	    perm = tsub->permutes;
+	 else
+	    perm = NULL;	/* Device has no pin permutations */
+
+	 pcnt = strlen(ob->model.class) + 2;
+	 pptr = (char *)pcnt;
+	 for (ob2 = ob; ob2 && (ob2->type > FIRSTPIN || ob2 == ob); ob2 = ob2->next) {
+	    tlob = ob2;
+	    pcnt += 10;
+	 }
+
+	 /* Find last record in device and first record in next object */
+	 while (ob2 && ob2->type == PROPERTY) {
+	    tlob = ob2;
+	    ob2 = ob2->next;
+	 }
+	 nextob = ob2;
+
+	 pstr = (char *)MALLOC(pcnt);
+	 sprintf(pstr, "%s", ob->model.class);
+	 pptr += pstr - (char *)2;
+	 
+	 for (ob2 = ob; ob2 && (ob2->type > FIRSTPIN || ob2 == ob); ob2 = ob2->next) {
+	    sprintf(pptr, "_%d", ob2->node);
+	    pptr += strlen(pptr);
+	 }
+
+	 /* Now check the hash table for any similar instance */
+	 sob = (struct objlist *)HashLookup(pstr, &devdict);
+	 if (sob == NULL) {
+	    /* Generate hash entry */
+	    HashPtrInstall(pstr, ob, &devdict);
+
+	    /* If pins are permutable, generate alternative hash entries */
+
+	    if (perm != NULL) {
+		char *pname;
+		struct objlist *pob1, *pob2;
+
+		/* NOTE:  This is only set up for a single permutation	*/
+		/* per cell and needs to be expanded to the general	*/
+		/* case, which requires one nested loop per permute	*/
+		/* pair							*/
+
+		p2str = (char *)MALLOC(pcnt);
+		sprintf(p2str, "%s", ob->model.class);
+		pptr = p2str + strlen(ob->model.class);
+
+		for (ob2 = ob; ob2 && (ob2->type > FIRSTPIN || ob2 == ob);
+				ob2 = ob2->next) {
+		    pname = ob2->name + strlen(ob2->instance.name) + 1;
+		    if ((*matchfunc)(perm->pin1, pname))
+			pob1 = ob2;
+		    else if ((*matchfunc)(perm->pin2, pname))
+			pob2 = ob2;
+		}
+		for (ob2 = ob; ob2 && (ob2->type > FIRSTPIN || ob2 == ob);
+				ob2 = ob2->next) {
+		    if (ob2 == pob1)
+		        sprintf(pptr, "_%d", pob2->node);
+		    else if (ob2 == pob2)
+		        sprintf(pptr, "_%d", pob1->node);
+		    else
+		        sprintf(pptr, "_%d", ob2->node);
+		    pptr += strlen(pptr);
+		}
+		HashPtrInstall(p2str, ob, &devdict);
+		FREE((char *)p2str);
+	    }
+
+	    /* Set last object ptr to end of this record */
+	    lob = tlob;
+	 }
+	 else {
+	    /* Remove parallel device "ob" and append properties of	*/
+	    /* "sob" to it.  If "ob" does not have properties, then	*/
+	    /* create a property record and set property "M" to 2.	*/
+
+	    for (obr = ob; obr != ob2 ; ) {
+	       nob = obr->next;
+	       FreeObjectAndHash(obr, tp);
+	       obr = nob;
+	    }
+	    dcnt++;
+	    /* Find (first) property record of sob */
+	    for (pob = sob->next; pob->type > FIRSTPIN; pob = pob->next) {
+	       if (pob->next->type == PROPERTY)
+		  break;
+	       else if (pob->next->type == FIRSTPIN) {
+		  /* Create new property instance record if one doesn't exist */
+		  nob = GetObject();
+		  nob->type = PROPERTY;
+		  nob->name = strsave("properties");
+		  nob->node = -2;	/* Don't report as disconnected node */
+		  nob->model.class = strsave(sob->model.class);
+		  nob->instance.props = NewPropValue(2);
+
+		  /* Create property record for property "M" and set to 1 */
+		  kv = &(nob->instance.props[0]);
+		  kv->key = strsave("M");
+		  kv->type = PROP_INTEGER;
+		  kv->value.ival = (obr->type != PROPERTY) ? 2 : 1;
+
+		  /* End of property list */
+		  kv = &(nob->instance.props[1]);
+		  kv->key = NULL;
+		  kv->type = PROP_ENDLIST;
+		  kv->value.ival = 0;
+
+		  nob->next = pob->next;
+		  pob->next = nob;
+		  break;
+	       }
+	    }
+		
+	    if (lob == pob) lob = tlob;
+	    if (obr->type == PROPERTY) {
+	       /* Pull out property records and append to sob's	*/
+	       /* property list					*/
+	       tlob->next = pob->next;
+	       pob->next = obr;
+	    }
+	    lob->next = nextob;
+	 }
+	 FREE((char *)pstr);
+      }
+      else
+	 nextob = ob->next;
+      ob = nextob;
+   }
+   HashKill(&devdict);
+   if (dcnt > 0) {
+      Fprintf(stdout, "Class %s:  Merged %d devices.\n", model, dcnt);
+   }
 }
 
 /*----------------------------------------------------------------------*/
