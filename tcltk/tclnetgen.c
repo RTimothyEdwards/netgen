@@ -231,6 +231,7 @@ Command netcmp_cmds[] = {
 		"transistor: enable transistor permutations\n   "
 		"(none): enable transistor and resistor permutations"},
 	{"property",		_netcmp_property,
+		"default: apply property defaults\n   "
 		"<device>|<model> <property_key> [...]\n   "
 		"<device>: name of a device type (capacitor, etc.)\n  "
 		"<model>: name of a device model\n   "
@@ -2963,6 +2964,8 @@ _netcmp_equate(ClientData clientData,
 /*	remove	  --- delete existing property		*/
 /*	tolerance --- set property tolerance		*/
 /*	merge	  --- set property merge behavior	*/
+/* or							*/
+/*	netgen::property default			*/
 /* Formerly: (none)					*/
 /* Results:						*/
 /* Side Effects:					*/
@@ -3005,6 +3008,32 @@ _netcmp_property(ClientData clientData,
 	Tcl_WrongNumArgs(interp, 1, objv, "valid_cellname ?option?");
 	return TCL_ERROR;
     }
+
+    /* Check for special command "property default" */
+    if ((objc == 2) && (!strcmp(Tcl_GetString(objv[1]), "default"))) {
+
+	/* For each FET device, do "merge {w add_critical}" and	*/
+	/* "remove as ad ps pd".  This allows parallel devices	*/
+	/* to be added by width, and prevents attempts to	*/
+	/* compare source/drain area and perimeter.		*/
+
+	tp = FirstCell();
+	 while (tp != NULL) {
+	     switch (tp->class) {
+		case CLASS_NMOS: case CLASS_PMOS: case CLASS_FET3:
+		case CLASS_NMOS4: case CLASS_PMOS4: case CLASS_FET4:
+		case CLASS_FET:
+		    PropertyMerge(tp->name, tp->file, "w", MERGE_ADD_CRIT);
+		    PropertyDelete(tp->name, tp->file, "as");
+		    PropertyDelete(tp->name, tp->file, "ad");
+		    PropertyDelete(tp->name, tp->file, "ps");
+		    PropertyDelete(tp->name, tp->file, "pd");
+		    break;
+	    }
+	    tp = NextCell();
+	}
+    }
+
     result = CommonParseCell(interp, objv[1], &tp, &fnum);
     if (result != TCL_OK) return result;
 
