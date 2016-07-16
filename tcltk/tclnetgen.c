@@ -3029,8 +3029,16 @@ _netcmp_property(ClientData clientData,
 		    PropertyDelete(tp->name, tp->file, "ps");
 		    PropertyDelete(tp->name, tp->file, "pd");
 		    break;
+		case CLASS_RES: case CLASS_RES3:
+		    PropertyMerge(tp->name, tp->file, "l", MERGE_PAR_CRIT);
+		    break;
 		case CLASS_CAP: case CLASS_ECAP: case CLASS_CAP3:
+		    // NOTE:  No attempt to combine area, width, or length;
+		    // only value.
 		    PropertyMerge(tp->name, tp->file, "value", MERGE_ADD_CRIT);
+		    break;
+		case CLASS_INDUCTOR:
+		    PropertyMerge(tp->name, tp->file, "value", MERGE_PAR_CRIT);
 		    break;
 	    }
 	    tp = NextCell();
