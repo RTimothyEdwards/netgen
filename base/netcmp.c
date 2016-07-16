@@ -3302,6 +3302,7 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
    ptop = NULL;
    pcount = 1;
    crit = -1;
+   ctype = -1;
    kl = (struct property *)HashFirst(&(tp->propdict));
    while (kl != NULL) {
       // Make a linked list so we don't have to iterate through the hash again 
@@ -3319,8 +3320,10 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
       // Set critical property index, if there is one (TO-DO:  Handle types
       // other than MERGE_ADD_CRIT, and deal with possibility of multiple
       // critical properties per instance).
-      if (kl->merge == MERGE_ADD_CRIT) crit = kl->idx;
-
+      if (kl->merge == MERGE_ADD_CRIT) {
+	 crit = kl->idx;
+	 ctype = kl->merge;
+      }
       kl = (struct property *)HashNext(&(tp->propdict));
    }
    // Recast the linked list as an array
@@ -3473,10 +3476,24 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
 	       vlist[0][j] = &nullvl;	// Mark this position
 	       if (crit >= 0) {
 		  vl = vlist[crit][i];
-		  if (vl->type == PROP_INTEGER)
-		     vl->value.ival += vlist[crit][j]->value.ival;
-		  else if (vl->type == PROP_DOUBLE)
-		     vl->value.dval += vlist[crit][j]->value.dval;
+		  if (ctype == MERGE_ADD_CRIT) {
+		     if (vl->type == PROP_INTEGER)
+		        vl->value.ival += vlist[crit][j]->value.ival;
+		     else if (vl->type == PROP_DOUBLE)
+		        vl->value.dval += vlist[crit][j]->value.dval;
+		  }
+		  else {	/* MERGE_PAR_CRIT */
+		     if (vl->type == PROP_INTEGER) {
+			double di = vl->value.ival;
+			double dj = vlist[crit][j]->value.ival;
+			di = 1.0 / (1.0 / di + 1.0 / dj);
+		        vl->value.ival = (int)di;
+		     }
+		     else if (vl->type == PROP_DOUBLE) {
+		        vl->value.dval += 1.0 / (1.0 / vl->value.dval +
+					1.0 / vlist[crit][j]->value.dval);
+		     }
+		  }
 	       }
 	       else {
 	          vlist[0][i]->value.ival++;
@@ -3485,12 +3502,27 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
 	    else if (vlist[0][i]->value.ival > 0) {
 	       if (crit >= 0) {
 		  vl = vlist[crit][i];
-		  if (vl->type == PROP_INTEGER)
-		     vl->value.ival += vlist[0][j]->value.ival *
+		  if (ctype == MERGE_ADD_CRIT) {
+		     if (vl->type == PROP_INTEGER)
+		        vl->value.ival += vlist[0][j]->value.ival *
 				vlist[crit][j]->value.ival;
-		  else if (vl->type == PROP_DOUBLE)
-		     vl->value.dval += (double)vlist[0][j]->value.ival *
+		     else if (vl->type == PROP_DOUBLE)
+		        vl->value.dval += (double)vlist[0][j]->value.ival *
 				vlist[crit][j]->value.dval;
+		  }
+		  else {	/* MERGE_PAR_CRIT */
+		     if (vl->type == PROP_INTEGER) {
+			double d = (double)vlist[crit][j]->value.ival /
+					(double)vlist[0][j]->value.ival;
+		        vl->value.ival = (int)(1.0 / (1.0 / (double)vl->value.ival
+					+ 1.0 / d));
+		     }
+		     else if (vl->type == PROP_DOUBLE) {
+			double d = vlist[crit][j]->value.dval /
+					(double)vlist[0][j]->value.ival;
+		        vl->value.dval = 1.0 / (1.0 / vl->value.dval + 1.0 / d);
+		     }
+		  }
 	       }
 	       else {
 	          vlist[0][i]->value.ival += vlist[0][j]->value.ival;

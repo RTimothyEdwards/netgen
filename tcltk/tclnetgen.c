@@ -3029,6 +3029,9 @@ _netcmp_property(ClientData clientData,
 		    PropertyDelete(tp->name, tp->file, "ps");
 		    PropertyDelete(tp->name, tp->file, "pd");
 		    break;
+		case CLASS_CAP: case CLASS_ECAP: case CLASS_CAP3:
+		    PropertyMerge(tp->name, tp->file, "value", MERGE_ADD_CRIT);
+		    break;
 	    }
 	    tp = NextCell();
 	}
