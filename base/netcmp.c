@@ -3434,7 +3434,7 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
 
 	       // Add "M" record behind it
 	       vl = &newvlist[--p];
-	       vl->key = strdup("M");
+	       vl->key = strsave("M");
 	       vl->type = PROP_INTEGER;
 	       vl->value.ival = 1;
 	       vlist[0][i] = vl;
