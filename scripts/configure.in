@@ -472,6 +472,25 @@ if test $usingTcl ; then
   . $tcl_config_sh
   . $tk_config_sh
 
+  # Should probably trust the config file contents, but this configure
+  # file checks the Tcl and Tk include and lib directories.  Since
+  # the config file doesn't separate out the libraries from the strings
+  # passed to the compiler/linker, do it manually here.
+  #
+  # Extract TCL_LIB_DIR from TCL_LIB_SPEC
+  # Extract TK_LIB_DIR from TK_LIB_SPEC
+  # Extract TCL_INC_DIR from TCL_INCLUDE_SPEC
+  # Extract TK_INC_DIR from TK_INCLUDE_SPEC
+  #
+  # These will be the defaults unless overridden by configure command line
+
+  tmpstr=${TCL_LIB_SPEC#*-L}
+  TCL_LIB_DIR=${tmpstr% -l*}
+  tmpstr=${TK_LIB_SPEC#*-L}
+  TK_LIB_DIR=${tmpstr% -l*}
+  TCL_INC_DIR=${TCL_INCLUDE_SPEC#*-I}
+  TK_INC_DIR=${TK_INCLUDE_SPEC#*-I}
+
   if test "$TCL_VERSION" = "7.6" -a "$TK_VERSION" = "4.2" ; then
     :
   elif test "$TCL_VERSION" = "7.5" -a "$TK_VERSION" = "4.1" ; then
