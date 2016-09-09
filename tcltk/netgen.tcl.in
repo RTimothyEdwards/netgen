@@ -20,7 +20,11 @@ foreach i $nlist {
    }
 }
 
-load TCL_DIR/tclnetgenSHDLIB_EXT
+if {${tcl_version} >= 8.6} {
+   load -lazy TCL_DIR/tclnetgenSHDLIB_EXT
+} else {
+   load TCL_DIR/tclnetgenSHDLIB_EXT
+}
 
 #----------------------------------------------------------------
 # Define the "lvs" command as a way of calling the netgen options

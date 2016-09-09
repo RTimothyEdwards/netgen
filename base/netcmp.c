@@ -618,7 +618,10 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
 	    count++;
 
          elemlist->flist[k].count = count;
-         elemlist->flist[k].name = ob->name + strlen(ob->instance.name) + 1;
+	 if (*ob->name != *ob->instance.name)	// e.g., "port_match_error"
+            elemlist->flist[k].name = ob->name;
+	 else
+            elemlist->flist[k].name = ob->name + strlen(ob->instance.name) + 1;
          elemlist->flist[k].permute = (char)1;
          k++;
       }
@@ -632,7 +635,10 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
       m = k;
       for (j = i; j < fanout; j++) {
 	if (nodes[j] != NULL && nodes[i]->pin_magic == nodes[j]->pin_magic) {
-          elemlist->flist[k].name = ob2->name + strlen(ob2->instance.name) + 1;
+	  if (*ob2->name != *ob2->instance.name)  // e.g., "port_match_error"
+            elemlist->flist[k].name = ob2->name;
+	  else
+            elemlist->flist[k].name = ob2->name + strlen(ob2->instance.name) + 1;
           elemlist->flist[k].permute = (char)0;
           elemlist->flist[k].count = -1;	// Put total count at end
 	  k++;
@@ -4798,7 +4804,7 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
        tob = tc->cell;
        i = FIRSTPIN;
        firstpin = ob;
-       while (ob && (tob->type == PORT || tob->type == UNKNOWN)) {
+       while (tob && (tob->type == PORT || tob->type == UNKNOWN)) {
 	  if (tob->type == UNKNOWN) {
 	     obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
 	     obn->name = (char *)MALLOC(strlen(firstpin->instance.name)
@@ -4819,6 +4825,12 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 		// Rehash the instance in instdict
 		HashPtrInstall(firstpin->instance.name, firstpin, &(ptr->instdict));
 	     }
+	  }
+	  else if (ob == NULL) {
+	     // This should not happen. . .
+	     Fprintf(stdout, "Error:  Premature end of pin list on instance %s.\n",
+			firstpin->instance.name);
+	     break;
 	  }
 	  else {
 	     lob = ob;

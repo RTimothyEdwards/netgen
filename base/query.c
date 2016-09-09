@@ -345,7 +345,7 @@ void ElementNodes(char *cell, char *element, int fnum)
   struct nlist *np;
   struct objlist *ob, *nob, *nob2;
   int ckto;
-  char *elementname;
+  char *elementname, *obname;
 
   if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
       ElementNodes(cell, element, Circuit1->file);
@@ -368,8 +368,10 @@ void ElementNodes(char *cell, char *element, int fnum)
 
   ckto = strlen(elementname);
   for (ob = np->cell; ob != NULL; ob = ob->next) {
-    if (!strncmp(elementname, ob->name, ckto))
-       if (*(ob->name + ckto) == '/' || *(ob->name + ckto) == '\0')
+    obname = ob->name;
+    if (*obname == '/') obname++;
+    if (!strncmp(elementname, obname, ckto))
+       if (*(obname + ckto) == '/' || *(obname + ckto) == '\0')
 	  break;
   }
   if (ob == NULL) {
@@ -379,13 +381,15 @@ void ElementNodes(char *cell, char *element, int fnum)
 
   Printf("Device '%s' Pins:\n", elementname);
   for (; ob != NULL; ob = ob->next) {
-    if (!strncmp(elementname, ob->name, ckto)) {
-       if (*(ob->name + ckto) != '/' && *(ob->name + ckto) != '\0')
+    obname = ob->name;
+    if (*obname == '/') obname++;
+    if (!strncmp(elementname, obname, ckto)) {
+       if (*(obname + ckto) != '/' && *(obname + ckto) != '\0')
 	  continue;
 
        Printf("   ");
        PrintObjectType(ob->type);
-       Printf(" (%s)", ob->name + ckto + 1);
+       Printf(" (%s)", obname + ckto + 1);
        for (nob = np->cell; nob != NULL; nob = nob->next) {
 	 if (nob->node == ob->node) {
 	    if (nob->type == NODE) {
