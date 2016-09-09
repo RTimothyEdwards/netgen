@@ -3043,6 +3043,7 @@ _netcmp_property(ClientData clientData,
 	    }
 	    tp = NextCell();
 	}
+	return TCL_OK;
     }
 
     result = CommonParseCell(interp, objv[1], &tp, &fnum);

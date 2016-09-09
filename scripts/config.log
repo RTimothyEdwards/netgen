@@ -125,7 +125,7 @@ configure: failed program was:
 | #define PACKAGE_BUGREPORT "eda-dev@opencircuitdesign.com"
 | #define PACKAGE_URL ""
 | #define NETGEN_VERSION "1.5"
-| #define NETGEN_REVISION "57"
+| #define NETGEN_REVISION "58"
 | /* end confdefs.h.  */
 | #include <ac_nonexistent.h>
 configure:3382: result: gcc -E
@@ -146,7 +146,7 @@ configure: failed program was:
 | #define PACKAGE_BUGREPORT "eda-dev@opencircuitdesign.com"
 | #define PACKAGE_URL ""
 | #define NETGEN_VERSION "1.5"
-| #define NETGEN_REVISION "57"
+| #define NETGEN_REVISION "58"
 | /* end confdefs.h.  */
 | #include <ac_nonexistent.h>
 configure:3445: checking for library containing strerror
@@ -261,7 +261,7 @@ configure: failed program was:
 | #define PACKAGE_BUGREPORT "eda-dev@opencircuitdesign.com"
 | #define PACKAGE_URL ""
 | #define NETGEN_VERSION "1.5"
-| #define NETGEN_REVISION "57"
+| #define NETGEN_REVISION "58"
 | #define STDC_HEADERS 1
 | #define HAVE_SYS_TYPES_H 1
 | #define HAVE_SYS_STAT_H 1
@@ -302,7 +302,7 @@ configure: failed program was:
 | #define PACKAGE_BUGREPORT "eda-dev@opencircuitdesign.com"
 | #define PACKAGE_URL ""
 | #define NETGEN_VERSION "1.5"
-| #define NETGEN_REVISION "57"
+| #define NETGEN_REVISION "58"
 | #define STDC_HEADERS 1
 | #define HAVE_SYS_TYPES_H 1
 | #define HAVE_SYS_STAT_H 1
@@ -382,7 +382,7 @@ configure: failed program was:
 | #define PACKAGE_BUGREPORT "eda-dev@opencircuitdesign.com"
 | #define PACKAGE_URL ""
 | #define NETGEN_VERSION "1.5"
-| #define NETGEN_REVISION "57"
+| #define NETGEN_REVISION "58"
 | #define STDC_HEADERS 1
 | #define HAVE_SYS_TYPES_H 1
 | #define HAVE_SYS_STAT_H 1
@@ -454,7 +454,7 @@ configure: failed program was:
 | #define PACKAGE_BUGREPORT "eda-dev@opencircuitdesign.com"
 | #define PACKAGE_URL ""
 | #define NETGEN_VERSION "1.5"
-| #define NETGEN_REVISION "57"
+| #define NETGEN_REVISION "58"
 | #define STDC_HEADERS 1
 | #define HAVE_SYS_TYPES_H 1
 | #define HAVE_SYS_STAT_H 1
@@ -621,7 +621,7 @@ CC='gcc'
 CFLAGS='-g -m64 -fPIC'
 CPP='gcc -E -x c'
 CPPFLAGS=''
-DEFS='-DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"57\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -DTCL_NETGEN=1 -Dlinux=1 -DSYSV=1 -DISC=1'
+DEFS='-DPACKAGE_NAME=\"netgen\" -DPACKAGE_TARNAME=\"netgen\" -DPACKAGE_VERSION=\"1.3\" -DPACKAGE_STRING=\"netgen\ 1.3\" -DPACKAGE_BUGREPORT=\"eda-dev@opencircuitdesign.com\" -DPACKAGE_URL=\"\" -DNETGEN_VERSION=\"1.5\" -DNETGEN_REVISION=\"58\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DHAVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -DTCL_NETGEN=1 -Dlinux=1 -DSYSV=1 -DISC=1'
 DEPEND_FLAG='-MM'
 ECHO_C=''
 ECHO_N='printf'
@@ -734,7 +734,7 @@ unused=''
 #define PACKAGE_BUGREPORT "eda-dev@opencircuitdesign.com"
 #define PACKAGE_URL ""
 #define NETGEN_VERSION "1.5"
-#define NETGEN_REVISION "57"
+#define NETGEN_REVISION "58"
 #define STDC_HEADERS 1
 #define HAVE_SYS_TYPES_H 1
 #define HAVE_SYS_STAT_H 1
