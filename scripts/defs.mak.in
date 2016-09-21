@@ -57,6 +57,7 @@ SHDLIB_EXT	       = @SHDLIB_EXT@
 LDDL_FLAGS             = @LDDL_FLAGS@
 LD_RUN_PATH            = @LD_RUN_PATH@
 LIB_SPECS              = @LIB_SPECS@
+LIB_SPECS_NOSTUB       = @LIB_SPECS_NOSTUB@
 WISH_EXE	       = @WISH_EXE@
 TCL_LIB_DIR	       = @TCL_LIB_DIR@
 
@@ -65,7 +66,8 @@ CPP                    = @CPP@
 CXX                    = @CXX@
 
 CPPFLAGS               = -I. -I${NETGENDIR} @CPPFLAGS@
-DFLAGS                 = @extra_defs@ @DEFS@ -DSHDLIB_EXT=\"@SHDLIB_EXT@\" -DNDEBUG
+DFLAGS                 = @extra_defs@ @stub_defs@ @DEFS@ -DSHDLIB_EXT=\"@SHDLIB_EXT@\" -DNDEBUG
+DFLAGS_NOSTUB          = @extra_defs@ @DEFS@ -DSHDLIB_EXT=\"@SHDLIB_EXT@\" -DNDEBUG
 CFLAGS                 = @CFLAGS@ @SHLIB_CFLAGS@ @INC_SPECS@
 
 DEPEND_FILE            = Depend

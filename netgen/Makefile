@@ -23,7 +23,7 @@ tclnetgen${SHDLIB_EXT}: ${EXTRA_LIBS}
 	${RM} tclnetgen${SHDLIB_EXT}
 	${CC} ${CFLAGS} ${CPPFLAGS} -o $@ ${LDDL_FLAGS} \
 		${LD_RUN_PATH} ${EXTRA_LIBS} ${LD_EXTRA_LIBS} -lc ${LIBS} \
-		${TCL_LIB_SPEC} ${LDFLAGS}
+		${LIB_SPECS} ${LDFLAGS}
 
 $(DESTDIR)${BINDIR}/netgen:
 	${RM} $@

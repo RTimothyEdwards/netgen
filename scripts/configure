@@ -641,6 +641,7 @@ sub_extra_libs
 top_extra_libs
 ld_extra_objs
 ld_extra_libs
+stub_defs
 extra_defs
 extra_libs
 SCRIPTS
@@ -649,6 +650,7 @@ VERSION
 TCL_LIB_DIR
 TCLSH_EXE
 WISH_EXE
+LIB_SPECS_NOSTUB
 LIB_SPECS
 INC_SPECS
 EXTRA_LIB_SPECS
@@ -4712,6 +4714,7 @@ fi
 $as_echo "#define DBUG_OFF 1" >>confdefs.h
 
 
+stub_defs=""
 extra_defs="$extra_defs -DCAD_DIR=\\\"\${LIBDIR}\\\""
 X_LIBS=
 X_CFLAGS=
@@ -6011,6 +6014,7 @@ if test $usingTcl ; then
 
   extra_libs="$extra_libs \${NETGENDIR}/tcltk/libtcltk.o"
   extra_defs="$extra_defs -DTCL_DIR=\\\"\${TCLDIR}\\\""
+  stub_defs="$stub_defs -DUSE_TCL_STUBS -DUSE_TK_STUBS"
 else
   programs="$programs netgen"
   unused="$unused tcltk"
@@ -6089,6 +6093,7 @@ esac
 # -----------------------------------------------------------------------
 
 if test $usingTcl ; then
+    LIB_SPECS_NOSTUB="${LIB_SPECS}"
 
 # -----------------------------------------------------------------------
 #
@@ -6100,9 +6105,11 @@ if test $usingTcl ; then
   fi
   if test "${TK_LIB_DIR}" = "/usr/lib" -o \
         "${TK_LIB_DIR}" = "/usr/lib64" ; then
-    LIB_SPECS="${LIB_SPECS} ${TK_LIB_SPEC}"
+    LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} ${TK_LIB_SPEC}"
+    LIB_SPECS="${LIB_SPECS} ${TK_STUB_LIB_SPEC}"
   else
-    LIB_SPECS="${LIB_SPECS} -L${TK_LIB_DIR} ${TK_LIB_SPEC}"
+    LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} -L${TK_LIB_DIR} ${TK_LIB_SPEC}"
+    LIB_SPECS="${LIB_SPECS} -L${TK_LIB_DIR} ${TK_STUB_LIB_SPEC}"
     if test "x${loader_run_path}" = "x" ; then
       loader_run_path="${TK_LIB_DIR}"
     else
@@ -6126,9 +6133,11 @@ if test $usingTcl ; then
   if test "${TCL_LIB_DIR}" = "/usr/lib" -o \
         "${TCL_LIB_DIR}" = "/usr/lib64" -o \
         "${TCL_LIB_DIR}" = "${TK_LIB_DIR}" ; then
-    LIB_SPECS="${LIB_SPECS} ${TCL_LIB_SPEC}"
+    LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} ${TCL_LIB_SPEC}"
+    LIB_SPECS="${LIB_SPECS} ${TCL_STUB_LIB_SPEC}"
   else
-    LIB_SPECS="${LIB_SPECS} -L${TCL_LIB_DIR} ${TCL_LIB_SPEC}"
+    LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} -L${TCL_LIB_DIR} ${TCL_LIB_SPEC}"
+    LIB_SPECS="${LIB_SPECS} -L${TCL_LIB_DIR} ${TCL_STUB_LIB_SPEC}"
     if test "x${loader_run_path}" = "x" ; then
       loader_run_path="${TCL_LIB_DIR}"
     else
@@ -6501,11 +6510,13 @@ fi
 
 
 
+
 fi
 
 if test "$GCC" = "yes" ; then
    DEPEND_FLAG="-MM"
 fi
+
 
 
 

@@ -3786,7 +3786,7 @@ int Tclnetgen_Init(Tcl_Interp *interp)
    /* Remember the interpreter */
    netgeninterp = interp;
 
-   if (Tcl_InitStubs(interp, "8.1", 0) == NULL) return TCL_ERROR;
+   if (Tcl_InitStubs(interp, "8.5", 0) == NULL) return TCL_ERROR;
   
    for (n = 0; netgen_cmds[n].name != NULL; n++) {
       sprintf(keyword, "netgen::%s", netgen_cmds[n].name);
