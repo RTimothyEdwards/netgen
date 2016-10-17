@@ -42,6 +42,20 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 // Global storage for parameters from .PARAM
 struct hashdict spiceparams;
 
+// Check if a token represents a numerical value (with
+// units) or an expression.  This is basically a hack
+// to see if it either passes StringIsValue() or is
+// enclosed in braces.  Probably should attempt to
+// parse the expression, to be pedantic.  Not sure all
+// expressions have to be in braces.
+
+int StringIsValueOrExpression(char *token)
+{
+    if (StringIsValue(token)) return TRUE;
+    else if (*token == '{') return TRUE;
+    else return FALSE;
+}
+
 void SpiceSubCell(struct nlist *tp, int IsSubCell)
 {
   struct objlist *ob;
@@ -956,7 +970,7 @@ skip_ends:
 
 	/* Get capacitor value (if present), save as property "value" */
 	if (nexttok != NULL) {
-	   if (StringIsValue(nexttok)) {
+	   if (StringIsValueOrExpression(nexttok)) {
 	      AddProperty(&kvlist, "value", nexttok);
 	      SpiceTokNoNewline();
 	   }
@@ -984,7 +998,7 @@ skip_ends:
 	      if ((eqptr = strchr(model, ']')) != NULL)
 		 *eqptr = '\0';
 	   }
-	   else if (StringIsValue(nexttok)) {
+	   else if (StringIsValueOrExpression(nexttok)) {
 		// Suport for value passed to modeled capacitor
 	        AddProperty(&kvlist, "value", nexttok);
 	   }
@@ -1050,7 +1064,7 @@ skip_ends:
 	/* Get resistor value (if present); save as property "value" */
 
 	if (nexttok != NULL) {
-	   if (StringIsValue(nexttok)) {
+	   if (StringIsValueOrExpression(nexttok)) {
 	      AddProperty(&kvlist, "value", nexttok);
 	      SpiceTokNoNewline();
 	   }
@@ -1077,7 +1091,7 @@ skip_ends:
 	      if ((eqptr = strchr(model, ']')) != NULL)
 		 *eqptr = '\0';
 	   }
-	   else if (StringIsValue(nexttok)) {
+	   else if (StringIsValueOrExpression(nexttok)) {
 		// Suport for value passed to modeled resistor
 	        AddProperty(&kvlist, "value", nexttok);
 	   }
@@ -1277,7 +1291,7 @@ skip_ends:
       /* Get inductance value (if present); save as property "value" */
 
       if (nexttok != NULL) {
-	  if (StringIsValue(nexttok)) {
+	  if (StringIsValueOrExpression(nexttok)) {
 	      AddProperty(&kvlist, "value", nexttok);
 	      SpiceTokNoNewline();
 	  }
@@ -1368,7 +1382,7 @@ skip_ends:
 	    *eqptr = '\0';
 	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	 }
-	 else if (StringIsValue(nexttok)) {
+	 else if (StringIsValueOrExpression(nexttok)) {
 	    AddProperty(&kvlist, "value", nexttok);
 	    SpiceTokNoNewline();
 	 }
@@ -1422,7 +1436,7 @@ skip_ends:
 	    *eqptr = '\0';
 	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	 }
-	 else if (StringIsValue(nexttok)) {
+	 else if (StringIsValueOrExpression(nexttok)) {
 	    AddProperty(&kvlist, "value", nexttok);
 	    SpiceTokNoNewline();
 	 }
@@ -1485,7 +1499,7 @@ skip_ends:
 	    *eqptr = '\0';
 	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	 }
-	 else if (StringIsValue(nexttok)) {
+	 else if (StringIsValueOrExpression(nexttok)) {
 	    AddProperty(&kvlist, "value", nexttok);
 	    SpiceTokNoNewline();
 	 }
