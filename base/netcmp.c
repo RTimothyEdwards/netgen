@@ -3337,18 +3337,11 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
    vlist = (struct valuelist ***)CALLOC(pcount, sizeof(struct valuelist **));
    if (m_rec == NULL)
       vlist[0] = (struct valuelist **)CALLOC(icount, sizeof(struct valuelist *));
-   pcount = 1;
+
    while (ptop != NULL) {
-      if (ptop->prop == m_rec) {
-	 plist[0] = m_rec;
-	 vlist[0] = (struct valuelist **)CALLOC(icount,
+      plist[ptop->prop->idx] = ptop->prop;
+      vlist[ptop->prop->idx] = (struct valuelist **)CALLOC(icount,
 		sizeof(struct valuelist *));
-      }
-      else {
-	 plist[pcount] = ptop->prop;
-	 vlist[pcount++] = (struct valuelist **)CALLOC(icount,
-		sizeof(struct valuelist *));
-      }
       plink = ptop;
       FREE(ptop);
       ptop = plink->next;
@@ -3375,6 +3368,17 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
 	 }
       }
       i++;
+   }
+
+   // Check for "M" records with type double and promote them to integer
+   for (i = 0; i < icount; i++) {
+      vl = vlist[0][i];
+      if (vl != NULL) {
+         if (vl->type == PROP_DOUBLE) {
+            vl->type = PROP_INTEGER;
+	    vl->value.ival = (int)(vl->value.dval + 0.5);
+         }
+      }
    }
 
    // Now combine records with same properties by summing M.
@@ -3482,13 +3486,13 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
 	       vlist[0][j] = &nullvl;	// Mark this position
 	       if (crit >= 0) {
 		  vl = vlist[crit][i];
-		  if (ctype == MERGE_ADD_CRIT) {
+		  if ((vl != NULL) && (ctype == MERGE_ADD_CRIT)) {
 		     if (vl->type == PROP_INTEGER)
 		        vl->value.ival += vlist[crit][j]->value.ival;
 		     else if (vl->type == PROP_DOUBLE)
 		        vl->value.dval += vlist[crit][j]->value.dval;
 		  }
-		  else {	/* MERGE_PAR_CRIT */
+		  else if (vl != NULL) {	/* MERGE_PAR_CRIT */
 		     if (vl->type == PROP_INTEGER) {
 			double di = vl->value.ival;
 			double dj = vlist[crit][j]->value.ival;
@@ -3508,7 +3512,7 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
 	    else if (vlist[0][i]->value.ival > 0) {
 	       if (crit >= 0) {
 		  vl = vlist[crit][i];
-		  if (ctype == MERGE_ADD_CRIT) {
+		  if ((vl != NULL) && (ctype == MERGE_ADD_CRIT)) {
 		     if (vl->type == PROP_INTEGER)
 		        vl->value.ival += vlist[0][j]->value.ival *
 				vlist[crit][j]->value.ival;
@@ -3516,7 +3520,7 @@ void PropertyOptimize(struct objlist *ob, struct nlist *tp)
 		        vl->value.dval += (double)vlist[0][j]->value.ival *
 				vlist[crit][j]->value.dval;
 		  }
-		  else {	/* MERGE_PAR_CRIT */
+		  else if (vl != NULL) {	/* MERGE_PAR_CRIT */
 		     if (vl->type == PROP_INTEGER) {
 			double d = (double)vlist[crit][j]->value.ival /
 					(double)vlist[0][j]->value.ival;
