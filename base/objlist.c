@@ -360,7 +360,7 @@ int deleteclass(struct hashlist *p, int file)
 	       ob = nob;
 	       if (ob == NULL) break;
 	       nob = ob->next;
-	       if (ob->type <= FIRSTPIN) break;
+	       if (ob->type != PROPERTY && ob->type <= FIRSTPIN) break;
 	    }
 	    if (lob == NULL)
 	       ptr->cell = ob;
