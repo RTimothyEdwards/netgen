@@ -32,7 +32,7 @@ extern int PermuteForget(char *model, int filenum, char *pin1, char *pin2);
 extern int EquivalenceElements(char *name1, int file1, char *name2, int file2);
 extern int EquivalenceNodes(char *name1, int file1, char *name2, int file2);
 extern int EquivalenceClasses(char *name1, int file1, char *name2, int file2);
-extern int IgnoreClass(char *name, int file);
+extern int IgnoreClass(char *name, int file, unsigned char type);
 extern int MatchPins(struct nlist *tp1, struct nlist *tp2);
 
 extern int  CreateCompareQueue(char *, int, char *, int);

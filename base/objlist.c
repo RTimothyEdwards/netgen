@@ -340,6 +340,71 @@ void CellRehash(char *name, char *newname, int file)
 
 struct nlist *OldCell;
 
+int removeshorted(struct hashlist *p, int file)
+{
+   struct nlist *ptr;
+   struct objlist *ob, *lob, *nob, *tob;
+   unsigned char shorted;
+
+   ptr = (struct nlist *)(p->ptr);
+
+   if ((file != -1) && (ptr->file != file)) return;
+
+   lob = NULL;
+   for (ob = ptr->cell; ob != NULL;) {
+      nob = ob->next;
+      if ((ob->type == FIRSTPIN) && (ob->model.class != NULL)) {
+	 if ((*matchfunc)(ob->model.class, OldCell->name)) {
+            shorted = (unsigned char)1;
+	    for (tob = nob; tob->type > FIRSTPIN; tob = tob->next) {
+	       if (tob->node != ob->node) {
+	           shorted = (unsigned char)0;
+	           break;
+	       }
+            }
+	    if (shorted == (unsigned char)0) {
+               lob = ob;
+               ob = nob;
+	       continue;
+	    }
+	    HashDelete(ob->instance.name, &(ptr->instdict));
+	    while (1) {
+	       FreeObjectAndHash(ob, ptr);
+	       ob = nob;
+	       if (ob == NULL) break;
+	       nob = ob->next;
+	       if (ob->type != PROPERTY && ob->type <= FIRSTPIN) break;
+	    }
+	    if (lob == NULL)
+	       ptr->cell = ob;
+	    else
+	       lob->next = ob;
+	 }
+	 else {
+	    lob = ob;
+	    ob = nob;
+	 }
+      }
+      else {
+         lob = ob;
+         ob = nob;
+      }
+   }
+}
+
+/* Remove shorted instances of class "class" from the database */
+
+void RemoveShorted(char *class, int file)
+{
+   if (file == -1)
+      OldCell = LookupCell(class);
+   else
+      OldCell = LookupCellFile(class, file);
+
+   if (OldCell == NULL) return;
+   RecurseCellFileHashTable(removeshorted, file);
+}
+
 int deleteclass(struct hashlist *p, int file)
 {
    struct nlist *ptr;

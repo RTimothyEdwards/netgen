@@ -1213,6 +1213,10 @@ void CellDefNoCase(char *name, int file)
 }
 
 /*----------------------------------------------------------------------*/
+/* Return 0 if class 'name' is not being ignored (per the 'ignore'	*/
+/* command);  1 if it is ignored, and 2 if shorted instances should be	*/
+/* ignored.								*/
+/*----------------------------------------------------------------------*/
 
 int IsIgnored(char *name, int file)
 {
@@ -1223,7 +1227,7 @@ int IsIgnored(char *name, int file)
     {
 	if ((file == -1) || (ilist->file == -1) || (file == ilist->file)) 
 	    if ((*matchfunc)(ilist->class, nptr))
-		return 1;
+		return ilist->type;	/* IGNORE_CLASS or IGNORE_SHORTED */
     }
    return 0;
 }
@@ -1361,10 +1365,6 @@ void Instance(char *model, char *instancename)
     return;
   }
   fnum = CurrentCell->file;
-  if (IsIgnored(model, fnum)) {
-    Printf("Class '%s' instanced in input but is being ignored.\n", model);
-    return;
-  }
   instanced_cell = LookupCellFile(model, fnum);
   if (instanced_cell == NULL) {
     Printf("Attempt to instance undefined model '%s'\n", model);
@@ -1504,7 +1504,7 @@ char *Cell(char *inststr, char *model, ...)
   struct objlist *namedporthead, *namedportp, *namedlisthead, *namedlistp;
   int portnum, portlist, done;
   char namedport[512]; /* tmp buffers */
-  int filenum;
+  int filenum, itype, samenode;
 
   static char *instancename = NULL;
   char *instnameptr;
@@ -1517,7 +1517,7 @@ char *Cell(char *inststr, char *model, ...)
      filenum = CurrentCell->file;
 	
   if (Debug) Printf("   calling cell: %s\n",model);
-  if (IsIgnored(model, filenum)) {
+  if ((itype = IsIgnored(model, filenum)) == IGNORE_CLASS) {
     Printf("Class '%s' instanced in input but is being ignored.\n", model);
     return NULL;
   }
@@ -1599,6 +1599,21 @@ char *Cell(char *inststr, char *model, ...)
     }
   }
   va_end(ap);
+
+  /* Check for shorted pins */
+  if ((itype == IGNORE_SHORTED) && (head != NULL)) {
+     unsigned char shorted = (unsigned char)1;
+     for (tp = head->next; tp; tp = tp->next) {
+        if (strcasecmp(head->name, tp->name))
+           shorted = (unsigned char)0;
+           break;
+     }
+     if (shorted == (unsigned char)1) {
+        Printf("Instance of '%s' is shorted, ignoring.\n", model);
+        FreeObject(head);
+        return NULL;
+     }
+  }
 
   if (inststr == NULL) {
     if (instancename != NULL)
@@ -1992,7 +2007,7 @@ struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
     else
 	filenum = CurrentCell->file;
 
-    if (IsIgnored(model, filenum)) {
+    if (IsIgnored(model, filenum) == IGNORE_CLASS) {
 	Printf("Class '%s' instanced in input but is being ignored.\n", model);
 	return NULL;
     }

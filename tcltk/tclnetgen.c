@@ -2518,10 +2518,10 @@ _netcmp_ignore(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
    char *options[] = {
-      "class", NULL
+      "class", "shorted", NULL
    };
    enum OptionIdx {
-      CLASS_IDX
+      CLASS_IDX, SHORTED_IDX
    };
    int result, index;
    int file = -1;
@@ -2542,7 +2542,14 @@ _netcmp_ignore(ClientData clientData,
       Tcl_WrongNumArgs(interp, 1, objv, "[class] valid_cellname");
       return TCL_ERROR;
    }
-   IgnoreClass(name, file);
+   switch (index) {
+      case CLASS_IDX:
+         IgnoreClass(name, file, IGNORE_CLASS);
+	 break;
+      case SHORTED_IDX:
+         IgnoreClass(name, file, IGNORE_SHORTED);
+	 break;
+   }
    return TCL_OK;
 }
 

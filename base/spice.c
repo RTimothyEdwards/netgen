@@ -1530,6 +1530,8 @@ skip_ends:
 
     else if (toupper(nexttok[0]) == 'X') {	/* subcircuit instances */
       char instancename[100], subcktname[100];
+      int itype;
+
       instancename[99] = '\0';
       subcktname[99] = '\0';
 
@@ -1602,6 +1604,34 @@ skip_ends:
       if (scan->next != NULL) scan = scan->next;
       tail->next = NULL;
 
+      /* Check for ignored class */
+
+      if ((itype = IsIgnored(subcktname, filenum)) == IGNORE_CLASS) {
+          Printf("Class '%s' instanced in input but is being ignored.\n", model);
+          return;
+      }
+
+      /* Check for shorted pins */
+
+      if ((itype == IGNORE_SHORTED) && (head != NULL)) {
+         unsigned char shorted = (unsigned char)1;
+         struct portelement *p;
+         for (p = head->next; p; p = p->next) {
+            if (strcasecmp(head->name, p->name))
+               shorted = (unsigned char)0;
+               break;
+         }
+         if (shorted == (unsigned char)1) {
+            Printf("Instance of '%s' is shorted, ignoring.\n", subcktname);
+	    while (head) {
+	       p = head->next;
+	       FREE(head);
+	       head = p;
+            }
+            return;
+         }
+      }
+
       /* Create cell name and revise instance name based on the cell name */
       /* For clarity, if "instancename" does not contain the cellname,	  */
       /* then prepend the cellname to the instance name.  HOWEVER, if any */
@@ -1658,6 +1688,7 @@ skip_ends:
       }
 
       /* nexttok is now NULL, scan->name points to class */
+
       Instance(subcktname, instancename);
       pobj = LinkProperties(subcktname, kvlist);
       ReduceExpressions(pobj, NULL, CurrentCell, TRUE);

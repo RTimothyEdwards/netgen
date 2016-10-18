@@ -159,8 +159,15 @@ extern struct objlist *LastPlaced;
 struct IgnoreList {
     char *class;
     int file;
+    unsigned char type;
     struct IgnoreList *next;
 };
+
+/* Types used by IgnoreList above */
+
+#define IGNORE_NONE	(unsigned char)0
+#define IGNORE_CLASS	(unsigned char)1
+#define IGNORE_SHORTED	(unsigned char)2
 
 /* Record structure for handling pin permutations in a cell	*/
 /* Linked list structure allows multiple permutations per cell.	*/

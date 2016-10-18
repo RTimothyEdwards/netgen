@@ -4551,13 +4551,13 @@ int EquivalenceNodes(char *name1, int file1, char *name2, int file2)
 /* database.						*/
 /*------------------------------------------------------*/
 
-int IgnoreClass(char *name, int file)
+int IgnoreClass(char *name, int file, unsigned char type)
 {
    struct IgnoreList *newIgnore;
 
    if ((file == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
-      IgnoreClass(name, Circuit1->file);
-      IgnoreClass(name, Circuit2->file);
+      IgnoreClass(name, Circuit1->file, type);
+      IgnoreClass(name, Circuit2->file, type);
       return;
    }
 
@@ -4567,9 +4567,13 @@ int IgnoreClass(char *name, int file)
    newIgnore->class = (char *)MALLOC(1 + strlen(name));
    strcpy(newIgnore->class, name);
    newIgnore->file = file;
+   newIgnore->type = type;
 
    /* Remove existing classes from database */
-   ClassDelete(name, file);
+   if (type == IGNORE_CLASS)
+      ClassDelete(name, file);
+   else
+      RemoveShorted(name, file);
 
    return 0;
 }
