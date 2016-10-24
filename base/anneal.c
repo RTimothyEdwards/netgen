@@ -20,7 +20,6 @@ int MaxCPUTime = 100;  /* max number of seconds to burn */
 #define MAX_CHANGES_PER_ITER 2
 
 #if 0
-/* INLINE */
 float RandomUniform(void)
 {
   /* DANGER! DANGER! Non-portable code below!! */

@@ -730,7 +730,6 @@ char *readbuf;
 int bytes_in_buffer;
 char *bufptr;
 
-INLINE
 int READ(void *buf, int bytes)
 {
   if (bytes_in_buffer >= bytes) {

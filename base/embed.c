@@ -348,7 +348,6 @@ void PRINTPACKED(unsigned long *mstar)
 #ifdef IBMPC
 static unsigned int lochash(unsigned long *mstar)
 #else
-INLINE 
 static unsigned long lochash(unsigned long *mstar)
 #endif
 {
@@ -432,7 +431,6 @@ static struct ex_entry *hashinstall(unsigned long *mstar)
   return(ex_tab[hashval] = np);
 }
 
-/* INLINE */
 int Exists(int E1, int E2)
 {
   int i;
@@ -470,7 +468,6 @@ int InitializeExistTest(void)
   return(1);
 }
 
-/* INLINE */
 void AddToExistSet(int E1, int E2) 
 {
   int i;

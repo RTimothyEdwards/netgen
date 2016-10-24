@@ -36,7 +36,6 @@ int CountFanoutOK;
 int CountSwallowedElements;
 
 
-INLINE 
 int Independent(int E1, int E2)
 /* return 1 if E1 and E2 share no leaves in common */
 {
@@ -47,7 +46,6 @@ int Independent(int E1, int E2)
   return(1);
 }
 
-INLINE
 int FanoutOK(int E1, int E2)
 {
   int approxfanout;
@@ -67,7 +65,6 @@ int FanoutOK(int E1, int E2)
 }
 
 
-INLINE
 int Swallowed(int Parent, int Child)
 /* returns 1 if Child's fanout is contained in Parent's */
 {
@@ -107,7 +104,6 @@ int SmallEnough(int E1, int E2)
 }
 #endif
 
-INLINE 
 int SuccessfulEmbedding(int E)
 /* returns 1 if element E is a successful embedding */
 {

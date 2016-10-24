@@ -1411,7 +1411,6 @@ int ElementListAllocated;
 int NodeListAllocated;
 #endif
 
-INLINE
 struct Element *GetElement(void)
 {
 	struct Element *new_element;	
@@ -1429,14 +1428,12 @@ struct Element *GetElement(void)
 	return(new_element);
 }
 
-INLINE
 void FreeElement(struct Element *old)
 {
 	old->next = ElementFreeList;
 	ElementFreeList = old;
 }
 
-INLINE
 struct Node *GetNode(void)
 {
 	struct Node *new_node;	
@@ -1454,14 +1451,12 @@ struct Node *GetNode(void)
 	return(new_node);
 }
 
-INLINE
 void FreeNode(struct Node *old)
 {
 	old->next = NodeFreeList;
 	NodeFreeList = old;
 }
 
-INLINE
 struct ElementClass *GetElementClass(void)
 {
 	struct ElementClass *new_elementclass;	
@@ -1481,14 +1476,12 @@ struct ElementClass *GetElementClass(void)
 	return(new_elementclass);
 }
 
-INLINE
 void FreeElementClass(struct ElementClass *old)
 {
 	old->next = ElementClassFreeList;
 	ElementClassFreeList = old;
 }
 
-INLINE
 struct NodeClass *GetNodeClass(void)
 {
 	struct NodeClass *new_nodeclass;	
@@ -1508,14 +1501,12 @@ struct NodeClass *GetNodeClass(void)
 	return(new_nodeclass);
 }
 
-INLINE
 void FreeNodeClass(struct NodeClass *old)
 {
 	old->next = NodeClassFreeList;
 	NodeClassFreeList = old;
 }
 
-INLINE
 struct ElementList *GetElementList(void)
 {
 	struct ElementList *new_elementlist;	
@@ -1534,14 +1525,12 @@ struct ElementList *GetElementList(void)
 	return(new_elementlist);
 }
 
-INLINE
 void FreeElementList(struct ElementList *old)
 {
 	old->next = ElementListFreeList;
 	ElementListFreeList = old;
 }
 
-INLINE
 struct NodeList *GetNodeList(void)
 {
 	struct NodeList *new_nodelist;	
@@ -1559,7 +1548,6 @@ struct NodeList *GetNodeList(void)
 	return(new_nodelist);
 }
 
-INLINE
 void FreeNodeList(struct NodeList *old)
 {
 	old->next = NodeListFreeList;
@@ -1834,6 +1822,7 @@ void CreateLists(char *name, short graph)
   }
 
   CombineParallel(name, graph);
+  CombineSerial(name, graph);
 
   Elements = CreateElementList(name, graph);
   Nodes = CreateNodeList(name, graph);
@@ -1962,6 +1951,7 @@ void CreateLists(char *name, short graph)
 
   ConnectAllNodes(name, graph);
   CombineParallel(name, graph);
+  CombineSerial(name, graph);
 
   E = CreateElementList(name, graph);
   N = CreateNodeList(name, graph);

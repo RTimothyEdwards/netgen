@@ -315,7 +315,6 @@ void PrintE(FILE *outfile, int E)
 
 
 #if 0
-INLINE
 int UsedLeaves(int E1, int E2)
 /* returns the number of leaves in E1 + E2, which are assumed independent */
 {
@@ -327,7 +326,6 @@ int UsedLeaves(int E1, int E2)
 #endif
 
 
-INLINE
 int CommonNodes(int E1, int E2, int IncludeGlobals)
 /* returns the number of nodes that E1 and E2 share */
 /* if IncludeGlobals == 0, do not count large connectivity nodes */
@@ -350,7 +348,6 @@ int CommonNodes(int E1, int E2, int IncludeGlobals)
   return(result);
 }
 
-INLINE
 int GlobalNodes(int E)
 /* return the number of global nodes that E contacts */
 /* for now, global nodes are just cell ports */

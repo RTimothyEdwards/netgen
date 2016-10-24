@@ -3034,6 +3034,199 @@ void CombineParallel(char *model, int file)
 }
 
 /*----------------------------------------------------------------------*/
+/* Find all nodes that are connected to exactly two devices of the same	*/
+/* class.  Where found, if the device is allowed to combine serially	*/
+/* (check properties), then remove the node and merge the devices into	*/
+/* one. 								*/
+/*									*/
+/* This routine depends on CombineParallel() being run first so that no	*/
+/* parallel devices are reported as serial.				*/
+/*----------------------------------------------------------------------*/
+
+void CombineSerial(char *model, int file)
+{
+   struct nlist *tp, *tp2;
+   struct objlist ***instlist;
+   struct objlist *ob, *ob2, *obs, *obp, *obn;
+   int i, j;
+   struct valuelist *kv;
+
+   if ((tp = LookupCellFile(model, file)) == NULL) {
+      Printf("Cell: %s does not exist.\n", model);
+      return;
+   }
+   instlist = (struct objlist ***)CALLOC((tp->nodename_cache_maxnodenum + 1),
+		sizeof(struct objlist **));
+
+   for (ob = tp->cell; ob; ob = ob->next) {
+      if ((ob->type >= FIRSTPIN) && (ob->node >= 0)) {
+          if (ob->type == FIRSTPIN)
+	     obp = ob;	// Save pointer to first pin of device
+          if (instlist[ob->node] == NULL) {
+             /* Node has not been seen before, so add it to list */
+	     instlist[ob->node] = (struct objlist **)CALLOC(2,
+			sizeof(struct objlist *));
+
+	     /* For now, simple rule:  Device must be a resistor */
+             tp2 = LookupCellFile(ob->model.class, file);
+             if (tp2->class != CLASS_RES)
+	        /* invalidate node */
+	         instlist[ob->node][0] = NULL;
+	     else
+	         instlist[ob->node][0] = obp;
+          }
+          else if (instlist[ob->node][0] == NULL) {
+             /* Node is not valid for serial connection */
+          }
+          else if (instlist[ob->node][1] == NULL) {
+             /* Check if first instance is the same type */
+             if ((*matchfunc)(instlist[ob->node][0]->model.class, ob->model.class))
+	         instlist[ob->node][1] = obp;
+	     else
+		/* invalidate node */
+		instlist[ob->node][0] = NULL;
+          }
+      }
+   }
+   for (i = 0; i <= tp->nodename_cache_maxnodenum; i++) {
+      if (instlist[i] != NULL) {
+         if ((instlist[i][0] != NULL) && (instlist[i][1] != NULL)) {
+	    Fprintf(stdout, "Found serial instances %s and %s\n",
+			instlist[i][0]->instance.name,
+			instlist[i][1]->instance.name);
+
+	    /* To maintain knowledge of the topology, each device gets	*/
+	    /* a parameter 'S', string value set to "<node1>/<node2>".	*/
+
+	    for (j = 0; j <= 1; j++) {
+               for (obp = instlist[i][j]; ; obp = obp->next) {
+		  int found = FALSE;
+		  int k, l;
+		  char *nodename1, *nodename2;
+		  struct valuelist *kv2;
+
+		  nodename1 = tp->nodename_cache[instlist[i][j]->node]->name;
+		  nodename2 = tp->nodename_cache[instlist[i][j]->next->node]->name;
+	          if (obp->type == PROPERTY) {
+		     /* Add to properties */
+		     k = 0;
+		     for (k = 0; ; k++) {
+		        kv = &(obp->instance.props[k]);
+			if (kv->type == PROP_ENDLIST)
+			   break;
+		     }
+		     kv2 = (struct valuelist *)MALLOC((k + 2) *
+				sizeof(struct valuelist));
+		     kv2->key = strsave("S");
+		     kv2->type = PROP_STRING;
+		     /* Value is set to "<node1>/<node2>" */
+		     kv2->value.string = (char *)MALLOC(strlen(nodename1) +
+				strlen(nodename2) + 2);
+		     sprintf(kv2->value.string, "%s/%s", nodename1, nodename2);
+
+		     for (l = 0; l <= k; l++)
+			kv2[l + 1] = obp->instance.props[l];
+		     FREE(obp->instance.props);
+		     obp->instance.props = kv2;
+		     found = TRUE;
+	          }
+	          if (obp->next == NULL || obp->next->type == FIRSTPIN) {
+		     struct objlist *nob;
+		     /* No property record, so insert one */
+		     if (found == FALSE) {
+		        nob = GetObject();
+		        nob->type = PROPERTY;
+		        nob->name = strsave("properties");
+		        nob->node = -2;	/* Don't report as disconnected node */
+		        nob->model.class = strsave(obp->model.class);
+		        nob->instance.props = NewPropValue(2);
+
+		        /* Create property record for property "S" */
+		        kv = &(nob->instance.props[0]);
+		        kv->key = strsave("S");
+		        kv->type = PROP_STRING;
+		        /* Value is set to "<node1>/<node2>" */
+		        kv->value.string = (char *)MALLOC(strlen(nodename1) +
+				strlen(nodename2) + 2);
+		        sprintf(kv->value.string, "%s/%s", nodename1, nodename2);
+
+		        /* End of property list */
+		        kv = &(nob->instance.props[1]);
+		        kv->key = NULL;
+		        kv->type = PROP_ENDLIST;
+		        kv->value.ival = 0;
+
+		        nob->next = obp->next;
+		        obp->next = nob;
+		     }
+		     break;
+	          }
+	       }
+	    }
+
+            /* Combine these two instances and remove node i */
+            for (ob2 = instlist[i][0]; ob2; ob2 = ob2->next) {
+	       if (ob2->node == i)
+		  break;
+	    }
+            for (obs = instlist[i][1]; obs; obs = obs->next) {
+	       if (obs->node != i) {
+		  ob2->node = obs->node;
+		  break;
+	       }
+	    }
+
+	    /* Excise the 2nd instance.  instlist[i][1] remains as the	*/
+	    /* only pointer to it.					*/
+            for (obp = instlist[i][0]; obp->next->type != FIRSTPIN; obp = obp->next);
+            for (ob2 = obp; ob2->next != instlist[i][1]; ob2 = ob2->next);
+	    for (obs = ob2->next; obs->next && obs->next->type != FIRSTPIN;
+			obs = obs->next);
+	    ob2->next = obs->next;
+	    if (obs->next) obs->next = NULL;	// Terminate 2nd instance record
+
+	    /* Move property record(s) of the 2nd device to the first */
+	    for (obs = instlist[i][1]; obs && obs->type != PROPERTY; obs = obs->next);
+	    while (obs && (obs->type == PROPERTY)) {
+	       obn = obs->next;
+	       obs->next = obp->next;
+	       obp->next = obs;
+	       obs = obn;
+	    }
+
+	    /* If 2nd device appears anywhere else in the serial device	*/
+	    /* list, replace it with the 1st device.			*/
+	    for (j = i + 1; j <= tp->nodename_cache_maxnodenum; j++) {
+	       if (instlist[j][0] == instlist[i][1])
+		  instlist[j][0] = instlist[i][0];
+	       if (instlist[j][1] == instlist[i][1])
+		  instlist[j][1] = instlist[i][0];
+	    }
+
+	    /* Free 2nd device's object */
+	    for (obs = instlist[i][1]; obs && obs->type != PROPERTY; ) {
+               obn = obs->next;
+	       FreeObjectAndHash(obs, tp);
+	       obs = obn;
+	    }
+
+	    /* Free node i and remove from object hash */
+	    for (obp = tp->cell; obp->next; obp = obp->next) {
+	       if ((obp->next->type == NODE) && (obp->next->node == i)) {
+	          obn = obp->next;
+		  obp->next = obp->next->next;
+		  FreeObjectAndHash(obn, tp);
+	          break;
+	       }
+	    }
+         }
+         FREE(instlist[i]);
+      }
+   }
+   FREE(instlist);
+}
+
+/*----------------------------------------------------------------------*/
 /*----------------------------------------------------------------------*/
 
 void EndCell(void)

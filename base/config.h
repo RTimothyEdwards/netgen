@@ -117,15 +117,6 @@
 #define memzero(ptr, len) memset(ptr, 0, len)
 #endif
 
-
-#ifndef INLINE
-#ifdef __GNUC__
-#define INLINE inline
-#else
-#define INLINE
-#endif /* __GNUC__ */
-#endif
-
 #ifdef HAVE_SYSV_STRING
 #undef NEED_STRING
 #endif
