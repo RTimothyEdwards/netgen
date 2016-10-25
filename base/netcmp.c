@@ -3582,6 +3582,7 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
    int mismatches = 0, i, j;
    int vlstart, islop, t1type, t2type;
    int mult1, mult2, ival1, ival2;
+   int rval = 1;
    double pd, dslop, dval1, dval2;
 
    tc1 = LookupCellFile(ob1->model.class, Circuit1->file);
@@ -3616,11 +3617,13 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
    if (t1type == PROPERTY) PropertyOptimize(tp1, tc1);
    if (t2type == PROPERTY) PropertyOptimize(tp2, tc2);
 
-   if (t1type != PROPERTY) {
-	// t1 has no properties.  See if t2's properties are required
-	// to be checked.  If so, flag t1 as missing required properties
+   while(1) {
+      if (t1type != PROPERTY) {
+	 // t1 has no properties.  See if t2's properties are required
+	 // to be checked.  If so, flag t2 instance as unmatched
 
-	for (i = 0;; i++) {
+	 mismatches++;
+	 for (i = 0;; i++) {
 	    vl2 = &(tp2->instance.props[i]);
 	    if (vl2->type == PROP_ENDLIST) break;
 	    if (vl2 == NULL) continue;
@@ -3631,21 +3634,22 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 		if (vl2->type == PROP_INTEGER)
 		    mult2 = vl2->value.ival;
 	    }
-	}
-	if (vl2->type != PROP_ENDLIST) {
-	    if (do_print) Fprintf(stdout, "Circuit 2 %s instance %s missing"
-			" required properties.\n",
+	 }
+	 if (vl2->type != PROP_ENDLIST) {
+	    if (do_print) Fprintf(stdout, "Circuit 2 %s instance %s has no"
+			" property match in circuit 1.\n",
 			Circuit2->name, ob2->instance.name);
-	    return -1;
-	}
-	else
-	    return 0;
-   }
-   else if (t2type != PROPERTY) {
-	// t2 has no properties.  See if t1's properties are required
-	// to be checked.  If so, flag t1 as missing required properties
+	    rval = -1;
+	 }
+	 else
+	    rval = 0;
+      }
+      else if (t2type != PROPERTY) {
+	 // t2 has no properties.  See if t1's properties are required
+	 // to be checked.  If so, flag t1 instance as unmatched
 
-	for (i = 0;; i++) {
+	 mismatches++;
+	 for (i = 0;; i++) {
 	    vl1 = &(tp1->instance.props[i]);
 	    if (vl1->type == PROP_ENDLIST) break;
 	    if (vl1 == NULL) continue;
@@ -3656,184 +3660,198 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 		if (vl1->type == PROP_INTEGER)
 		    mult1 = vl1->value.ival;
 	    }
-	}
-	if (vl1->type != PROP_ENDLIST) {
-	    if (do_print) Fprintf(stdout, "Circuit 1 %s instance %s missing"
-			" required properties.\n",
-			Circuit1->name, ob1->instance.name);
-	    return -1;
-	}
-	else
-	    return 0;
-   }
-
-   vlstart = 0;
-   for (i = 0;; i++) {
-      vl1 = &(tp1->instance.props[i]);
-      if (vl1->type == PROP_ENDLIST) break;
-      if (vl1 == NULL) continue;
-      if (vl1->key == NULL) continue;
-
-      /* Check if this is a "property of interest". */
-      kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
-      if (kl1 == NULL) continue;
-
-      /* Find the matching property in vl2.  With luck, they're in order. */
-
-      for (j = vlstart;; j++) {
-         vl2 = &(tp2->instance.props[j]);
-	 if (vl2->type == PROP_ENDLIST) break;
-	 if ((*matchfunc)(vl1->key, vl2->key)) break;
-      }
-      if (vl2->type == PROP_ENDLIST) continue;
-      if (j == vlstart) vlstart++;
-
-      if (vl2 == NULL) continue;
-      if (vl2->key == NULL) continue;
-
-      /* Both device classes must agree on the properties to compare */
-      kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
-      if (kl2 == NULL) continue;
-
-      /* Watch out for uninitialized entries in cell def */
-      if (vl1->type == vl2->type) {
-	 if (kl1->type == PROP_STRING && kl1->pdefault.string == NULL)
-	    SetPropertyDefault(kl1, vl1);
-	 if (kl2->type == PROP_STRING && kl2->pdefault.string == NULL)
-	    SetPropertyDefault(kl2, vl2);
-      }
-
-      if (vl1->type != vl2->type) {
-	 if (kl1->type != vl1->type) PromoteProperty(kl1, vl1);
-	 if (kl2->type != vl2->type) PromoteProperty(kl2, vl2);
-	 if (vl1->type != vl2->type) PromoteProperty(kl1, vl2);
-	 if (vl1->type != vl2->type) PromoteProperty(kl2, vl1);
-	 if (do_print && (vl1->type != vl2->type)) {
-	    if (mismatches == 0)
-		Fprintf(stdout, "%s vs. %s:\n",
-			ob1->instance.name, ob2->instance.name);
-
-	    Fprintf(stdout, " %s circuit1: ", kl1->key);
-	    switch (vl1->type) {
-		case PROP_DOUBLE:
-		case PROP_VALUE:
-		    Fprintf(stdout, "%g", vl1->value.dval);
-		    break;
-		case PROP_INTEGER:
-		    Fprintf(stdout, "%d", vl1->value.ival);
-		    break;
-		case PROP_STRING:
-		    Fprintf(stdout, "\"%s\"", vl1->value.string);
-		    break;
-		case PROP_EXPRESSION:
-		    Fprintf(stdout, "(unresolved expression)");
-		    break;
-	    }
-	    Fprintf(stdout, "   ");
-	    switch (vl2->type) {
-		case PROP_DOUBLE:
-		case PROP_VALUE:
-		    Fprintf(stdout, "%g", vl2->value.dval);
-		    break;
-		case PROP_INTEGER:
-		    Fprintf(stdout, "%d", vl2->value.ival);
-		    break;
-		case PROP_STRING:
-		    Fprintf(stdout, "\"%s\"", vl2->value.string);
-		    break;
-		case PROP_EXPRESSION:
-		    Fprintf(stdout, "(unresolved expression)");
-		    break;
-	    }
-	    Fprintf(stdout, "  (property type mismatch)\n");
 	 }
-	 if (vl1->type != vl2->type) mismatches++;
+	 if (vl1->type != PROP_ENDLIST) {
+	    if (do_print) Fprintf(stdout, "Circuit 1 %s instance %s has no"
+			" property match in Circuit 2.\n",
+			Circuit1->name, ob1->instance.name);
+	    rval = -1;
+	 }
+	 else
+	    rval = 0;
       }
-      else switch (kl1->type) {
-	 case PROP_DOUBLE:
-	 case PROP_VALUE:
-	    dval1 = vl1->value.dval;
-	    dval2 = vl2->value.dval;
+      else {
 
-	    dslop = MAX(kl1->slop.dval, kl2->slop.dval);
-	    pd = 2 * fabs(dval1 - dval2) / (dval1 + dval2);
-	    if (pd > dslop) {
-	       if (do_print) {
-		  if (mismatches == 0)
-		     Fprintf(stdout, "%s vs. %s:\n",
-				ob1->instance.name, ob2->instance.name);
-		  Fprintf(stdout, " %s circuit1: %g   circuit2: %g   ",
-			kl1->key, dval1, dval2);
-		  if (vl1->value.dval > 0.0 && vl2->value.dval > 0.0)
-		     Fprintf(stdout, "(delta=%.3g%%, cutoff=%.3g%%)\n",
-				100 * pd, 100 * dslop);
-		  else
-		     Fprintf(stdout, "\n");
-	       }
-	       mismatches++;
-	    }
-	    break;
-	 case PROP_INTEGER:
-	    ival1 = vl1->value.ival;
-	    ival2 = vl2->value.ival;
+         vlstart = 0;
+         for (i = 0;; i++) {
+            vl1 = &(tp1->instance.props[i]);
+            if (vl1->type == PROP_ENDLIST) break;
+            if (vl1 == NULL) continue;
+            if (vl1->key == NULL) continue;
 
-	    islop = MAX(kl1->slop.ival, kl2->slop.ival);
-	    if (abs(ival1 - ival2) > islop) {
-	       if (do_print) {
-		  if (mismatches == 0)
-		     Fprintf(stdout, "%s vs. %s:\n",
+            /* Check if this is a "property of interest". */
+            kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
+            if (kl1 == NULL) continue;
+
+            /* Find the matching property in vl2.  With luck, they're in order. */
+
+            for (j = vlstart;; j++) {
+               vl2 = &(tp2->instance.props[j]);
+	       if (vl2->type == PROP_ENDLIST) break;
+	       if ((*matchfunc)(vl1->key, vl2->key)) break;
+            }
+            if (vl2->type == PROP_ENDLIST) continue;
+            if (j == vlstart) vlstart++;
+
+            if (vl2 == NULL) continue;
+            if (vl2->key == NULL) continue;
+
+            /* Both device classes must agree on the properties to compare */
+            kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
+            if (kl2 == NULL) continue;
+
+            /* Watch out for uninitialized entries in cell def */
+            if (vl1->type == vl2->type) {
+	       if (kl1->type == PROP_STRING && kl1->pdefault.string == NULL)
+	          SetPropertyDefault(kl1, vl1);
+	       if (kl2->type == PROP_STRING && kl2->pdefault.string == NULL)
+	          SetPropertyDefault(kl2, vl2);
+            }
+
+            if (vl1->type != vl2->type) {
+	       if (kl1->type != vl1->type) PromoteProperty(kl1, vl1);
+	       if (kl2->type != vl2->type) PromoteProperty(kl2, vl2);
+	       if (vl1->type != vl2->type) PromoteProperty(kl1, vl2);
+	       if (vl1->type != vl2->type) PromoteProperty(kl2, vl1);
+	       if (do_print && (vl1->type != vl2->type)) {
+	          if (mismatches == 0)
+		      Fprintf(stdout, "%s vs. %s:\n",
 				ob1->instance.name, ob2->instance.name);
-		  Fprintf(stdout, " %s circuit1: %d   circuit2: %d   ",
-			kl1->key, ival1, ival2);
-		  if (ival1 > 0 && ival2 > 0)
-		     Fprintf(stdout, "(delta=%d, cutoff=%d)\n",
-				abs(ival1 - ival2), islop);
-		  else
-		     Fprintf(stdout, "\n");
+
+	          Fprintf(stdout, " %s circuit1: ", kl1->key);
+	          switch (vl1->type) {
+		      case PROP_DOUBLE:
+		      case PROP_VALUE:
+		          Fprintf(stdout, "%g", vl1->value.dval);
+		          break;
+		      case PROP_INTEGER:
+		          Fprintf(stdout, "%d", vl1->value.ival);
+		          break;
+		      case PROP_STRING:
+		          Fprintf(stdout, "\"%s\"", vl1->value.string);
+		          break;
+		      case PROP_EXPRESSION:
+		          Fprintf(stdout, "(unresolved expression)");
+		          break;
+	          }
+	          Fprintf(stdout, "   ");
+	          switch (vl2->type) {
+		      case PROP_DOUBLE:
+		      case PROP_VALUE:
+		          Fprintf(stdout, "%g", vl2->value.dval);
+		          break;
+		      case PROP_INTEGER:
+		          Fprintf(stdout, "%d", vl2->value.ival);
+		          break;
+		      case PROP_STRING:
+		          Fprintf(stdout, "\"%s\"", vl2->value.string);
+		          break;
+		      case PROP_EXPRESSION:
+		          Fprintf(stdout, "(unresolved expression)");
+		          break;
+	          }
+	          Fprintf(stdout, "  (property type mismatch)\n");
 	       }
-	       mismatches++;
-	    }
-	    break;
-	 case PROP_STRING:
-	    islop = MAX(kl1->slop.ival, kl2->slop.ival);
-	    if (islop == 0) {
-	       if (strcasecmp(vl1->value.string, vl2->value.string)) {
-		  if (do_print) {
-		     if (mismatches == 0)
-		        Fprintf(stdout, "%s vs. %s:\n",
+	       if (vl1->type != vl2->type) mismatches++;
+            }
+            else switch (kl1->type) {
+	       case PROP_DOUBLE:
+	       case PROP_VALUE:
+	          dval1 = vl1->value.dval;
+	          dval2 = vl2->value.dval;
+
+	          dslop = MAX(kl1->slop.dval, kl2->slop.dval);
+	          pd = 2 * fabs(dval1 - dval2) / (dval1 + dval2);
+	          if (pd > dslop) {
+	             if (do_print) {
+		        if (mismatches == 0)
+		           Fprintf(stdout, "%s vs. %s:\n",
 				ob1->instance.name, ob2->instance.name);
-		     Fprintf(stdout, " %s circuit1: \"%s\"   circuit2: \"%s\"   "
-			"(exact match req'd)\n",
-			kl1->key, vl1->value.string, vl2->value.string);
-		  }
+		        Fprintf(stdout, " %s circuit1: %g   circuit2: %g   ",
+					kl1->key, dval1, dval2);
+		        if (vl1->value.dval > 0.0 && vl2->value.dval > 0.0)
+		           Fprintf(stdout, "(delta=%.3g%%, cutoff=%.3g%%)\n",
+					100 * pd, 100 * dslop);
+		        else
+		           Fprintf(stdout, "\n");
+	             }
+	             mismatches++;
+	          }
+	          break;
+	       case PROP_INTEGER:
+	          ival1 = vl1->value.ival;
+	          ival2 = vl2->value.ival;
+
+	          islop = MAX(kl1->slop.ival, kl2->slop.ival);
+	          if (abs(ival1 - ival2) > islop) {
+	             if (do_print) {
+		        if (mismatches == 0)
+		           Fprintf(stdout, "%s vs. %s:\n",
+				ob1->instance.name, ob2->instance.name);
+		        Fprintf(stdout, " %s circuit1: %d   circuit2: %d   ",
+					kl1->key, ival1, ival2);
+		        if (ival1 > 0 && ival2 > 0)
+		           Fprintf(stdout, "(delta=%d, cutoff=%d)\n",
+					abs(ival1 - ival2), islop);
+		        else
+		           Fprintf(stdout, "\n");
+	             }
+	             mismatches++;
+	          }
+	          break;
+	       case PROP_STRING:
+	          islop = MAX(kl1->slop.ival, kl2->slop.ival);
+	          if (islop == 0) {
+	             if (strcasecmp(vl1->value.string, vl2->value.string)) {
+		        if (do_print) {
+		           if (mismatches == 0)
+		              Fprintf(stdout, "%s vs. %s:\n",
+					ob1->instance.name, ob2->instance.name);
+		           Fprintf(stdout, " %s circuit1: \"%s\"   "
+					"circuit2: \"%s\"   (exact match req'd)\n",
+					kl1->key, vl1->value.string,
+					vl2->value.string);
+		        }
+	                mismatches++;
+	             }
+	          }
+	          else {
+	             if (strncasecmp(vl1->value.string, vl2->value.string, islop)) {
+		        if (do_print) {
+		           if (mismatches == 0)
+		              Fprintf(stdout, "%s vs. %s:\n",
+					ob2->instance.name, ob2->instance.name);
+		           Fprintf(stdout,  " %s circuit1: \"%s\"   "
+					"circuit2: \"%s\"   (check to %d chars.)\n",
+			      		kl1->key, vl1->value.string,
+					vl2->value.string, islop);
+		        }
+	                mismatches++;
+	             }
+	          }
+	          break;
+	       case PROP_EXPRESSION:
+	          /* Expressions could potentially be compared. . . */
+	          if (do_print)
+		      Fprintf(stdout,  " %s (unresolved expressions.)\n", kl1->key);
 	          mismatches++;
-	       }
-	    }
-	    else {
-	       if (strncasecmp(vl1->value.string, vl2->value.string, islop)) {
-		  if (do_print) {
-		     if (mismatches == 0)
-		        Fprintf(stdout, "%s vs. %s:\n",
-				ob2->instance.name, ob2->instance.name);
-		     Fprintf(stdout,  " %s circuit1: \"%s\"   circuit2: \"%s\"   "
-			"(check to %d chars.)\n",
-			kl1->key, vl1->value.string, vl2->value.string, islop);
-		  }
-	          mismatches++;
-	       }
-	    }
-	    break;
-	 case PROP_EXPRESSION:
-	    /* Expressions could potentially be compared. . . */
-	    if (do_print)
-		Fprintf(stdout,  " %s (unresolved expressions.)\n", kl1->key);
-	    mismatches++;
-	    break;
+	          break;
+            }
+            if ((vl1 == NULL && vl2 != NULL) || (vl1 != NULL && vl2 == NULL))
+	       rval = -1;	/* Different number of properties of interest */
+         }
       }
-      if ((vl1 == NULL && vl2 != NULL) || (vl1 != NULL && vl2 == NULL))
-	 return -1;	/* Different number of properties of interest */
+
+      /* Move to the next property record */
+
+      if (tp1) tp1 = tp1->next;
+      if (tp2) tp2 = tp2->next;
+      t1type = (tp1) ? tp1->type : 0;
+      t2type = (tp2) ? tp2->type : 0;
+      if ((t1type != PROPERTY) && (t2type != PROPERTY)) break;
    }
-   return mismatches;
+ 
+   return (rval < 0) ? rval : mismatches;
 }
 
 /*--------------------------------------------------------------*/
