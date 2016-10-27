@@ -3051,6 +3051,9 @@ void CombineSerial(char *model, int file)
    int i, j;
    struct valuelist *kv;
 
+   // Work in progress. . .
+   return;
+
    if ((tp = LookupCellFile(model, file)) == NULL) {
       Printf("Cell: %s does not exist.\n", model);
       return;
@@ -3138,7 +3141,8 @@ void CombineSerial(char *model, int file)
 		        nob->type = PROPERTY;
 		        nob->name = strsave("properties");
 		        nob->node = -2;	/* Don't report as disconnected node */
-		        nob->model.class = strsave(obp->model.class);
+		        nob->model.class = (obp->model.class == NULL) ? NULL :
+					strsave(obp->model.class);
 		        nob->instance.props = NewPropValue(2);
 
 		        /* Create property record for property "S" */
