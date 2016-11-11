@@ -3708,11 +3708,13 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	          SetPropertyDefault(kl2, vl2);
             }
 
+            /* Promote properties as necessary to make sure they all match */
+	    if (kl1->type != vl1->type) PromoteProperty(kl1, vl1);
+	    if (kl2->type != vl2->type) PromoteProperty(kl2, vl2);
+	    if (kl1->type != vl2->type) PromoteProperty(kl1, vl2);
+	    if (vl1->type != kl2->type) PromoteProperty(kl2, vl1);
+
             if (vl1->type != vl2->type) {
-	       if (kl1->type != vl1->type) PromoteProperty(kl1, vl1);
-	       if (kl2->type != vl2->type) PromoteProperty(kl2, vl2);
-	       if (vl1->type != vl2->type) PromoteProperty(kl1, vl2);
-	       if (vl1->type != vl2->type) PromoteProperty(kl2, vl1);
 	       if (do_print && (vl1->type != vl2->type)) {
 	          if (mismatches == 0)
 		      Fprintf(stdout, "%s vs. %s:\n",
@@ -3752,8 +3754,9 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	          }
 	          Fprintf(stdout, "  (property type mismatch)\n");
 	       }
-	       if (vl1->type != vl2->type) mismatches++;
+	       mismatches++;
             }
+
             else switch (kl1->type) {
 	       case PROP_DOUBLE:
 	       case PROP_VALUE:
