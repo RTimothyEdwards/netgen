@@ -2022,10 +2022,6 @@ _netcmp_compare(ClientData clientData,
       return TCL_ERROR;
    }
 
-   // WIP!
-   // CleanupPins(name1, fnum1);		// Remove unconnected pins
-   // CleanupPins(name2, fnum2);		// Remove unconnected pins
-
    UniquePins(name1, fnum1);		// Check for and remove duplicate pins
    UniquePins(name2, fnum2);		// Check for and remove duplicate pins
 
@@ -2038,10 +2034,6 @@ _netcmp_compare(ClientData clientData,
    // Run cleanup a 2nd time;  this corrects for cells that have no ports
    // but define global nodes that are brought out as ports by
    // ConvertGlobals().
-
-   // WIP!
-   // CleanupPins(name1, fnum1);
-   // CleanupPins(name2, fnum2);
 
    CreateTwoLists(name1, fnum1, name2, fnum2);
    while (PrematchLists(name1, fnum1, name2, fnum2) > 0) {
@@ -2973,6 +2965,13 @@ _netcmp_equate(ClientData clientData,
 /*	merge	  --- set property merge behavior	*/
 /* or							*/
 /*	netgen::property default			*/
+/* or							*/
+/*	netgen::property <device>|<model> <option>	*/
+/*		yes|no					*/
+/* Where <option> is one of:				*/
+/*     serial	 --- allow/prohibit serial combination	*/
+/*     parallel --- allow/prohibit parallel combination	*/
+/*							*/
 /* Formerly: (none)					*/
 /* Results:						*/
 /* Side Effects:					*/
@@ -2990,10 +2989,12 @@ _netcmp_property(ClientData clientData,
     int ival, argstart;
 
     char *options[] = {
-	"add", "create", "remove", "delete", "tolerance", "merge", NULL
+	"add", "create", "remove", "delete", "tolerance", "merge", "serial",
+	"parallel", NULL
     };
     enum OptionIdx {
-	ADD_IDX, CREATE_IDX, REMOVE_IDX, DELETE_IDX, TOLERANCE_IDX, MERGE_IDX
+	ADD_IDX, CREATE_IDX, REMOVE_IDX, DELETE_IDX, TOLERANCE_IDX, MERGE_IDX,
+	SERIAL_IDX, PARALLEL_IDX
     };
     int result, index, idx2;
 
@@ -3010,6 +3011,9 @@ _netcmp_property(ClientData clientData,
     enum MergeOptionIdx {
 	NONE_IDX, ADD_ONLY_IDX, ADD_CRIT_IDX, PAR_ONLY_IDX, PAR_CRIT_IDX
     };
+    char *yesno[] = {
+	"on", "yes", "true", "enable", "allow", "off", "no", "false", "disable", "prohibit", NULL
+    };
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "valid_cellname ?option?");
@@ -3025,8 +3029,8 @@ _netcmp_property(ClientData clientData,
 	/* compare source/drain area and perimeter.		*/
 
 	tp = FirstCell();
-	 while (tp != NULL) {
-	     switch (tp->class) {
+	while (tp != NULL) {
+	    switch (tp->class) {
 		case CLASS_NMOS: case CLASS_PMOS: case CLASS_FET3:
 		case CLASS_NMOS4: case CLASS_PMOS4: case CLASS_FET4:
 		case CLASS_FET:
@@ -3038,6 +3042,7 @@ _netcmp_property(ClientData clientData,
 		    break;
 		case CLASS_RES: case CLASS_RES3:
 		    PropertyMerge(tp->name, tp->file, "l", MERGE_PAR_CRIT);
+		    tp->flags |= COMB_SERIAL;
 		    break;
 		case CLASS_CAP: case CLASS_ECAP: case CLASS_CAP3:
 		    // NOTE:  No attempt to combine area, width, or length;
@@ -3046,6 +3051,7 @@ _netcmp_property(ClientData clientData,
 		    break;
 		case CLASS_INDUCTOR:
 		    PropertyMerge(tp->name, tp->file, "value", MERGE_PAR_CRIT);
+		    tp->flags |= COMB_SERIAL;
 		    break;
 	    }
 	    tp = NextCell();
@@ -3101,6 +3107,45 @@ _netcmp_property(ClientData clientData,
 	    argstart = 3;
 
 	switch (index) {
+	    case SERIAL_IDX:
+	    case PARALLEL_IDX:
+                if (objc == 3) {
+		    if (index == SERIAL_IDX) {
+			tobj1 = Tcl_NewBooleanObj((tp->flags & COMB_SERIAL) ? 1 : 0);
+			Tcl_SetObjResult(interp, tobj1);
+			return TCL_OK;
+		    }
+		    else {
+			tobj1 = Tcl_NewBooleanObj((tp->flags & COMB_NO_PARALLEL) ? 0 : 1);
+			Tcl_SetObjResult(interp, tobj1);
+			return TCL_OK;
+		    }
+		}
+		else if (objc == 4) {
+		    if (Tcl_GetIndexFromObj(interp, objv[3],
+				(CONST84 char **)yesno,
+				"combine", 0, &idx2) != TCL_OK) {
+		        Tcl_WrongNumArgs(interp, 3, objv, "enable|disable");
+		        return TCL_ERROR;
+                    }
+                    if (idx2 <= 4) {	/* true, enable, etc. */
+			if (index == SERIAL_IDX)
+			    tp->flags |= COMB_SERIAL;
+			else
+			    tp->flags &= ~COMB_NO_PARALLEL;
+		    }
+		    else {	/* false, disable, etc. */
+			if (index == SERIAL_IDX)
+			    tp->flags &= ~COMB_SERIAL;
+			else
+			    tp->flags |= COMB_NO_PARALLEL;
+		    }
+		}
+		else {
+		    Tcl_WrongNumArgs(interp, 2, objv, "serial|parallel enable|disable");
+		    return TCL_ERROR;
+		}
+		break;
 
 	    case ADD_IDX:
 	    case CREATE_IDX:

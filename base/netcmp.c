@@ -1797,36 +1797,53 @@ struct Node *CreateNodeList(char *name, short graph)
 /* creates two lists of the correct 'shape', then traverses nodes
  * in sequence to link up 'subelement' field of ElementList,
  *	then 'node' field of NodeList structures.
+ *
+ * Return the number of devices combined by serial/parallel merging
  */		
 
-void CreateLists(char *name, short graph)
+int CreateLists(char *name, short graph)
 {
   struct Element *ElementScan;
   struct ElementList *EListScan;
   struct NodeList *NListScan;
   struct objlist *ob;
   struct nlist *tp;
+  int ppass, spass, pcnt, scnt, total;
 	
   /* get a pointer to the cell */	
   tp = LookupCellFile(name, graph);
   if (tp == NULL) {
     Fprintf(stderr, "No cell '%s' found.\n", name);
-    return;
+    return 0;
   }
 
   if (Circuit1 == NULL) Circuit1 = tp;
   else if (Circuit2 == NULL) Circuit2 = tp;
   else {
     Fprintf(stderr, "Error: CreateLists() called more than twice without a reset.\n");
-    return;
+    return 0;
   }
 
-  CombineParallel(name, graph);
-  CombineSerial(name, graph);
+  /* Parallel and serial combinations.  Run until networks of	*/
+  /* devices are resolved into a single device with the network	*/
+  /* represented by a number of property records.		*/
+
+  total = 0;
+  for (ppass = 0; ; ppass++) {
+     pcnt = CombineParallel(name, graph);
+     total += pcnt;
+     if (ppass > 0 && pcnt == 0) break;
+     for (spass = 0; ; spass++) {
+        scnt = CombineSerial(name, graph);
+        total += scnt;
+        if (scnt == 0) break;
+     }
+     if (spass == 0) break;
+  }
 
   Elements = CreateElementList(name, graph);
   Nodes = CreateNodeList(name, graph);
-  if (LookupElementList == NULL) return;
+  if (LookupElementList == NULL) return total;
 
   ElementScan = NULL;
   NListScan = NULL; /* just to stop the compiler from bitching */
@@ -1852,6 +1869,7 @@ void CreateLists(char *name, short graph)
 
   FREE(LookupElementList);
   LookupElementList = NULL;
+  return total;
 }
 
 #else
@@ -1921,11 +1939,14 @@ struct Node *CreateNodeList(char *name, short graph)
   return (head);
 }
 
-void CreateLists(char *name, short graph)
 /* creates two lists of the correct 'shape', then traverses nodes
-   in sequence to link up 'subelement' field of ElementList,
-	then 'node' field of NodeList structures.
-*/		
+ * in sequence to link up 'subelement' field of ElementList,
+ * then 'node' field of NodeList structures.
+ *
+ * Return the number of devices combined by serial/parallel merging
+ */		
+
+int CreateLists(char *name, short graph)
 {
   struct Element *E, *ElementScan;
   struct Node *N, *NodeScan;
@@ -1933,25 +1954,40 @@ void CreateLists(char *name, short graph)
   struct NodeList *NListScan;
   struct objlist *ob, *obscan;
   struct nlist *tp;
-  int node;
+  int node, ppass, spass, pcnt, scnt, total;
 	
   /* get a pointer to the cell */	
   tp = LookupCellFile(name, graph);
   if (tp == NULL) {
     Fprintf(stderr, "No cell '%s' found.\n", name);
-    return;
+    return 0;
   }
 
   if (Circuit1 == NULL) Circuit1 = tp;
   else if (Circuit2 == NULL) Circuit2 = tp;
   else {
     Fprintf(stderr, "Error: CreateLists() called more than twice without a reset.\n");
-    return;
+    return 0;
   }
 
   ConnectAllNodes(name, graph);
-  CombineParallel(name, graph);
-  CombineSerial(name, graph);
+
+  /* Parallel and serial combinations.  Run until networks of	*/
+  /* devices are resolved into a single device with the network	*/
+  /* represented by a number of property records.		*/
+
+  total = 0;
+  for (ppass = 0; ; ppass++) {
+     pcnt = CombineParallel(name, graph);
+     total += pcnt;
+     if (ppass > 0 && pcnt == 0) break;
+     for (spass = 0; ; spass++) {
+        scnt = CombineSerial(name, graph);
+        total += scnt;
+        if (scnt == 0) break;
+     }
+     if (spass == 0) break;
+  }
 
   E = CreateElementList(name, graph);
   N = CreateNodeList(name, graph);
@@ -1990,6 +2026,7 @@ void CreateLists(char *name, short graph)
   }
   Elements = E;
   Nodes = N;
+  return total;
 }
 
 #endif /* LOOKUP_INITIALIZATION */
@@ -2672,8 +2709,8 @@ int FlattenUnmatched(struct nlist *tc, char *parent, int stoplevel, int loclevel
    if (loclevel == stoplevel && !(tc->flags & CELL_MATCHED)) {
       ClearDumpedList();
       if (Debug == TRUE) Fprintf(stdout, "Level %d ", loclevel);
-      Fprintf(stdout, "Flattening unmatched subcell %s in circuit %s ",
-				tc->name, parent);
+      Fprintf(stdout, "Flattening unmatched subcell %s in circuit %s (%s)",
+				tc->name, parent, tc->file);
       changed = flattenInstancesOf(parent, tc->file, tc->name);
       Fprintf(stdout, "(%d instance%s)\n", changed, ((changed == 1) ? "" : "s"));
       return 1;
@@ -2972,6 +3009,7 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2)
     struct Element *El1;
     struct Node *N1;
     struct nlist *tc1, *tc2, *tcf;
+    int modified;
 
     ResetState();
 
@@ -3004,7 +3042,7 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2)
         }
     }
 
-    CreateLists(name1, file1);
+    modified = CreateLists(name1, file1);
     if (Elements == NULL) {
        Printf("Circuit %s contains no devices.\n", name1);
        return;
@@ -3049,7 +3087,7 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2)
     /* N1 now points to last element of list */
 
 
-    CreateLists(name2, file2);
+    modified += CreateLists(name2, file2);
     if (Elements == NULL) {
        Printf("Circuit %s contains no devices.\n", name2);
        ResetState();
@@ -3060,6 +3098,17 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2)
        Printf("Circuit %s contains no nets.\n", name2);
        ResetState();
        return;
+    }
+
+    if (modified > 0) {
+       Printf("Circuit was modified by parallel/serial device merging.\n");
+       Printf("New circuit summary:\n\n");
+       /* print preliminary statistics */
+       Printf("Contents of circuit 1:  ");
+       DescribeInstance(name1, file1);
+       Printf("Contents of circuit 2:  ");
+       DescribeInstance(name2, file2);
+       Printf("\n");
     }
 
     /* splice new lists into existing lists */

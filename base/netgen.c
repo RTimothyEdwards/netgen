@@ -2850,6 +2850,157 @@ void ConnectAllNodes(char *model, int file)
 }
 
 /*----------------------------------------------------------------------*/
+/* Serial and Parallel combination:					*/
+/* All devices of the same type that exist in serial and parallel	*/
+/* combinations will be treated as a single device in a network.	*/
+/* Serial connections are only allowed for resistors and inductors.	*/
+/* Any device may be connected in parallel.  For combinations of serial	*/
+/* and parallel, as in a resistor network, there is a set of rules:	*/
+/*									*/
+/* Running parallel and serial checks:					*/
+/* 1. Run parallel once.  If a repeat run and no devices are merged,	*/
+/*    then go to 4.							*/
+/* 2. Run serial until no devices are merged.				*/
+/* 3. If serial ran more than once, then go to 1.			*/
+/* 4. End merge								*/
+/*									*/
+/* Each merge procedure, when it finds two devices that can be merged,	*/
+/* removes the second device from the netlist and adds its properties	*/
+/* to the first device.  If a serial merge, then the nodes are adjusted	*/
+/* appropriately.  Where A is the property list of the first device and	*/
+/* B is the property list of the second device, the first and last	*/
+/* properties of A and the first property of B may require a marker to	*/
+/* indicate the topology of the network, as follows (in order):		*/
+/*									*/
+/* For a parallel merge:						*/
+/*    1) If A has serial components then tag first property of A with	*/
+/*	 "open" and tag first property of B with "close".		*/
+/*    2) If B has serial components then tag first property of B with	*/
+/*	 "open". 							*/
+/*									*/
+/* For a serial merge:							*/
+/*    1) If A has unbalanced "opens", then add "close" to first		*/
+/*	 property of B to balance the "opens".				*/
+/*    2) Always tag B with "serial".					*/
+/*									*/
+/* Tags are indicated by a property named "_tag" which has a string	*/
+/* value of ordered characters, "S" for serial, "O" for open, and "C"	*/
+/* for close.  A device with only one property record has no "_tag"	*/
+/* record.  A device which is in parallel with the device(s) in front	*/
+/* of it is implicitly parallel by not having an "S" tag, and may not	*/
+/* have a tag at all.							*/
+/*									*/
+/* The property check routine is responsible for comparing device	*/
+/* serial/parallel networks against each other.  Otherwise, each	*/
+/* serial/parallel network is considered topologically as a single	*/
+/* device, and any differences in the serial/parallel networks between	*/
+/* two circuits being matched will be treated as a property error.	*/
+/*----------------------------------------------------------------------*/
+
+/* add_prop_tag --- add the tag character tagc to the property list of	*/
+/* obr.  obr points to the first property record.			*/
+
+int add_prop_tag(struct objlist *obr, char tagc)
+{
+   struct objlist *nob;
+   int i, k, l;
+   struct valuelist *kv, *kv2;
+   int hastag;
+   char *tmpstr;
+
+   hastag = FALSE;
+   for (nob = obr; nob->next && nob->next->type == PROPERTY; nob = nob->next) {
+      for (i = 0; ; i++) {
+         kv = &(nob->instance.props[i]);
+	 if (kv->type == PROP_ENDLIST) break;
+         if (kv->type == PROP_STRING) {
+	    if (!strcmp(kv->key, "_tag")) {
+	       hastag = TRUE;
+	       break;
+	    }
+	 }
+      }
+   }
+   if (hastag) {
+      if (nob == obr) {
+         // If _tag was first in the list, then just prepend tagc to the tag value
+	 tmpstr = kv->value.string;
+         kv->value.string = (char *)MALLOC(strlen(tmpstr) + 2);
+	 sprintf(kv->value.string, "%c%s", tagc, tmpstr);
+	 FREE(tmpstr);
+      }
+      else {
+         // Add a _tag key to the first property list and set value to tagc
+
+	 kv = &(obr->instance.props[i]);
+	 k = 0;
+	 for (k = 0; ; k++) {
+	    kv = &(obr->instance.props[k]);
+	    if (kv->type == PROP_ENDLIST)
+	       break;
+         }
+	 kv2 = (struct valuelist *)MALLOC((k + 2) * sizeof(struct valuelist));
+	 kv2->key = strsave("_tag");
+	 kv2->type = PROP_STRING;
+	 /* Value is set to tagc */
+	 kv2->value.string = (char *)MALLOC(2);
+	 sprintf(kv2->value.string, "%c", tagc);
+	 for (l = 0; l <= k; l++)
+	    kv2[l + 1] = obr->instance.props[l];
+	 FREE(obr->instance.props);
+	 obr->instance.props = kv2;
+      }
+   }
+   return hastag;
+}
+
+/* add_balancing_close --- find the number of unbalanced 'open'		*/
+/* records in ob1's property list, and prepend the correct number of	*/
+/* 'C' closures to the property list of ob2.				*/
+
+void add_balancing_close(struct objlist *ob1, struct objlist *ob2)
+{
+   struct objlist *nob;
+   int i, k, l;
+   struct valuelist *kv, *kv2;
+   int opentags;
+   char *tmpstr, *tag;
+
+   /* Find the first property record in ob1. */
+   for (nob = ob1->next; nob && nob->type != FIRSTPIN; nob = nob->next)
+      if (nob->type == PROPERTY)
+	 break;
+   if (nob->type != PROPERTY) return;	// shouldn't happen
+
+   opentags = 0;
+   for (; nob->next && nob->next->type == PROPERTY; nob = nob->next) {
+      for (i = 0; ; i++) {
+         kv = &(nob->instance.props[i]);
+	 if (kv->type == PROP_ENDLIST) break;
+         if (kv->type == PROP_STRING) {
+	    if (!strcmp(kv->key, "_tag")) {
+	       for (tag == kv->value.string; *tag != '\0'; tag++) {
+		  if (*tag == 'O') opentags++;
+		  else if (*tag == 'C') opentags--;
+	       }
+               break;
+	    }
+	 }
+      }
+   }
+   if (opentags == 0) return;
+
+   /* Find the first property record in ob2. */
+   for (nob = ob2->next; nob && nob->type != FIRSTPIN; nob = nob->next)
+      if (nob->type == PROPERTY)
+	 break;
+   if (nob->type != PROPERTY) return;	// shouldn't happen
+
+   // This is slow but it's the easiest way to do it
+   while (opentags-- > 0) add_prop_tag(nob, 'C');
+}
+
+/*----------------------------------------------------------------------*/
 /* Find all devices that are of the same class and check for parallel	*/
 /* combinations, and combine them where found, adjusting property "M"	*/
 /* as needed.								*/
@@ -2865,9 +3016,11 @@ void ConnectAllNodes(char *model, int file)
 /*									*/
 /* If the device has permutable pins, then duplicate hashes are made	*/
 /* for each permutation.						*/
+/*									*/
+/* Return the number of devices merged.					*/
 /*----------------------------------------------------------------------*/
 
-void CombineParallel(char *model, int file)
+int CombineParallel(char *model, int file)
 {
    struct nlist *tp, *tsub;
    struct objlist *ob, *ob2, *nextob;
@@ -2875,13 +3028,13 @@ void CombineParallel(char *model, int file)
    struct hashdict devdict;
    struct Permutation *perm;
    size_t pcnt;
-   int dcnt = 0;
+   int i, dcnt = 0, hastag;
    char *pstr, *p2str, *pptr;
    struct valuelist *kv;
 
    if ((tp = LookupCellFile(model, file)) == NULL) {
       Printf("Cell: %s does not exist.\n", model);
-      return;
+      return -1;
    }
 
    InitializeHashTable(&devdict, OBJHASHSIZE);
@@ -2890,12 +3043,20 @@ void CombineParallel(char *model, int file)
    for (ob = tp->cell; ob; ) {
       if (ob->type == FIRSTPIN) {
 
+         /* Watch for devices prohibited from parallel combination.	*/
+	 /* All devices allow parallel combination by default.		*/
+
+	 tsub = LookupCellFile(ob->model.class, file);
+         if ((tsub != NULL) && (tsub->flags & COMB_NO_PARALLEL)) {
+	    ob = ob->next;
+	    continue;
+         }
+
 	 /* ------------------------------------*/
 	 /* Generate hash key from pins 	*/
 	 /* Handle pin permuations		*/
 	 /* ------------------------------------*/
 
-	 tsub = LookupCellFile(ob->model.class, file);
 	 if ((tsub != NULL) && (tsub->permutes != NULL))
 	    perm = tsub->permutes;
 	 else
@@ -2971,7 +3132,7 @@ void CombineParallel(char *model, int file)
 	    lob = tlob;
 	 }
 	 else {
-	    /* Remove parallel device "ob" and append properties of	*/
+	    /* Find parallel device "ob" and append properties of	*/
 	    /* "sob" to it.  If "ob" does not have properties, then	*/
 	    /* create a property record and set property "M" to 2.	*/
 
@@ -3020,6 +3181,15 @@ void CombineParallel(char *model, int file)
 	       pob->next = obr;
 	    }
 	    lob->next = nextob;
+
+	    // Serial/Parallel logic:
+
+	    // If obr has _tag in properties, then add an "open" tag at obr
+            add_prop_tag(obr, 'O');
+
+	    // if ob2 has _tag in properties then add an "open" tag to ob2
+	    // and a "close" tag to obr
+	    if (add_prop_tag(ob2, 'O')) add_prop_tag(obr, 'C');
 	 }
 	 FREE((char *)pstr);
       }
@@ -3031,6 +3201,7 @@ void CombineParallel(char *model, int file)
    if (dcnt > 0) {
       Fprintf(stdout, "Class %s:  Merged %d devices.\n", model, dcnt);
    }
+   return dcnt;
 }
 
 /*----------------------------------------------------------------------*/
@@ -3041,22 +3212,21 @@ void CombineParallel(char *model, int file)
 /*									*/
 /* This routine depends on CombineParallel() being run first so that no	*/
 /* parallel devices are reported as serial.				*/
+/*									*/
+/* Return the number of devices merged.					*/
 /*----------------------------------------------------------------------*/
 
-void CombineSerial(char *model, int file)
+int CombineSerial(char *model, int file)
 {
    struct nlist *tp, *tp2;
    struct objlist ***instlist;
    struct objlist *ob, *ob2, *obs, *obp, *obn;
-   int i, j;
+   int i, j, scnt = 0;
    struct valuelist *kv;
-
-   // Work in progress. . .
-   return;
 
    if ((tp = LookupCellFile(model, file)) == NULL) {
       Printf("Cell: %s does not exist.\n", model);
-      return;
+      return -1;
    }
    instlist = (struct objlist ***)CALLOC((tp->nodename_cache_maxnodenum + 1),
 		sizeof(struct objlist **));
@@ -3070,13 +3240,20 @@ void CombineSerial(char *model, int file)
 	     instlist[ob->node] = (struct objlist **)CALLOC(2,
 			sizeof(struct objlist *));
 
-	     /* For now, simple rule:  Device must be a resistor */
+	     /* Device must be marked as able to be combined in	serial.	*/
+	     /* Note that devices with more than two pins are expected	*/
+	     /* to serial connect along the first two pins, and the 	*/
+	     /* remaining pins must all connect to the same nodes.  By	*/
+	     /* default, CLASS_RES, CLASS_RES3, and CLASS_INDUCTOR are	*/
+	     /* all allowed to combine in serial.  All other devices	*/
+	     /* must have serial combination explicitly enabled.	*/
+	
              tp2 = LookupCellFile(ob->model.class, file);
-             if (tp2->class != CLASS_RES)
-	        /* invalidate node */
-	         instlist[ob->node][0] = NULL;
-	     else
+             if (tp2->flags & COMB_SERIAL)
 	         instlist[ob->node][0] = obp;
+	     else
+	         /* invalidate node */
+	         instlist[ob->node][0] = NULL;
           }
           else if (instlist[ob->node][0] == NULL) {
              /* Node is not valid for serial connection */
@@ -3097,9 +3274,10 @@ void CombineSerial(char *model, int file)
 	    Fprintf(stdout, "Found serial instances %s and %s\n",
 			instlist[i][0]->instance.name,
 			instlist[i][1]->instance.name);
+            scnt++;
 
 	    /* To maintain knowledge of the topology, each device gets	*/
-	    /* a parameter 'S', string value set to "<node1>/<node2>".	*/
+	    /* a parameter '_tag', string value set to "S".		*/
 
 	    for (j = 0; j <= 1; j++) {
                for (obp = instlist[i][j]; ; obp = obp->next) {
@@ -3120,13 +3298,11 @@ void CombineSerial(char *model, int file)
 		     }
 		     kv2 = (struct valuelist *)MALLOC((k + 2) *
 				sizeof(struct valuelist));
-		     kv2->key = strsave("S");
+		     kv2->key = strsave("_tag");
 		     kv2->type = PROP_STRING;
-		     /* Value is set to "<node1>/<node2>" */
-		     kv2->value.string = (char *)MALLOC(strlen(nodename1) +
-				strlen(nodename2) + 2);
-		     sprintf(kv2->value.string, "%s/%s", nodename1, nodename2);
-
+		     /* Value is set to "S" */
+		     kv2->value.string = (char *)MALLOC(2);
+		     sprintf(kv2->value.string, "S");
 		     for (l = 0; l <= k; l++)
 			kv2[l + 1] = obp->instance.props[l];
 		     FREE(obp->instance.props);
@@ -3145,14 +3321,13 @@ void CombineSerial(char *model, int file)
 					strsave(obp->model.class);
 		        nob->instance.props = NewPropValue(2);
 
-		        /* Create property record for property "S" */
+		        /* Create property record for property "_tag" */
 		        kv = &(nob->instance.props[0]);
-		        kv->key = strsave("S");
+		        kv->key = strsave("_tag");
 		        kv->type = PROP_STRING;
-		        /* Value is set to "<node1>/<node2>" */
-		        kv->value.string = (char *)MALLOC(strlen(nodename1) +
-				strlen(nodename2) + 2);
-		        sprintf(kv->value.string, "%s/%s", nodename1, nodename2);
+		        /* Value is set to "S" */
+		        kv->value.string = (char *)MALLOC(2);
+		        sprintf(kv->value.string, "S");
 
 		        /* End of property list */
 		        kv = &(nob->instance.props[1]);
@@ -3189,6 +3364,10 @@ void CombineSerial(char *model, int file)
 	    ob2->next = obs->next;
 	    if (obs->next) obs->next = NULL;	// Terminate 2nd instance record
 
+	    /* If 1st device has unbalanced 'open' records, then add 'close'	*/
+	    /* records to the 2nd device to balance.				*/
+            add_balancing_close(instlist[i][0], instlist[i][1]);
+
 	    /* Move property record(s) of the 2nd device to the first */
 	    for (obs = instlist[i][1]; obs && obs->type != PROPERTY; obs = obs->next);
 	    while (obs && (obs->type == PROPERTY)) {
@@ -3201,10 +3380,19 @@ void CombineSerial(char *model, int file)
 	    /* If 2nd device appears anywhere else in the serial device	*/
 	    /* list, replace it with the 1st device.			*/
 	    for (j = i + 1; j <= tp->nodename_cache_maxnodenum; j++) {
+               if (instlist[j] == NULL) continue;
+
 	       if (instlist[j][0] == instlist[i][1])
 		  instlist[j][0] = instlist[i][0];
 	       if (instlist[j][1] == instlist[i][1])
 		  instlist[j][1] = instlist[i][0];
+
+               /* If instlist[j]'s two entries point to the same device */
+	       /* then invalidate it.					*/
+	       if (instlist[j][0] == instlist[j][1]) {
+		  FREE(instlist[j]);
+		  instlist[j] = NULL;
+	       }
 	    }
 
 	    /* Free 2nd device's object */
@@ -3228,6 +3416,7 @@ void CombineSerial(char *model, int file)
       }
    }
    FREE(instlist);
+   return scnt;
 }
 
 /*----------------------------------------------------------------------*/

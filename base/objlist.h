@@ -213,10 +213,10 @@ struct nlist {
 #define CELL_PROPSMATCHED	0x10	/* properties matched to matching cell */
 #define CELL_DUPLICATE		0x20	/* cell has a duplicate */
 
-/* Flags for combination allowances */
+/* Flags for combination allowances and prohibitions */
 
-#define COMB_SERIAL		0x20
-#define COMB_PARALLEL		0x40
+#define COMB_SERIAL		0x40
+#define COMB_NO_PARALLEL	0x80
 
 extern struct nlist *CurrentCell;
 extern struct objlist *CurrentTail;
