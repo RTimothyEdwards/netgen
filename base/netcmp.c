@@ -2709,7 +2709,7 @@ int FlattenUnmatched(struct nlist *tc, char *parent, int stoplevel, int loclevel
    if (loclevel == stoplevel && !(tc->flags & CELL_MATCHED)) {
       ClearDumpedList();
       if (Debug == TRUE) Fprintf(stdout, "Level %d ", loclevel);
-      Fprintf(stdout, "Flattening unmatched subcell %s in circuit %s (%s)",
+      Fprintf(stdout, "Flattening unmatched subcell %s in circuit %s (%d)",
 				tc->name, parent, tc->file);
       changed = flattenInstancesOf(parent, tc->file, tc->name);
       Fprintf(stdout, "(%d instance%s)\n", changed, ((changed == 1) ? "" : "s"));

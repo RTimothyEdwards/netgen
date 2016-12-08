@@ -3205,6 +3205,39 @@ int CombineParallel(char *model, int file)
 }
 
 /*----------------------------------------------------------------------*/
+/* For the purposes of serial connection checking, find if all pins	*/
+/* of two instances after the first two pins are connected to the name	*/
+/* nodes.  This depends on the definition of a serial device as having	*/
+/* two ports, but any additional ports (such as a substrate connection)	*/
+/* must be the same for all devices in series.				*/
+/*----------------------------------------------------------------------*/
+
+int check_pin_nodes(struct objlist *ob1, struct objlist *ob2)
+{
+   struct objlist *nob, *pob;
+
+   /* A dummy device may have both terminals connected to the same	*/
+   /* point, triggering a false check for a serial device.		*/
+   if (ob1 == ob2) return FALSE;
+
+   for (nob = ob1->next; nob && nob->type != FIRSTPIN; nob = nob->next)
+      if (nob->type == 3) break;
+
+   for (pob = ob2->next; pob && pob->type != FIRSTPIN; pob = pob->next)
+      if (pob->type == 3) break;
+
+   while (nob && pob && nob->type > FIRSTPIN && pob->type > FIRSTPIN) {
+      if (nob->node != pob->node)
+          return FALSE;
+      nob = nob->next;
+      pob = pob->next;
+   }
+
+   if (nob->type > FIRSTPIN || pob->type > FIRSTPIN) return FALSE;
+   return TRUE;
+}
+
+/*----------------------------------------------------------------------*/
 /* Find all nodes that are connected to exactly two devices of the same	*/
 /* class.  Where found, if the device is allowed to combine serially	*/
 /* (check properties), then remove the node and merge the devices into	*/
@@ -3224,10 +3257,18 @@ int CombineSerial(char *model, int file)
    int i, j, scnt = 0;
    struct valuelist *kv;
 
+   // To avoid posting a non-working version, serial combination is
+   // disabled here until code is finished to compare the serial/parallel
+   // property networks.
+   return 0;
+
    if ((tp = LookupCellFile(model, file)) == NULL) {
       Printf("Cell: %s does not exist.\n", model);
       return -1;
    }
+   /* Diagnostic */
+   /* Printf("CombineSerial start model = %s file = %d\n", model, file); */
+
    instlist = (struct objlist ***)CALLOC((tp->nodename_cache_maxnodenum + 1),
 		sizeof(struct objlist **));
 
@@ -3235,6 +3276,7 @@ int CombineSerial(char *model, int file)
       if ((ob->type >= FIRSTPIN) && (ob->node >= 0)) {
           if (ob->type == FIRSTPIN)
 	     obp = ob;	// Save pointer to first pin of device
+
           if (instlist[ob->node] == NULL) {
              /* Node has not been seen before, so add it to list */
 	     instlist[ob->node] = (struct objlist **)CALLOC(2,
@@ -3247,9 +3289,12 @@ int CombineSerial(char *model, int file)
 	     /* default, CLASS_RES, CLASS_RES3, and CLASS_INDUCTOR are	*/
 	     /* all allowed to combine in serial.  All other devices	*/
 	     /* must have serial combination explicitly enabled.	*/
+	     /* NOTE:  Arbitrarily, the first two pins of a device are	*/
+	     /* assumed to be the ones that make serial connections.	*/
+	     /* Additional pins, if any, do not.			*/
 	
              tp2 = LookupCellFile(ob->model.class, file);
-             if (tp2->flags & COMB_SERIAL)
+             if ((tp2->flags & COMB_SERIAL) && (ob->type <= 2))
 	         instlist[ob->node][0] = obp;
 	     else
 	         /* invalidate node */
@@ -3260,12 +3305,21 @@ int CombineSerial(char *model, int file)
           }
           else if (instlist[ob->node][1] == NULL) {
              /* Check if first instance is the same type */
-             if ((*matchfunc)(instlist[ob->node][0]->model.class, ob->model.class))
-	         instlist[ob->node][1] = obp;
+             if ((*matchfunc)(instlist[ob->node][0]->model.class, ob->model.class)) {
+                 if (check_pin_nodes(instlist[ob->node][0], obp))
+	             instlist[ob->node][1] = obp;
+		 else
+		    /* invalidate node */
+		    instlist[ob->node][0] = NULL;
+	     }
 	     else
 		/* invalidate node */
 		instlist[ob->node][0] = NULL;
           }
+	  else {
+	     /* More than two devices connect here, so invalidate */
+	     instlist[ob->node][0] = NULL;
+	  }
       }
    }
    for (i = 0; i <= tp->nodename_cache_maxnodenum; i++) {
@@ -3275,6 +3329,14 @@ int CombineSerial(char *model, int file)
 			instlist[i][0]->instance.name,
 			instlist[i][1]->instance.name);
             scnt++;
+	    /* Diagnostic */
+	    /* Printf("CombineSerial:  Merging serial instances %s (0x%x) and %s (0x%x)"
+			", remove node %s (%d)\n",
+			instlist[i][0]->instance.name,
+			instlist[i][0],
+			instlist[i][1]->instance.name,
+			instlist[i][1],
+			tp->nodename_cache[i]->name, i); */
 
 	    /* To maintain knowledge of the topology, each device gets	*/
 	    /* a parameter '_tag', string value set to "S".		*/
