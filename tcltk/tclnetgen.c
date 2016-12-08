@@ -497,7 +497,9 @@ CommonParseCell(Tcl_Interp *interp, Tcl_Obj *objv,
 		fnum = -1;
 	    }
 	    else
-		filename = Tcl_GetString(fobj);
+		/* Both file numbers have been provided, so a	*/
+		/* filename is not required.			*/
+		filename = NULL;
 	}
 	else {
 	    filename = NULL;
