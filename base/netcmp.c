@@ -4195,13 +4195,18 @@ int PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	       vl1 = &svl;
 	       if ((*matchfunc)(vl1->key, vl2->key)) break;
 
-	       /* No match */
-	       if (do_print) {
-	          Fprintf(stdout, "%s vs. %s:\n", inst1, inst2);
-	          Fprintf(stdout, "Property %s in circuit2 has no matching "
-			"property in circuit1\n",  vl2->key);
+	       /* Check if property is "of interest".	*/
+	       kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
+	       if (kl2 != NULL) {
+
+	          /* No match */
+	          if (do_print) {
+	             Fprintf(stdout, "%s vs. %s:\n", inst1, inst2);
+	             Fprintf(stdout, "Property %s in circuit2 has no matching "
+				"property in circuit1\n",  vl2->key);
+	          }
+	          if (rval != NULL) mismatches++;
 	       }
-	       if (rval != NULL) mismatches++;
 	    }
 	 }
 	 if (j == len2) break;
@@ -4213,9 +4218,9 @@ int PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
       /* Check if this is a "property of interest". */
       kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
       if (kl1 == NULL) {
-         if (vl1 == &mvl)
+	 if ((*matchfunc)(vl1->key, mvl.key))
 	    kl1 = &klm;
-	 else if (vl1 == &svl)
+	 else if ((*matchfunc)(vl1->key, svl.key))
 	    kl1 = &kls;
 	 else {
             if (j < len2) check2[j] = 1;	/* Mark as checked */
