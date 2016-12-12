@@ -795,7 +795,7 @@ skip_ends:
 	    kl->key = strsave(nexttok);
 	    kl->idx = 0;
 	    kl->type = PROP_STRING;
-	    kl->slop.ival = 0;
+	    kl->slop.dval = 0.0;
 	    kl->pdefault.string = strsave(eqptr + 1);
 	    HashPtrInstall(nexttok, kl, &spiceparams);
 	 }

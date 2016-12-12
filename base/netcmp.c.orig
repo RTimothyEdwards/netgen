@@ -3507,7 +3507,6 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
          if (!strcmp(vl->key, "S"))
 	    sval = vl->value.ival;
          kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
-	 if (kl == NULL) continue;		/* Ignored property */
          if (kl->merge == MERGE_ADD_CRIT)
 	    if (vl->type == PROP_INTEGER)
 	        cval = (double)vl->value.ival;
@@ -3961,7 +3960,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial)
 	    // and must apply promotions if necessary.
 	    else if (vl == NULL || vl2 == NULL) continue;
 
-	    // Critical properties can be multiplied up by M (S) and do not
+	    // Critical properties will be multiplied up by M (S) and do not
 	    // need to match.  May want a more nuanced comparison, though.
 	    if (p == crit) {
 	       pmatch++;
@@ -4034,10 +4033,59 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial)
 
 	    if (vlist[0][j] == NULL) {
 	       vlist[0][j] = &nullvl;	// Mark this position
-	       vlist[0][i]->value.ival++;
+	       if (crit >= 0) {
+		  vl = vlist[crit][i];
+		  if ((vl != NULL) && (ctype == MERGE_ADD_CRIT)) {
+		     if (vl->type == PROP_INTEGER)
+		        vl->value.ival += vlist[crit][j]->value.ival;
+		     else if (vl->type == PROP_DOUBLE)
+		        vl->value.dval += vlist[crit][j]->value.dval;
+		  }
+		  else if (vl != NULL) {	/* MERGE_PAR_CRIT */
+		     if (vl->type == PROP_INTEGER) {
+			double di = vl->value.ival;
+			double dj = vlist[crit][j]->value.ival;
+			di = 1.0 / (1.0 / di + 1.0 / dj);
+		        vl->value.ival = (int)di;
+		     }
+		     else if (vl->type == PROP_DOUBLE) {
+		        vl->value.dval += 1.0 / (1.0 / vl->value.dval +
+					1.0 / vlist[crit][j]->value.dval);
+		     }
+		  }
+	       }
+	       else {
+	          vlist[0][i]->value.ival++;
+	       }
 	    }
 	    else if (vlist[0][i]->value.ival > 0) {
-	       vlist[0][i]->value.ival += vlist[0][j]->value.ival;
+	       if (crit >= 0) {
+		  vl = vlist[crit][i];
+		  if ((vl != NULL) && (ctype == MERGE_ADD_CRIT)) {
+		     if (vl->type == PROP_INTEGER)
+		        vl->value.ival += vlist[0][j]->value.ival *
+				vlist[crit][j]->value.ival;
+		     else if (vl->type == PROP_DOUBLE)
+		        vl->value.dval += (double)vlist[0][j]->value.ival *
+				vlist[crit][j]->value.dval;
+		  }
+		  else if (vl != NULL) {	/* MERGE_PAR_CRIT */
+		     if (vl->type == PROP_INTEGER) {
+			double d = (double)vlist[crit][j]->value.ival /
+					(double)vlist[0][j]->value.ival;
+		        vl->value.ival = (int)(1.0 / (1.0 / (double)vl->value.ival
+					+ 1.0 / d));
+		     }
+		     else if (vl->type == PROP_DOUBLE) {
+			double d = vlist[crit][j]->value.dval /
+					(double)vlist[0][j]->value.ival;
+		        vl->value.dval = 1.0 / (1.0 / vl->value.dval + 1.0 / d);
+		     }
+		  }
+	       }
+	       else {
+	          vlist[0][i]->value.ival += vlist[0][j]->value.ival;
+	       }
 	       vlist[0][j]->value.ival = 0;
 	    }
 	 }
@@ -4050,7 +4098,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial)
 
    if ((run == 1) && (crit != -1) && (vlist[0][0] != NULL)) {
       int mult = vlist[0][0]->value.ival;
-      if (mult > 1) {
+      if (mult > 0) {
          vl = vlist[crit][0];
 
          if ((serial == TRUE) && (ctype = MERGE_SER_CRIT)) {
@@ -4082,9 +4130,9 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial)
          }
 	 if (changed > 0) {
 	    if (serial)
-	       Printf("Combined %d serial devices.\n", changed);
+	       Printf("Combined %d serial devices.\n", changed + 1);
 	    else
-	       Printf("Combined %d parallel devices.\n", changed);
+	       Printf("Combined %d parallel devices.\n", changed + 1);
 	 }
       }
    }
@@ -4133,144 +4181,41 @@ int PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	char *inst2, int do_print, int *rval)
 {
    int mismatches = 0;
-   int len2, *check2;
    struct property *kl1, *kl2;
    struct valuelist *vl1, *vl2;
    int i, j;
-   int islop;
+   int vlstart, islop;
    int ival1, ival2;
    double pd, dslop, dval1, dval2;
-   static struct valuelist mvl, svl;
-   static struct property klm, kls;
-   static char mkey[2], skey[2];
 
-   // Set up static records representing property M = 1 and S = 1
-   mkey[0] = 'M';
-   mkey[1] = '\0';
-   skey[0] = 'S';
-   skey[1] = '\0';
-   mvl.type = PROP_INTEGER;
-   mvl.value.ival = 1;
-   mvl.key = mkey;
-   svl.type = PROP_INTEGER;
-   svl.value.ival = 1;
-   svl.key = skey;
-   klm.key = mkey;
-   klm.type = PROP_INTEGER;
-   klm.merge = 0;
-   klm.pdefault.ival = 1;
-   klm.slop.ival = 0;
-   kls.key = skey;
-   kls.type = PROP_INTEGER;
-   kls.merge = 0;
-   kls.pdefault.ival = 1;
-   kls.slop.ival = 0;
-
-   // Find length of second property list.  Create checklist to check
-   // off each property that has been compared.
-   for (j = 0;; j++) {
-      vl2 = &(tp2->instance.props[j]);
-      if (vl2->type == PROP_ENDLIST) break;
-   }
-   len2 = j;
-   if (len2 > 0)
-      check2 = (int *)CALLOC(len2, sizeof(int));
-   else
-      check2 = NULL;
-
-   for (i = 0;;) {
+   vlstart = 0;
+   for (i = 0;; i++) {
       vl1 = &(tp1->instance.props[i]);
-      if (vl1->type == PROP_ENDLIST) {
-	 /* Any zeros in the check2 list are properties that	*/
-	 /* are missing in the 1st circuit.  First check for M	*/
-	 /* or S records that can be compared against an 	*/
-	 /* implicit record of M = 1 or S = 1.  Then, any	*/
-	 /* remaining entries are errors.			*/
-
-	 for (j = 0; j < len2; j++) {
-	    if (check2[j] == 0) {
-               vl2 = &(tp2->instance.props[j]);
-	       vl1 = &mvl;
-	       if ((*matchfunc)(vl1->key, vl2->key)) break;
-	       vl1 = &svl;
-	       if ((*matchfunc)(vl1->key, vl2->key)) break;
-
-	       /* No match */
-	       if (do_print) {
-	          Fprintf(stdout, "%s vs. %s:\n", inst1, inst2);
-	          Fprintf(stdout, "Property %s in circuit2 has no matching "
-			"property in circuit1\n",  vl2->key);
-	       }
-	       if (rval != NULL) mismatches++;
-	    }
-	 }
-	 if (j == len2) break;
-      }
-      else i++;
+      if (vl1->type == PROP_ENDLIST) break;
       if (vl1 == NULL) continue;
       if (vl1->key == NULL) continue;
 
       /* Check if this is a "property of interest". */
       kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
-      if (kl1 == NULL) {
-         if (vl1 == &mvl)
-	    kl1 = &klm;
-	 else if (vl1 == &svl)
-	    kl1 = &kls;
-	 else {
-            if (j < len2) check2[j] = 1;	/* Mark as checked */
-	    continue;
-	 }
-      }
+      if (kl1 == NULL) continue;
 
-      /* Find the matching property in vl2. */
+      /* Find the matching property in vl2.  They should be in	*/
+      /* order from PropertySortAndCombine()			*/
 
-      for (j = 0;; j++) {
+      for (j = vlstart;; j++) {
          vl2 = &(tp2->instance.props[j]);
 	 if (vl2->type == PROP_ENDLIST) break;
-	 if (check2[j] == 0)
-	    if ((*matchfunc)(vl1->key, vl2->key)) break;
+	 if ((*matchfunc)(vl1->key, vl2->key)) break;
       }
-      if (vl2->type == PROP_ENDLIST) {
-	 /* Check against M and S records;  a missing M or S	*/
-	 /* record is equivalent to M = 1 or S = 1.		*/
-
-	 if (vl1 != &mvl)
-	    if ((*matchfunc)(vl1->key, mvl.key)) vl2 = &mvl;
-	 if (vl1 != &svl)
-	    if ((*matchfunc)(vl1->key, svl.key)) vl2 = &svl;
-      }
-      if (vl2->type == PROP_ENDLIST) {
-	 /* vl1 had a property of interest that was not found	*/
-         /* in vl2, so mark this as a missing property error.	*/
-
-         if (do_print) {
-	    Fprintf(stdout, "%s vs. %s:\n", inst1, inst2);
-	    Fprintf(stdout, "Property %s in circuit1 has no matching "
-			"property in circuit2\n",  vl1->key);
-	 }
-	 if (rval != NULL) mismatches++;
-      }
-      else if (j < len2)
-	 check2[j] = 1;		/* Mark property as checked */
+      if (vl2->type == PROP_ENDLIST) continue;
+      if (j == vlstart) vlstart++;
 
       if (vl2 == NULL) continue;
       if (vl2->key == NULL) continue;
 
       /* Both device classes must agree on the properties to compare */
       kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
-      if (kl2 == NULL) {
-         if (vl2 == &mvl)
-	    kl2 = &klm;
-	 else if (vl2 == &svl)
-	    kl2 = &kls;
-	 else if (vl1 == &mvl)
-	    kl2 = &klm;
-	 else if (vl1 == &svl)
-	    kl2 = &kls;
-	 else
-	    continue;
-      }
+      if (kl2 == NULL) continue;
 
       /* Watch out for uninitialized entries in cell def */
       if (vl1->type == vl2->type) {
@@ -4417,8 +4362,6 @@ int PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	 /* Different number of properties of interest */
 	 if (rval) *rval = -1;
    }
-
-   if (len2 > 0) FREE(check2);
    return mismatches;
 }
 
@@ -4444,7 +4387,8 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
    struct property *kl1, *kl2;
    struct valuelist *vl1, *vl2;
    int t1type, t2type;
-   int i, mismatches = 0;
+   int i, mult1, mult2;
+   int mismatches = 0;
    int rval = 1;
    char *inst1, *inst2;
 
@@ -4509,6 +4453,10 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	    if (vl2->key == NULL) continue;
 	    kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
 	    if (kl2 != NULL) break;	// Property is required
+	    else if ((*matchfunc)(vl2->key, "M")) {
+		if (vl2->type == PROP_INTEGER)
+		    mult2 = vl2->value.ival;
+	    }
 	 }
 	 if (vl2->type != PROP_ENDLIST) {
 	    if (do_print) Fprintf(stdout, "Circuit 2 %s instance %s has no"
@@ -4531,6 +4479,10 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	    if (vl1->key == NULL) continue;
 	    kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
 	    if (kl1 != NULL) break;	// Property is required
+	    else if ((*matchfunc)(vl1->key, "M")) {
+		if (vl1->type == PROP_INTEGER)
+		    mult1 = vl1->value.ival;
+	    }
 	 }
 	 if (vl1->type != PROP_ENDLIST) {
 	    if (do_print) Fprintf(stdout, "Circuit 1 %s instance %s has no"
@@ -4543,7 +4495,7 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
       }
       else {
 	 int multmatch = PropertyCheckMismatch(tp1, tc1, inst1,
-			tp2, tc2, inst2, FALSE, NULL);
+			tp2, tc2, inst2, 0, NULL);
 	 if (multmatch == 1) {
 	    /* Final attempt:  Reduce M to 1 on both devices */
 	    PropertyOptimize(tp1, tc1, 1, FALSE);
@@ -4554,8 +4506,10 @@ int PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print)
 	    PropertyOptimize(tp1, tc1, 1, TRUE);
 	    PropertyOptimize(tp2, tc2, 1, TRUE);
 	 }
-	 mismatches += PropertyCheckMismatch(tp1, tc1, inst1,
+	 if (multmatch != 0) {
+	    mismatches += PropertyCheckMismatch(tp1, tc1, inst1,
 			tp2, tc2, inst2, do_print, &rval);
+	 }
       }
 
       /* Move to the next property record */

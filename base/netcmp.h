@@ -34,6 +34,7 @@ extern int EquivalenceNodes(char *name1, int file1, char *name2, int file2);
 extern int EquivalenceClasses(char *name1, int file1, char *name2, int file2);
 extern int IgnoreClass(char *name, int file, unsigned char type);
 extern int MatchPins(struct nlist *tp1, struct nlist *tp2);
+extern int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial);
 
 extern int  CreateCompareQueue(char *, int, char *, int);
 extern int  GetCompareQueueTop(char **, int *, char **, int *);

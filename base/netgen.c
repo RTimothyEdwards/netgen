@@ -948,10 +948,10 @@ PropertyTolerance(char *name, int fnum, char *key, int ival, double dval)
         switch (kl->type) {
 	    case PROP_DOUBLE:
 	    case PROP_VALUE:
+	    case PROP_STRING:
 		kl->slop.dval = dval;
 		break;
 	    case PROP_INTEGER:
-	    case PROP_STRING:
 	    case PROP_EXPRESSION:
 		kl->slop.ival = ival;
 		break;
@@ -1103,15 +1103,15 @@ struct property *PropertyInteger(char *name, int fnum, char *key,
 
 /*----------------------------------------------------------------------*/
 
-struct property *PropertyString(char *name, int fnum, char *key, int range,
+struct property *PropertyString(char *name, int fnum, char *key, double dval,
 		char *pdefault)
 {
    struct property *kl = NULL;
    struct nlist *tc;
 
    if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
-      PropertyString(name, Circuit1->file, key, range, pdefault);
-      PropertyString(name, Circuit2->file, key, range, pdefault);
+      PropertyString(name, Circuit1->file, key, dval, pdefault);
+      PropertyString(name, Circuit2->file, key, dval, pdefault);
       return;
    }
 
@@ -1127,7 +1127,7 @@ struct property *PropertyString(char *name, int fnum, char *key, int range,
       kl->idx = 0;
       kl->merge = MERGE_NONE;
       kl->type = PROP_STRING;
-      kl->slop.ival = (range >= 0) ? range : 0;
+      kl->slop.dval = dval;
       if (pdefault != NULL)
          kl->pdefault.string = strsave(pdefault);
       else
@@ -2054,7 +2054,7 @@ struct objlist *LinkProperties(char *model, struct keyvalue *topptr)
 		kl->idx = 0;
 		kl->merge = MERGE_NONE;
 		kl->type = PROP_STRING;
-		kl->slop.ival = 0;
+		kl->slop.dval = 0.0;
 		kl->pdefault.string = NULL;
 		HashPtrInstall(kl->key, kl, &(cell->propdict));
 	    }
@@ -2318,7 +2318,7 @@ void ResolveProperties(char *name1, int file1, char *name2, int file2)
 	    switch (kl1->type) {
 		case PROP_STRING:
 		    kl2 = PropertyString(tp2->name, tp2->file, kl1->key,
-				kl1->slop.ival, kl1->pdefault.string); 
+				kl1->slop.dval, kl1->pdefault.string); 
 		    break;
 		case PROP_INTEGER:
 		    kl2 = PropertyInteger(tp2->name, tp2->file, kl1->key,
@@ -2350,7 +2350,7 @@ void ResolveProperties(char *name1, int file1, char *name2, int file2)
 	    switch (kl2->type) {
 		case PROP_STRING:
 		    kl1 = PropertyString(tp1->name, tp1->file, kl2->key,
-				kl2->slop.ival, kl2->pdefault.string); 
+				kl2->slop.dval, kl2->pdefault.string); 
 		    break;
 		case PROP_INTEGER:
 		    kl1 = PropertyInteger(tp1->name, tp1->file, kl2->key,
@@ -2884,10 +2884,10 @@ void ConnectAllNodes(char *model, int file)
 /*    2) Always tag B with "serial".					*/
 /*									*/
 /* Tags are indicated by a property named "_tag" which has a string	*/
-/* value of ordered characters, "S" for serial, "O" for open, and "C"	*/
+/* value of ordered characters, "+" for serial, "(" for open, and ")"	*/
 /* for close.  A device with only one property record has no "_tag"	*/
 /* record.  A device which is in parallel with the device(s) in front	*/
-/* of it is implicitly parallel by not having an "S" tag, and may not	*/
+/* of it is implicitly parallel by not having an "+" tag, and may not	*/
 /* have a tag at all.							*/
 /*									*/
 /* The property check routine is responsible for comparing device	*/
@@ -2980,8 +2980,8 @@ void add_balancing_close(struct objlist *ob1, struct objlist *ob2)
          if (kv->type == PROP_STRING) {
 	    if (!strcmp(kv->key, "_tag")) {
 	       for (tag == kv->value.string; *tag != '\0'; tag++) {
-		  if (*tag == 'O') opentags++;
-		  else if (*tag == 'C') opentags--;
+		  if (*tag == '(') opentags++;
+		  else if (*tag == ')') opentags--;
 	       }
                break;
 	    }
@@ -2997,7 +2997,7 @@ void add_balancing_close(struct objlist *ob1, struct objlist *ob2)
    if (nob->type != PROPERTY) return;	// shouldn't happen
 
    // This is slow but it's the easiest way to do it
-   while (opentags-- > 0) add_prop_tag(nob, 'C');
+   while (opentags-- > 0) add_prop_tag(nob, ')');
 }
 
 /*----------------------------------------------------------------------*/
@@ -3024,7 +3024,8 @@ int CombineParallel(char *model, int file)
 {
    struct nlist *tp, *tsub;
    struct objlist *ob, *ob2, *nextob;
-   struct objlist *sob, *lob, *tlob, *nob, *pob, *obr;
+   struct objlist *sob, *lob, *nob, *pob, *obr;
+   struct objlist *propfirst, *proplast, *spropfirst, *sproplast;
    struct hashdict devdict;
    struct Permutation *perm;
    size_t pcnt;
@@ -3048,6 +3049,7 @@ int CombineParallel(char *model, int file)
 
 	 tsub = LookupCellFile(ob->model.class, file);
          if ((tsub != NULL) && (tsub->flags & COMB_NO_PARALLEL)) {
+            lob = ob;
 	    ob = ob->next;
 	    continue;
          }
@@ -3064,14 +3066,17 @@ int CombineParallel(char *model, int file)
 
 	 pcnt = strlen(ob->model.class) + 2;
 	 pptr = (char *)pcnt;
+
+	 propfirst = proplast = NULL;
 	 for (ob2 = ob; ob2 && (ob2->type > FIRSTPIN || ob2 == ob); ob2 = ob2->next) {
-	    tlob = ob2;
+	    pob = ob2;
 	    pcnt += 10;
 	 }
+	 if (ob2->type == PROPERTY) propfirst = ob2;
 
 	 /* Find last record in device and first record in next object */
 	 while (ob2 && ob2->type == PROPERTY) {
-	    tlob = ob2;
+	    proplast = ob2;
 	    ob2 = ob2->next;
 	 }
 	 nextob = ob2;
@@ -3128,73 +3133,117 @@ int CombineParallel(char *model, int file)
 		FREE((char *)p2str);
 	    }
 
-	    /* Set last object ptr to end of this record */
-	    lob = tlob;
+	    /* Move last object marker to end of sob record */
+	    if (proplast != NULL)
+	       lob = proplast;
+	    else
+	       lob = pob;
 	 }
 	 else {
 	    /* Find parallel device "ob" and append properties of	*/
 	    /* "sob" to it.  If "ob" does not have properties, then	*/
 	    /* create a property record and set property "M" to 2.	*/
 
-	    for (obr = ob; obr != ob2 ; ) {
+	    /* Find last non-property record of sob ( = pob) */
+	    /* Find first property record of sob ( = spropfirst) */
+	    /* Find last property record of sob ( = sproplast)	*/
+
+	    spropfirst = sproplast = NULL;
+	    for (ob2 = sob; ob2->type > FIRSTPIN || ob2 == sob; ob2 = ob2->next)
+	       pob = ob2;
+	    if (ob2->type == PROPERTY) spropfirst = ob2;
+	    for (; ob2->type == PROPERTY; ob2 = ob2->next)
+	       sproplast = ob2;
+	    
+            if (spropfirst == NULL) {
+	       /* Create new property instance record if one doesn't exist */
+	       nob = GetObject();
+	       nob->type = PROPERTY;
+	       nob->name = strsave("properties");
+	       nob->node = -2;	/* Don't report as disconnected node */
+	       nob->model.class = strsave(sob->model.class);
+	       nob->instance.props = NewPropValue(2);
+
+	       /* Create property record for property "M" and set to 1 */
+	       kv = &(nob->instance.props[0]);
+	       kv->key = strsave("M");
+	       kv->type = PROP_INTEGER;
+	       kv->value.ival = 1;
+
+	       /* End of property list */
+	       kv = &(nob->instance.props[1]);
+	       kv->key = NULL;
+	       kv->type = PROP_ENDLIST;
+	       kv->value.ival = 0;
+
+	       nob->next = pob->next;
+	       pob->next = nob;
+
+	       if (lob == pob) lob = nob;
+	       spropfirst = sproplast = nob;
+	    }
+	    if (propfirst == NULL) {
+	       /* Create new property instance record if one doesn't exist */
+	       nob = GetObject();
+	       nob->type = PROPERTY;
+	       nob->name = strsave("properties");
+	       nob->node = -2;	/* Don't report as disconnected node */
+	       nob->model.class = strsave(ob->model.class);
+	       nob->instance.props = NewPropValue(2);
+
+	       /* Create property record for property "M" and set to 1 */
+	       kv = &(nob->instance.props[0]);
+	       kv->key = strsave("M");
+	       kv->type = PROP_INTEGER;
+	       kv->value.ival = 1;
+
+	       /* End of property list */
+	       kv = &(nob->instance.props[1]);
+	       kv->key = NULL;
+	       kv->type = PROP_ENDLIST;
+	       kv->value.ival = 0;
+
+	       /* Append to sob's property list */
+	       nob->next = sproplast->next;
+	       sproplast->next = nob;
+	       if (lob == sproplast) lob = nob;
+	    }
+		
+	    if (propfirst != NULL) {
+
+	       // Serial/Parallel logic:
+	       // If propfirst has _tag in properties,
+	       // then add an "open" tag at propfirst
+               add_prop_tag(propfirst, '(');
+
+	       // if spropfirst has _tag in properties then add an "open" tag
+	       // to spropfirst and a "close" tag to propfirst
+	       if (add_prop_tag(spropfirst, '(')) add_prop_tag(propfirst, ')');
+
+	       /* Append ob's property list to sob */
+	       proplast->next = sproplast->next;
+	       sproplast->next = propfirst;
+	       if (lob == sproplast) lob = proplast;
+	    }
+
+            /* Link up around object to be removed */
+	    lob->next = nextob;
+
+	    /* Remove the object */
+	    for (obr = ob; obr != propfirst && obr != nextob; ) {
 	       nob = obr->next;
 	       FreeObjectAndHash(obr, tp);
 	       obr = nob;
 	    }
 	    dcnt++;
-	    /* Find (first) property record of sob */
-	    for (pob = sob->next; pob->type > FIRSTPIN; pob = pob->next) {
-	       if (pob->next->type == PROPERTY)
-		  break;
-	       else if (pob->next->type == FIRSTPIN) {
-		  /* Create new property instance record if one doesn't exist */
-		  nob = GetObject();
-		  nob->type = PROPERTY;
-		  nob->name = strsave("properties");
-		  nob->node = -2;	/* Don't report as disconnected node */
-		  nob->model.class = strsave(sob->model.class);
-		  nob->instance.props = NewPropValue(2);
 
-		  /* Create property record for property "M" and set to 1 */
-		  kv = &(nob->instance.props[0]);
-		  kv->key = strsave("M");
-		  kv->type = PROP_INTEGER;
-		  kv->value.ival = (obr->type != PROPERTY) ? 2 : 1;
-
-		  /* End of property list */
-		  kv = &(nob->instance.props[1]);
-		  kv->key = NULL;
-		  kv->type = PROP_ENDLIST;
-		  kv->value.ival = 0;
-
-		  nob->next = pob->next;
-		  pob->next = nob;
-		  break;
-	       }
-	    }
-		
-	    if (lob == pob) lob = tlob;
-	    if (obr->type == PROPERTY) {
-	       /* Pull out property records and append to sob's	*/
-	       /* property list					*/
-	       tlob->next = pob->next;
-	       pob->next = obr;
-	    }
-	    lob->next = nextob;
-
-	    // Serial/Parallel logic:
-
-	    // If obr has _tag in properties, then add an "open" tag at obr
-            add_prop_tag(obr, 'O');
-
-	    // if ob2 has _tag in properties then add an "open" tag to ob2
-	    // and a "close" tag to obr
-	    if (add_prop_tag(ob2, 'O')) add_prop_tag(obr, 'C');
 	 }
 	 FREE((char *)pstr);
       }
-      else
+      else {
+         lob = ob;
 	 nextob = ob->next;
+      }
       ob = nextob;
    }
    HashKill(&devdict);
@@ -3260,7 +3309,7 @@ int CombineSerial(char *model, int file)
    // To avoid posting a non-working version, serial combination is
    // disabled here until code is finished to compare the serial/parallel
    // property networks.
-   return 0;
+   // return 0;
 
    if ((tp = LookupCellFile(model, file)) == NULL) {
       Printf("Cell: %s does not exist.\n", model);
@@ -3325,83 +3374,78 @@ int CombineSerial(char *model, int file)
    for (i = 0; i <= tp->nodename_cache_maxnodenum; i++) {
       if (instlist[i] != NULL) {
          if ((instlist[i][0] != NULL) && (instlist[i][1] != NULL)) {
-	    Fprintf(stdout, "Found serial instances %s and %s\n",
+	    int k, l;
+	    struct valuelist *kv2;
+
+            /* Diagnostic */
+	    /* Fprintf(stdout, "Found serial instances %s and %s\n",
 			instlist[i][0]->instance.name,
-			instlist[i][1]->instance.name);
+			instlist[i][1]->instance.name); */
             scnt++;
-	    /* Diagnostic */
-	    /* Printf("CombineSerial:  Merging serial instances %s (0x%x) and %s (0x%x)"
-			", remove node %s (%d)\n",
-			instlist[i][0]->instance.name,
-			instlist[i][0],
-			instlist[i][1]->instance.name,
-			instlist[i][1],
-			tp->nodename_cache[i]->name, i); */
 
-	    /* To maintain knowledge of the topology, each device gets	*/
-	    /* a parameter '_tag', string value set to "S".		*/
+	    /* To maintain knowledge of the topology, 2nd device gets	*/
+	    /* a parameter '_tag', string value set to "+".		*/
 
-	    for (j = 0; j <= 1; j++) {
-               for (obp = instlist[i][j]; ; obp = obp->next) {
-		  int found = FALSE;
-		  int k, l;
-		  char *nodename1, *nodename2;
-		  struct valuelist *kv2;
+            for (obn = instlist[i][1]; obn->next &&
+			obn->next->type != PROPERTY &&
+			obn->next->type != FIRSTPIN; obn = obn->next);
+	    obp = obn->next;
 
-		  nodename1 = tp->nodename_cache[instlist[i][j]->node]->name;
-		  nodename2 = tp->nodename_cache[instlist[i][j]->next->node]->name;
-	          if (obp->type == PROPERTY) {
-		     /* Add to properties */
-		     k = 0;
-		     for (k = 0; ; k++) {
-		        kv = &(obp->instance.props[k]);
-			if (kv->type == PROP_ENDLIST)
-			   break;
-		     }
+	    if (obp == NULL || obp->type == FIRSTPIN) {
+	       struct objlist *nob;
+	       /* No property record, so insert one */
+	       nob = GetObject();
+	       nob->type = PROPERTY;
+	       nob->name = strsave("properties");
+	       nob->node = -2;	/* Don't report as disconnected node */
+	       nob->model.class = (obp->model.class == NULL) ? NULL :
+				strsave(obp->model.class);
+	       nob->instance.props = NewPropValue(2);
+
+	       /* Create property record for property "_tag" */
+	       kv = &(nob->instance.props[0]);
+	       kv->key = strsave("_tag");
+	       kv->type = PROP_STRING;
+	       /* Value is set to "+" */
+	       kv->value.string = (char *)MALLOC(2);
+	       sprintf(kv->value.string, "+");
+
+	       /* End of property list */
+	       kv = &(nob->instance.props[1]);
+	       kv->key = NULL;
+	       kv->type = PROP_ENDLIST;
+	       kv->value.ival = 0;
+
+	       nob->next = obp;
+	       obn->next = nob;
+	    }
+	    else if (obp->type == PROPERTY) {
+	       /* Add to properties */
+	       k = 0;
+	       for (k = 0; ; k++) {
+		  kv = &(obp->instance.props[k]);
+		  if (kv->type == PROP_ENDLIST) {
 		     kv2 = (struct valuelist *)MALLOC((k + 2) *
 				sizeof(struct valuelist));
 		     kv2->key = strsave("_tag");
 		     kv2->type = PROP_STRING;
-		     /* Value is set to "S" */
+		     /* Value is set to "+" */
 		     kv2->value.string = (char *)MALLOC(2);
-		     sprintf(kv2->value.string, "S");
+		     sprintf(kv2->value.string, "+");
 		     for (l = 0; l <= k; l++)
-			kv2[l + 1] = obp->instance.props[l];
+		        kv2[l + 1] = obp->instance.props[l];
 		     FREE(obp->instance.props);
 		     obp->instance.props = kv2;
-		     found = TRUE;
-	          }
-	          if (obp->next == NULL || obp->next->type == FIRSTPIN) {
-		     struct objlist *nob;
-		     /* No property record, so insert one */
-		     if (found == FALSE) {
-		        nob = GetObject();
-		        nob->type = PROPERTY;
-		        nob->name = strsave("properties");
-		        nob->node = -2;	/* Don't report as disconnected node */
-		        nob->model.class = (obp->model.class == NULL) ? NULL :
-					strsave(obp->model.class);
-		        nob->instance.props = NewPropValue(2);
-
-		        /* Create property record for property "_tag" */
-		        kv = &(nob->instance.props[0]);
-		        kv->key = strsave("_tag");
-		        kv->type = PROP_STRING;
-		        /* Value is set to "S" */
-		        kv->value.string = (char *)MALLOC(2);
-		        sprintf(kv->value.string, "S");
-
-		        /* End of property list */
-		        kv = &(nob->instance.props[1]);
-		        kv->key = NULL;
-		        kv->type = PROP_ENDLIST;
-		        kv->value.ival = 0;
-
-		        nob->next = obp->next;
-		        obp->next = nob;
-		     }
 		     break;
-	          }
+		  }
+		  else if (!strcmp(kv->key, "_tag")) {
+		     int l = strlen(kv->value.string);
+		     char *newstr = (char *)MALLOC(l + 2);
+		     sprintf(newstr, "S%s", kv->value.string);
+		     FREE(kv->value.string);
+		     kv->value.string = newstr;
+		     break;
+		  }
 	       }
 	    }
 

@@ -104,10 +104,12 @@ struct valuelist {
 /* Part 3:  Keys & Defaults (kept in the cell record as a hash table) */
 
 #define MERGE_NONE	0	/* Property does not change when devices merge */
-#define MERGE_ADD	1	/* Properties sum with device merge */
-#define MERGE_ADD_CRIT	2	/* Properties sum with device merge */
+#define MERGE_ADD	1	/* Properties sum with device parallel merge */
+#define MERGE_ADD_CRIT	2	/* Properties sum with device parallel merge */
 #define MERGE_PAR	3	/* Properties add in parallel with device merge */
 #define MERGE_PAR_CRIT	4	/* Properties add in parallel with device merge */
+#define MERGE_SER	5	/* Properties sum with device parallel merge */
+#define MERGE_SER_CRIT	6	/* Properties sum with device parallel merge */
 
 /* Note:  A "critical" merge means that the property causes the number of	*/
 /* devices to change.  e.g., transistor width is critical;  transistor drain	*/

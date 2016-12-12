@@ -3008,13 +3008,18 @@ _netcmp_property(ClientData clientData,
     };
 
     char *mergeoptions[] = {
-	"none", "add", "add_critical", "par", "par_critical", NULL
+	"none", "add", "add_critical", "par", "par_critical",
+	"parallel", "parallel_critical", "ser_critical", "ser",
+	"serial_critical", "serial", NULL
     };
     enum MergeOptionIdx {
-	NONE_IDX, ADD_ONLY_IDX, ADD_CRIT_IDX, PAR_ONLY_IDX, PAR_CRIT_IDX
+	NONE_IDX, ADD_ONLY_IDX, ADD_CRIT_IDX,
+	PAR_ONLY_IDX, PAR_CRIT_IDX, PAR2_ONLY_IDX, PAR2_CRIT_IDX,
+	SER_CRIT_IDX, SER_IDX, SER2_CRIT_IDX, SER2_IDX
     };
     char *yesno[] = {
-	"on", "yes", "true", "enable", "allow", "off", "no", "false", "disable", "prohibit", NULL
+	"on", "yes", "true", "enable", "allow",
+	"off", "no", "false", "disable", "prohibit", NULL
     };
 
     if (objc < 2) {
@@ -3043,7 +3048,8 @@ _netcmp_property(ClientData clientData,
 		    PropertyDelete(tp->name, tp->file, "pd");
 		    break;
 		case CLASS_RES: case CLASS_RES3:
-		    PropertyMerge(tp->name, tp->file, "l", MERGE_PAR_CRIT);
+		    PropertyMerge(tp->name, tp->file, "w", MERGE_ADD_CRIT);
+		    PropertyMerge(tp->name, tp->file, "l", MERGE_SER_CRIT);
 		    tp->flags |= COMB_SERIAL;
 		    break;
 		case CLASS_CAP: case CLASS_ECAP: case CLASS_CAP3:
@@ -3351,10 +3357,20 @@ _netcmp_property(ClientData clientData,
 				mergeval = MERGE_ADD_CRIT;
 				break;
 			    case PAR_ONLY_IDX:
+			    case PAR2_ONLY_IDX:
 				mergeval = MERGE_PAR;
 				break;
 			    case PAR_CRIT_IDX:
+			    case PAR2_CRIT_IDX:
 				mergeval = MERGE_PAR_CRIT;
+				break;
+			    case SER_CRIT_IDX:
+			    case SER2_CRIT_IDX:
+				mergeval = MERGE_SER_CRIT;
+				break;
+			    case SER_IDX:
+			    case SER2_IDX:
+				mergeval = MERGE_SER;
 				break;
 			}
 			PropertyMerge(tp->name, fnum, Tcl_GetString(tobj1), mergeval);

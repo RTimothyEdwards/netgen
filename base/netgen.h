@@ -33,7 +33,7 @@ extern struct property *PropertyDouble(char *name, int fnum, char *key,
 extern struct property *PropertyInteger(char *name, int fnum, char *key,
 		int slop, int pdefault);
 extern struct property *PropertyString(char *name, int fnum, char *key,
-		int range, char *pdefault);
+		double slop, char *pdefault);
 extern int  PropertyDelete(char *name, int fnum, char *key);
 extern int  PropertyTolerance(char *name, int fnum, char *key, int ival,
 		double dval);
