@@ -2979,7 +2979,7 @@ void add_balancing_close(struct objlist *ob1, struct objlist *ob2)
 	 if (kv->type == PROP_ENDLIST) break;
          if (kv->type == PROP_STRING) {
 	    if (!strcmp(kv->key, "_tag")) {
-	       for (tag == kv->value.string; *tag != '\0'; tag++) {
+	       for (tag = kv->value.string; *tag != '\0'; tag++) {
 		  if (*tag == '(') opentags++;
 		  else if (*tag == ')') opentags--;
 	       }
