@@ -1808,7 +1808,7 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
 
     SetExtension(name, fname, SPICE_EXTENSION);
     if ((filenum = OpenParseFile(name, *fnum)) < 0) {
-      Fprintf(stderr,"No file: %s\n",name);
+      Fprintf(stderr,"Error in SPICE file read: No file %s\n",name);
       *fnum = filenum;
       return NULL;
     }    
@@ -1903,7 +1903,7 @@ void IncludeSpice(char *fname, int parent, struct cellstack **CellStackPtr,
 
         SetExtension(name, fname, SPICE_EXTENSION);
         if ((filenum = OpenParseFile(name, parent)) < 0) {
-           Fprintf(stderr,"No file: %s\n",name);
+           Fprintf(stderr,"Error in SPICE file read: No file %s\n",name);
            return;
         }    
      }

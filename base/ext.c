@@ -170,7 +170,7 @@ char *ReadExt(char *fname, int doflat, int *fnum)
 
     SetExtension(name, fname, EXT_EXTENSION);
     if ((filenum = OpenParseFile(name, *fnum)) < 0) {
-      Printf("No file: %s\n",name);
+      Printf("Error in ext file read: No file %s\n",name);
       *fnum = filenum;
       return NULL;
     }    
@@ -643,7 +643,7 @@ char *ReadSim(char *fname, int *fnum)
 
     SetExtension(name, fname, SIM_EXTENSION);
     if (OpenParseFile(name, *fnum) < 0) {
-      Printf("No file: %s\n",name);
+      Printf("Error in ext file read: No file %s\n",name);
       *fnum = filenum;
       return NULL;
     }    

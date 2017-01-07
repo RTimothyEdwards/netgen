@@ -34,9 +34,22 @@ if {${tcl_version} >= 8.6} {
 # Use the "canonical" command to parse the file and cell names,
 # although if the cells have not been read in yet, then the
 # original syntax of filename or {filename cellname} is required.
+#
+# "args" is passed to verify and may therefore contain only the
+# value "-list" or nothing.  If "-list", then output is returned
+# as a nested list.
 #----------------------------------------------------------------
 
-proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out}} {
+proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
+   set dolist 0
+   puts stdout "Diagnostic version"
+   foreach arg $args {
+      if {$arg == "-list"} {
+	 puts stdout "Generating list result"
+	 set dolist 1
+	 set lvs_final {}
+      }
+   }
 
    # Allow name1 or name2 to be a list of {filename cellname},
    # A single <filename>, or any valid_cellname form if the
@@ -137,24 +150,40 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out}} {
    netgen::log file $logfile
    netgen::log start
    netgen::log echo off
-   set endval [netgen::compare hierarchical "$fnum1 $cell1" "$fnum2 $cell2"]
+   if {$dolist == 1} {
+      set endval [netgen::compare -list hierarchical "$fnum1 $cell1" "$fnum2 $cell2"]
+   } else {
+      set endval [netgen::compare hierarchical "$fnum1 $cell1" "$fnum2 $cell2"]
+   }
    if {$endval == {}} {
       netgen::log put "No cells in queue!\n"
       return
    }
    set properr {}
    while {$endval != {}} {
-      netgen::run converge
+      if {$dolist == 1} {
+         netgen::run -list converge
+      } else {
+         netgen::run converge
+      }
       netgen::log echo on
       if {[verify equivalent]} {
 	 # Resolve automorphisms by pin and property
-         netgen::run resolve
+	 if {$dolist == 1} {
+            netgen::run -list resolve
+	 } else {
+            netgen::run resolve
+	 }
 	 set uresult [verify unique]
          if {$uresult == 0} {
 	    netgen::log put "   Networks match locally but not globally.\n"
 	    netgen::log put "   Probably connections are swapped.\n"
 	    netgen::log put "   Check the end of logfile ${logfile} for implicated nodes.\n"
-	    netgen::verify nodes
+	    if {$dolist == 1} {
+	       verify -list nodes
+	    } else {
+	       verify nodes
+	    }
 
 	    # Flatten the non-matching subcircuit (but not the top-level cells)
             if {[netgen::print queue] != {}} {
@@ -183,17 +212,26 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out}} {
 	 }
       }
       netgen::log echo off
-      set endval [netgen::compare hierarchical]
+      if {$dolist == 1} {
+         catch {lappend lvs_final $lvs_out}
+         set lvs_out {}
+         set endval [netgen::compare -list hierarchical]
+      } else {
+         set endval [netgen::compare hierarchical]
+      }
    }
    netgen::log echo off
    puts stdout "Result: " nonewline
    netgen::log echo on
-   netgen::verify only
+   verify only
    if {$properr != {}} {
       netgen::log put "The following cells had property errors: $properr\n"
    }
    netgen::log end
    puts stdout "LVS Done."
+   if {$dolist == 1} {
+      return $lvs_final
+   }
 }
 
 # It is important to make sure no netgen commands overlap with Tcl built-in

@@ -186,7 +186,7 @@ char *ReadNtk (char *fname, int *fnum)
   if ((filenum = OpenParseFile(fname, *fnum)) < 0) {
     SetExtension(name, fname, NTK_EXTENSION);
     if ((filenum = OpenParseFile(name, *fnum)) < 0) {
-      Printf("No file: %s\n",name);
+      Printf("Error in ntk file read: No file %s\n",name);
       *fnum = filenum;
       return NULL;
     }    

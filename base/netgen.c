@@ -3072,7 +3072,7 @@ int CombineParallel(char *model, int file)
 	    pob = ob2;
 	    pcnt += 10;
 	 }
-	 if (ob2->type == PROPERTY) propfirst = ob2;
+	 if (ob2 && (ob2->type == PROPERTY)) propfirst = ob2;
 
 	 /* Find last record in device and first record in next object */
 	 while (ob2 && ob2->type == PROPERTY) {

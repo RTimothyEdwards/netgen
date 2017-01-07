@@ -9,6 +9,7 @@ extern struct nlist *Circuit2;
 extern int ExhaustiveSubdivision;
 
 #ifdef TCL_NETGEN
+#include <tcl.h>
 extern int InterruptPending;
 #endif
 
@@ -17,10 +18,11 @@ extern int InterruptPending;
 extern void PrintElementClasses(struct ElementClass *EC, int type, int dolist);
 extern void PrintNodeClasses(struct NodeClass *NC, int type, int dolist);
 extern void SummarizeNodeClasses(struct NodeClass *NC);
-extern void PrintPropertyResults(void);
+extern void PrintPropertyResults(int do_list);
 extern void PrintCoreStats(void);
 extern void ResetState(void);
-extern void CreateTwoLists(char *name1, int file1, char *name2, int file2);
+extern void CreateTwoLists(char *name1, int file1, char *name2, int file2,
+		int dolist);
 extern int Iterate(void);
 extern int VerifyMatching(void);
 extern void PrintAutomorphisms(void);
@@ -33,7 +35,7 @@ extern int EquivalenceElements(char *name1, int file1, char *name2, int file2);
 extern int EquivalenceNodes(char *name1, int file1, char *name2, int file2);
 extern int EquivalenceClasses(char *name1, int file1, char *name2, int file2);
 extern int IgnoreClass(char *name, int file, unsigned char type);
-extern int MatchPins(struct nlist *tp1, struct nlist *tp2);
+extern int MatchPins(struct nlist *tp1, struct nlist *tp2, int dolist);
 extern int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial);
 
 extern int  CreateCompareQueue(char *, int, char *, int);
@@ -51,5 +53,8 @@ extern int EquivalentElement();
 
 extern void enable_interrupt();
 extern void disable_interrupt();
+
+extern Tcl_Obj *ListNodeClasses(int legal);
+extern Tcl_Obj *ListElementClasses(int legal);
 #endif
 

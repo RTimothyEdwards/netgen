@@ -77,8 +77,9 @@ extern char *SetExtension(char *buffer, char *path, char *extension)
   strcat(tmpbuf, extension);
 
   /* step 4: lower-case the entire name */
-  for (pt = tmpbuf; *pt != '\0'; pt++)
-    if (isupper(*pt)) *pt = tolower(*pt);
+  /* (Commented out because this is really stupid.) */
+  // for (pt = tmpbuf; *pt != '\0'; pt++)
+  //   if (isupper(*pt)) *pt = tolower(*pt);
 
   if (buffer != NULL) {
     strcpy(buffer, tmpbuf);
@@ -567,7 +568,7 @@ char *ReadNetgenFile (char *fname, int *fnum)
   if ((filenum = OpenParseFile(fname, *fnum)) < 0) {
     SetExtension(name, fname, NETGEN_EXTENSION);
     if ((filenum = OpenParseFile(name, *fnum)) < 0) {
-      Printf("No file: %s\n",name);
+      Printf("Error in netgen read: No file %s\n",name);
       *fnum = -1;
       return NULL;
     }    
@@ -803,7 +804,7 @@ char *ReadNetgenFile (char *fname, int *fnum)
   if ((File = open(fname, O_RDONLY, FILE_ACCESS_BITS)) == -1) {
     SetExtension(name, fname, NETGEN_EXTENSION);
     if ((File = open(name, O_RDONLY, FILE_ACCESS_BITS)) == -1) {
-      Printf("No file: %s\n",name);
+      Printf("Error in netgen read: No file %s\n",name);
       return NULL;
     }    
   }

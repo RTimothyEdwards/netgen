@@ -1939,13 +1939,24 @@ int
 _netcmp_compare(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-   char *name1, *name2, *file1, *file2;
-   int fnum1, fnum2;
+   char *name1, *name2, *file1, *file2, *optstart;
+   int fnum1, fnum2, dolist = 0;
    int dohierarchy = FALSE;
    int assignonly = FALSE;
    int argstart = 1, qresult, llen, result;
    struct Correspond *nextcomp;
    struct nlist *tp;
+   Tcl_Obj *flist = NULL;
+
+   if (objc > 1) {
+      optstart = Tcl_GetString(objv[1]);
+      if (*optstart == '-') optstart++;
+      if (!strcmp(optstart, "list")) {
+	 dolist = 1;
+	 objv++;
+	 objc--;
+      }
+   }
 
    if (objc > 1) {
       if (!strncmp(Tcl_GetString(objv[argstart]), "assign", 6)) {
@@ -2033,18 +2044,15 @@ _netcmp_compare(ClientData clientData,
       ConvertGlobals(name2, fnum2);
    }
 
-   // Run cleanup a 2nd time;  this corrects for cells that have no ports
-   // but define global nodes that are brought out as ports by
-   // ConvertGlobals().
-
-   CreateTwoLists(name1, fnum1, name2, fnum2);
+   CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
    while (PrematchLists(name1, fnum1, name2, fnum2) > 0) {
       Fprintf(stdout, "Making another compare attempt.\n");
-      CreateTwoLists(name1, fnum1, name2, fnum2);
+      CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
    }
 
    // Return the names of the two cells being compared, if doing "compare
-   // hierarchical"
+   // hierarchical".  If "-list" was specified, then append the output
+   // to the end of the list.
 
    if (dohierarchy) {
       Tcl_Obj *lobj;
@@ -2242,6 +2250,19 @@ _netcmp_run(ClientData clientData,
    };
    int result, index;
    int automorphisms;
+   char *optstart;
+   int dolist;
+
+   dolist = 0;
+   if (objc > 1) {
+      optstart = Tcl_GetString(objv[1]);
+      if (*optstart == '-') optstart++;
+      if (!strcmp(optstart, "list")) {
+	 dolist = 1;
+	 objv++;
+	 objc--;
+      }
+   }
 
    if (objc == 1)
       index = RESOLVE_IDX;
@@ -2260,8 +2281,13 @@ _netcmp_run(ClientData clientData,
 	 else {
 	    enable_interrupt();
 	    while (!Iterate() && !InterruptPending);
-	    _netcmp_verify(clientData, interp, 1, NULL);
+	    if (dolist) {
+	       result = _netcmp_verify(clientData, interp, 2, objv - 1);
+	    }
+	    else
+	       result = _netcmp_verify(clientData, interp, 1, NULL);
 	    disable_interrupt();
+	    if (result != TCL_OK) return result;
 	 }
 	 break;
       case RESOLVE_IDX:
@@ -2304,7 +2330,7 @@ _netcmp_run(ClientData clientData,
 	    }
 	    if (PropertyErrorDetected) {
 	       Fprintf(stdout, "There were property errors.\n");
-	       PrintPropertyResults();
+	       PrintPropertyResults(dolist);
 	    }
 	    disable_interrupt();
          }
@@ -2318,9 +2344,17 @@ _netcmp_run(ClientData clientData,
 /* Syntax: netgen::verify [option]			*/
 /* 	options: nodes, elements, only, all,		*/
 /*		 equivalent, or unique.			*/
+/* 	option "-list" may be used with nodes, elements	*/
+/*		 all, or no option.			*/
 /* Formerly: v						*/
 /* Results:						*/
+/*	For only, equivalent, unique:  Return 1 if 	*/
+/*	verified, zero if not.				*/
 /* Side Effects:					*/
+/*	For options elements, nodes, and all without	*/
+/*	option -list:  Write output to log file.	*/
+/*	For -list options, append list to global	*/
+/*	variable "lvs_out", if it exists.		*/
 /*------------------------------------------------------*/
 
 int
@@ -2333,8 +2367,23 @@ _netcmp_verify(ClientData clientData,
    enum OptionIdx {
       NODE_IDX, ELEM_IDX, PROP_IDX, ONLY_IDX, ALL_IDX, EQUIV_IDX, UNIQUE_IDX
    };
+   char *optstart;
    int result, index = -1;
    int automorphisms;
+   int dolist = 0;
+   Tcl_Obj *egood, *ebad, *ngood, *nbad;
+
+   if (objc > 1) {
+      optstart = Tcl_GetString(objv[1]);
+      if (*optstart == '-') optstart++;
+      if (!strcmp(optstart, "list")) {
+	 dolist = 1;
+	 egood = ngood = NULL;
+	 ebad = nbad = NULL;
+	 objv++;
+	 objc--;
+      }
+   }
 
    if (objc != 1 && objc != 2) {
       Tcl_WrongNumArgs(interp, 1, objv,	
@@ -2365,14 +2414,28 @@ _netcmp_verify(ClientData clientData,
 	 if (objc == 1 || index == NODE_IDX || index == ALL_IDX) {
 	     if (Debug == TRUE)
 	        PrintIllegalNodeClasses();	// Old style
-	     else
-	        FormatIllegalNodeClasses();	// Side-by-side
+	     else {
+	        FormatIllegalNodeClasses(); // Side-by-side, to log file
+	        if (dolist) {
+	           nbad = ListNodeClasses(FALSE);	// As Tcl nested list
+#if 0
+	           ngood = ListNodeClasses(TRUE);	// As Tcl nested list
+#endif
+		}
+	     }
 	 }
 	 if (objc == 1 || index == ELEM_IDX || index == ALL_IDX) {
 	     if (Debug == TRUE)
 	        PrintIllegalElementClasses();	// Old style
-	     else
-	        FormatIllegalElementClasses();	// Side-by-side
+	     else {
+	        FormatIllegalElementClasses();	// Side-by-side, to log file
+	        if (dolist) {
+	           ebad = ListElementClasses(FALSE); // As Tcl nested list
+#if 0
+	           egood = ListElementClasses(TRUE); // As Tcl nested list
+#endif
+		}
+	     }
 	 }
 	 disable_interrupt();
 	 if (index == EQUIV_IDX || index == UNIQUE_IDX)
@@ -2403,9 +2466,73 @@ _netcmp_verify(ClientData clientData,
 		   Fprintf(stdout, "Property errors were found.\n");
 	    }
 	 }
-         if ((index == PROP_IDX) && (PropertyErrorDetected != 0)) {
-	    PrintPropertyResults();
+#if 0
+	 if (dolist) {
+	    ngood = ListNodeClasses(TRUE);	// As Tcl nested list
+	    egood = ListElementClasses(TRUE);	// As Tcl nested list
 	 }
+#endif
+         if ((index == PROP_IDX) && (PropertyErrorDetected != 0)) {
+	    PrintPropertyResults(dolist);
+	 }
+      }
+   }
+
+   /* If "dolist" has been specified, then return the	*/
+   /* list-formatted output.  For "verify nodes" or	*/
+   /* "verify elements", return the associated list.	*/
+   /* For "verify" or "verify all", return a nested	*/
+   /* list of {node list, element list}.		*/
+
+   if (dolist)
+   {
+      if (objc == 1 || index == NODE_IDX || index == ALL_IDX) {
+	 if (nbad == NULL) {
+	    Tcl_Obj *n0, *n1; 
+	    nbad = Tcl_NewListObj(0, NULL);
+	    n0 = Tcl_NewStringObj("badnets", -1);
+	    n1 = Tcl_NewListObj(0, NULL);
+	    Tcl_ListObjAppendElement(netgeninterp, nbad, n0);
+	    Tcl_ListObjAppendElement(netgeninterp, nbad, n1);
+	 }
+	 Tcl_SetVar2Ex(interp, "lvs_out", NULL, nbad,
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+#if 0
+	 if (ngood == NULL) {
+	    Tcl_Obj *n0, *n1; 
+	    ngood = Tcl_NewListObj(0, NULL);
+	    n0 = Tcl_NewStringObj("goodnets", -1);
+	    n1 = Tcl_NewListObj(0, NULL);
+	    Tcl_ListObjAppendElement(netgeninterp, ngood, n0);
+	    Tcl_ListObjAppendElement(netgeninterp, ngood, n1);
+	 }
+	 Tcl_SetVar2Ex(interp, "lvs_out", NULL, ngood,
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+#endif
+      }
+      if (objc == 1 || index == ELEM_IDX || index == ALL_IDX) {
+	 if (ebad == NULL) {
+	    Tcl_Obj *e0, *e1; 
+	    ebad = Tcl_NewListObj(0, NULL);
+	    e0 = Tcl_NewStringObj("badelements", -1);
+	    e1 = Tcl_NewListObj(0, NULL);
+	    Tcl_ListObjAppendElement(netgeninterp, ebad, e0);
+	    Tcl_ListObjAppendElement(netgeninterp, ebad, e1);
+	 }
+	 Tcl_SetVar2Ex(interp, "lvs_out", NULL, ebad,
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+#if 0
+	 if (egood == NULL) {
+	    Tcl_Obj *e0, *e1; 
+	    ebad = Tcl_NewListObj(0, NULL);
+	    e0 = Tcl_NewStringObj("goodelements", -1);
+	    e1 = Tcl_NewListObj(0, NULL);
+	    Tcl_ListObjAppendElement(netgeninterp, egood, e0);
+	    Tcl_ListObjAppendElement(netgeninterp, egood, e1);
+	 }
+	 Tcl_SetVar2Ex(interp, "lvs_out", NULL, egood,
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+#endif
       }
    }
    return TCL_OK;
@@ -2566,12 +2693,22 @@ _netcmp_equate(ClientData clientData,
       NODE_IDX, ELEM_IDX, CLASS_IDX, PINS_IDX
    };
    int result, index;
-   char *name1 = NULL, *name2 = NULL;
+   char *name1 = NULL, *name2 = NULL, *optstart;
    struct nlist *tp1, *tp2;
    struct objlist *ob1, *ob2;
    int file1, file2;
-   int i, l1, l2, ltest, lent;
+   int i, l1, l2, ltest, lent, dolist;
    Tcl_Obj *tobj1, *tobj2, *tobj3;
+
+   if (objc > 1) {
+      optstart = Tcl_GetString(objv[1]);
+      if (*optstart == '-') optstart++;
+      if (!strcmp(optstart, "list")) {
+	 dolist = 1;
+	 objv++;
+	 objc--;
+      }
+   }
 
    if ((objc != 2) && (objc != 4) && (objc != 6)) {
       Tcl_WrongNumArgs(interp, 1, objv, "?nodes|elements|classes|pins? name1 name2");
@@ -2737,7 +2874,8 @@ _netcmp_equate(ClientData clientData,
 	    return TCL_OK;
 	 }
 	 if (tp1 == Circuit1 && tp2 == Circuit2) {
-	    if (MatchPins(tp1, tp2)) {
+	    int result;
+	    if (MatchPins(tp1, tp2, dolist)) {
 	       Fprintf(stdout, "Cell pin lists are equivalent.\n");
 	       Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
 	    }
@@ -2748,7 +2886,7 @@ _netcmp_equate(ClientData clientData,
 	    }
 	 }
 	 else {
-	    Fprintf(stderr, "Function not yet defined outside of LVS scope.\n");
+	    Fprintf(stderr, "Function not defined outside of LVS scope.\n");
 	 }
 	 break;
 

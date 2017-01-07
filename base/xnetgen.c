@@ -271,7 +271,7 @@ void initialize_netcmp_datastructures(Widget w, Widget textwidget,
 {
   X_START();
   Printf("Comparing cells '%s' and '%s'\n", get_cell(), get_other());
-  CreateTwoLists(get_cell(), get_other());
+  CreateTwoLists(get_cell(), get_other(), 0);
   Permute();
 #ifdef DEBUG_ALLOC
   PrintCoreStats();
