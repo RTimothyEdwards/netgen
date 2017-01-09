@@ -200,7 +200,9 @@ proc netgen::convert_to_json {filename lvs_final} {
 	                puts $fjson "        \],"
 		     }
 		  }
-		  puts $fjson "      \]"
+		  if {$glen > 0} {
+		     puts $fjson "      \]"
+		  }
 		  if {$kidx == $nkeys} {
 		     puts $fjson "   \]"
 		  } else {
@@ -279,7 +281,9 @@ proc netgen::convert_to_json {filename lvs_final} {
 	                puts $fjson "        \],"
 		     }
 		  }
-		  puts $fjson "      \]"
+		  if {$glen > 0} {
+		     puts $fjson "      \]"
+		  }
 		  if {$kidx == $nkeys} {
 		     puts $fjson "   \]"
 		  } else {
