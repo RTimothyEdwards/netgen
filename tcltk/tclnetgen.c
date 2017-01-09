@@ -2487,49 +2487,33 @@ _netcmp_verify(ClientData clientData,
    if (dolist)
    {
       if (objc == 1 || index == NODE_IDX || index == ALL_IDX) {
-	 if (nbad == NULL) {
-	    Tcl_Obj *n0, *n1; 
-	    nbad = Tcl_NewListObj(0, NULL);
-	    n0 = Tcl_NewStringObj("badnets", -1);
-	    n1 = Tcl_NewListObj(0, NULL);
-	    Tcl_ListObjAppendElement(netgeninterp, nbad, n0);
-	    Tcl_ListObjAppendElement(netgeninterp, nbad, n1);
-	 }
+	 if (nbad == NULL) nbad = Tcl_NewListObj(0, NULL);
+	 Tcl_SetVar2Ex(interp, "lvs_out", NULL,
+		Tcl_NewStringObj("badnets", -1),
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
 	 Tcl_SetVar2Ex(interp, "lvs_out", NULL, nbad,
 		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
 #if 0
-	 if (ngood == NULL) {
-	    Tcl_Obj *n0, *n1; 
-	    ngood = Tcl_NewListObj(0, NULL);
-	    n0 = Tcl_NewStringObj("goodnets", -1);
-	    n1 = Tcl_NewListObj(0, NULL);
-	    Tcl_ListObjAppendElement(netgeninterp, ngood, n0);
-	    Tcl_ListObjAppendElement(netgeninterp, ngood, n1);
-	 }
+	 if (ngood == NULL) ngood = Tcl_NewListObj(0, NULL);
+	 Tcl_SetVar2Ex(interp, "lvs_out", NULL,
+		Tcl_NewStringObj("goodnets", -1),
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
 	 Tcl_SetVar2Ex(interp, "lvs_out", NULL, ngood,
 		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
 #endif
       }
       if (objc == 1 || index == ELEM_IDX || index == ALL_IDX) {
-	 if (ebad == NULL) {
-	    Tcl_Obj *e0, *e1; 
-	    ebad = Tcl_NewListObj(0, NULL);
-	    e0 = Tcl_NewStringObj("badelements", -1);
-	    e1 = Tcl_NewListObj(0, NULL);
-	    Tcl_ListObjAppendElement(netgeninterp, ebad, e0);
-	    Tcl_ListObjAppendElement(netgeninterp, ebad, e1);
-	 }
+	 if (ebad == NULL) ebad = Tcl_NewListObj(0, NULL);
+	 Tcl_SetVar2Ex(interp, "lvs_out", NULL,
+		Tcl_NewStringObj("badelements", -1),
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
 	 Tcl_SetVar2Ex(interp, "lvs_out", NULL, ebad,
 		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
 #if 0
-	 if (egood == NULL) {
-	    Tcl_Obj *e0, *e1; 
-	    ebad = Tcl_NewListObj(0, NULL);
-	    e0 = Tcl_NewStringObj("goodelements", -1);
-	    e1 = Tcl_NewListObj(0, NULL);
-	    Tcl_ListObjAppendElement(netgeninterp, egood, e0);
-	    Tcl_ListObjAppendElement(netgeninterp, egood, e1);
-	 }
+	 if (egood == NULL) egood = Tcl_NewListObj(0, NULL);
+	 Tcl_SetVar2Ex(interp, "lvs_out", NULL,
+		Tcl_NewStringObj("goodelements", -1),
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
 	 Tcl_SetVar2Ex(interp, "lvs_out", NULL, egood,
 		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
 #endif

@@ -998,15 +998,17 @@ Tcl_Obj *ListElementClasses(int legal)
   int numlists1, numlists2, n1, n2, n, f1, f2, i, maxf;
   char *estr;
 
-  Tcl_Obj *dobj, *lobj, *e1obj, *e2obj, *sobj, *gobj;
+  Tcl_Obj *lobj, *c1obj, *c2obj, *e1obj, *e2obj, *sobj;
+  Tcl_Obj *g1obj, *g2obj, *dobj;
 
-  lobj = Tcl_NewListObj(0, NULL);
+  dobj = Tcl_NewListObj(0, NULL);
   for (escan = ElementClasses; escan != NULL; escan = escan->next) {
     if (legal == escan->legalpartition) {
       struct Element *E;
 
-      e1obj = Tcl_NewListObj(0, NULL);
-      e2obj = Tcl_NewListObj(0, NULL);
+      lobj = Tcl_NewListObj(0, NULL);
+      g1obj = Tcl_NewListObj(0, NULL);
+      g2obj = Tcl_NewListObj(0, NULL);
 
       numlists1 = numlists2 = 0;
       for (E = escan->elements; E != NULL; E = E->next)
@@ -1035,22 +1037,30 @@ Tcl_Obj *ListElementClasses(int legal)
       }
 
       for (n = 0; n < ((n1 > n2) ? n1 : n2); n++) {
+         c1obj = Tcl_NewListObj(0, NULL);
+         c2obj = Tcl_NewListObj(0, NULL);
+
+         e1obj = Tcl_NewListObj(0, NULL);
+         e2obj = Tcl_NewListObj(0, NULL);
+
 	 if (n < n1) {
 	    estr = elist1[n]->name;
 	    if (*estr == '/') estr++;	// Remove leading slash, if any
-	    Tcl_ListObjAppendElement(netgeninterp, e1obj, Tcl_NewStringObj(estr, -1));
+	    Tcl_ListObjAppendElement(netgeninterp, c1obj, Tcl_NewStringObj(estr, -1));
 	 }
 	 else
-	    Tcl_ListObjAppendElement(netgeninterp, e1obj,
+	    Tcl_ListObjAppendElement(netgeninterp, c1obj,
 			Tcl_NewStringObj("(no matching instance)", -1));
+	 Tcl_ListObjAppendElement(netgeninterp, c1obj, e1obj);
 	 if (n < n2) {
 	    estr = elist2[n]->name;
 	    if (*estr == '/') estr++;	// Remove leading slash, if any
-	    Tcl_ListObjAppendElement(netgeninterp, e2obj, Tcl_NewStringObj(estr, -1));
+	    Tcl_ListObjAppendElement(netgeninterp, c2obj, Tcl_NewStringObj(estr, -1));
 	 }
 	 else
-	    Tcl_ListObjAppendElement(netgeninterp, e2obj,
+	    Tcl_ListObjAppendElement(netgeninterp, c2obj,
 			Tcl_NewStringObj("(no matching instance)", -1));
+	 Tcl_ListObjAppendElement(netgeninterp, c2obj, e2obj);
 
 	 if (n >= n1)
 	    maxf = elist2[n]->fanout;
@@ -1111,24 +1121,17 @@ Tcl_Obj *ListElementClasses(int legal)
 	    }
 	    f2++;
 	 }
+         Tcl_ListObjAppendElement(netgeninterp, g1obj, c1obj);
+         Tcl_ListObjAppendElement(netgeninterp, g2obj, c2obj);
       }
+      Tcl_ListObjAppendElement(netgeninterp, lobj, g1obj);
+      Tcl_ListObjAppendElement(netgeninterp, lobj, g2obj);
+      Tcl_ListObjAppendElement(netgeninterp, dobj, lobj);
 
       FreeFormattedLists(elist1, numlists1);
       FreeFormattedLists(elist2, numlists2);
-
-      gobj = Tcl_NewListObj(0, NULL);
-      Tcl_ListObjAppendElement(netgeninterp, gobj, e1obj);
-      Tcl_ListObjAppendElement(netgeninterp, gobj, e2obj);
-      Tcl_ListObjAppendElement(netgeninterp, lobj, gobj);
     }
   }
-
-  dobj = Tcl_NewListObj(0, NULL);
-  if (legal)
-     Tcl_ListObjAppendElement(netgeninterp, dobj, Tcl_NewStringObj("goodelements", -1));
-  else
-     Tcl_ListObjAppendElement(netgeninterp, dobj, Tcl_NewStringObj("badelements", -1));
-  Tcl_ListObjAppendElement(netgeninterp, dobj, lobj);
   return dobj;
 }
 
@@ -1375,15 +1378,17 @@ Tcl_Obj *ListNodeClasses(int legal)
   struct NodeClass *nscan;
   int numlists1, numlists2, n1, n2, n, f, i, maxf;
 
-  Tcl_Obj *dobj, *lobj, *e1obj, *e2obj, *sobj, *gobj;
+  Tcl_Obj *lobj, *c1obj, *c2obj, *n1obj, *n2obj, *sobj;
+  Tcl_Obj *dobj, *g1obj, *g2obj;
 
-  lobj = Tcl_NewListObj(0, NULL);
+  dobj = Tcl_NewListObj(0, NULL);
   for (nscan = NodeClasses; nscan != NULL; nscan = nscan->next) {
     if (legal == nscan->legalpartition) {
       struct Node *N;
 
-      e1obj = Tcl_NewListObj(0, NULL);
-      e2obj = Tcl_NewListObj(0, NULL);
+      lobj = Tcl_NewListObj(0, NULL);
+      g1obj = Tcl_NewListObj(0, NULL);
+      g2obj = Tcl_NewListObj(0, NULL);
 
       numlists1 = numlists2 = 0;
       for (N = nscan->nodes; N != NULL; N = N->next) {
@@ -1410,18 +1415,27 @@ Tcl_Obj *ListNodeClasses(int legal)
       }
 
       for (n = 0; n < ((n1 > n2) ? n1 : n2); n++) {
+         c1obj = Tcl_NewListObj(0, NULL);
+         c2obj = Tcl_NewListObj(0, NULL);
+
+         n1obj = Tcl_NewListObj(0, NULL);
+         n2obj = Tcl_NewListObj(0, NULL);
+
 	 if (n < n1)
-	    Tcl_ListObjAppendElement(netgeninterp, e1obj,
+	    Tcl_ListObjAppendElement(netgeninterp, c1obj,
 			Tcl_NewStringObj(nlists1[n]->name, -1));
 	 else
-	    Tcl_ListObjAppendElement(netgeninterp, e1obj,
+	    Tcl_ListObjAppendElement(netgeninterp, c1obj,
 			Tcl_NewStringObj("(no matching net)", -1));
+	 Tcl_ListObjAppendElement(netgeninterp, c1obj, n1obj);
+
 	 if (n < n2)
-	    Tcl_ListObjAppendElement(netgeninterp, e2obj,
+	    Tcl_ListObjAppendElement(netgeninterp, c2obj,
 			Tcl_NewStringObj(nlists2[n]->name, -1));
 	 else
-	    Tcl_ListObjAppendElement(netgeninterp, e2obj,
+	    Tcl_ListObjAppendElement(netgeninterp, c2obj,
 			Tcl_NewStringObj("(no matching net)", -1));
+	 Tcl_ListObjAppendElement(netgeninterp, c2obj, n2obj);
 
 	 if (n >= n1)
 	    maxf = nlists2[n]->fanout;
@@ -1445,7 +1459,7 @@ Tcl_Obj *ListNodeClasses(int legal)
 		  if (nlists1[n]->flist[f].permute > 1)
 		     FREE(nlists1[n]->flist[f].name);
 
-		  Tcl_ListObjAppendElement(netgeninterp, e1obj, sobj);
+		  Tcl_ListObjAppendElement(netgeninterp, n1obj, sobj);
 	       }
 	    if (n < n2)
 	       if (f < nlists2[n]->fanout) {
@@ -1459,26 +1473,20 @@ Tcl_Obj *ListNodeClasses(int legal)
 
 		  if (nlists2[n]->flist[f].permute > 1)
 		     FREE(nlists2[n]->flist[f].name);
-		  Tcl_ListObjAppendElement(netgeninterp, e2obj, sobj);
+		  Tcl_ListObjAppendElement(netgeninterp, n2obj, sobj);
 	       }
 	 }
+         Tcl_ListObjAppendElement(netgeninterp, g1obj, c1obj);
+         Tcl_ListObjAppendElement(netgeninterp, g2obj, c2obj);
       }
+      Tcl_ListObjAppendElement(netgeninterp, lobj, g1obj);
+      Tcl_ListObjAppendElement(netgeninterp, lobj, g2obj);
+      Tcl_ListObjAppendElement(netgeninterp, dobj, lobj);
 
       FreeFormattedLists(nlists1, numlists1);
       FreeFormattedLists(nlists2, numlists2);
-
-      gobj = Tcl_NewListObj(0, NULL);
-      Tcl_ListObjAppendElement(netgeninterp, gobj, e1obj);
-      Tcl_ListObjAppendElement(netgeninterp, gobj, e2obj);
-      Tcl_ListObjAppendElement(netgeninterp, lobj, gobj);
     }
   }
-  dobj = Tcl_NewListObj(0, NULL);
-  if (legal)
-     Tcl_ListObjAppendElement(netgeninterp, dobj, Tcl_NewStringObj("goodnets", -1));
-  else
-     Tcl_ListObjAppendElement(netgeninterp, dobj, Tcl_NewStringObj("badnets", -1));
-  Tcl_ListObjAppendElement(netgeninterp, dobj, lobj);
   return dobj;
 }
 
@@ -2957,16 +2965,16 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 
 #ifdef TCL_NETGEN
   if (dolist) {
-     Tcl_Obj *dlist, *mlist;
+     Tcl_Obj *mlist;
 
-     dlist = Tcl_NewListObj(0, NULL);
      mlist = Tcl_NewListObj(0, NULL);
      Tcl_ListObjAppendElement(netgeninterp, mlist, clist1);
      Tcl_ListObjAppendElement(netgeninterp, mlist, clist2);
-     Tcl_ListObjAppendElement(netgeninterp, dlist,
-		Tcl_NewStringObj("devices", -1));
-     Tcl_ListObjAppendElement(netgeninterp, dlist, mlist);
-     Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, dlist,
+
+     Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL,
+		Tcl_NewStringObj("devices", -1),
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+     Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, mlist,
 		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
   }
 #endif
@@ -3016,16 +3024,15 @@ void FirstNodePass(struct Node *N, int dolist)
 
 #ifdef TCL_NETGEN
   if (dolist) {
-     Tcl_Obj *dlist, *nlist;
+     Tcl_Obj *nlist;
 
-     dlist = Tcl_NewListObj(0, NULL);
      nlist = Tcl_NewListObj(0, NULL);
-     Tcl_ListObjAppendElement(netgeninterp, dlist,
-		Tcl_NewStringObj("nets", -1));
-     Tcl_ListObjAppendElement(netgeninterp, dlist, nlist);
      Tcl_ListObjAppendElement(netgeninterp, nlist, Tcl_NewIntObj(C1));
      Tcl_ListObjAppendElement(netgeninterp, nlist, Tcl_NewIntObj(C2));
-     Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, dlist,
+     Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL,
+		Tcl_NewStringObj("nets", -1),
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+     Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, nlist,
 		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
   }
 #endif
@@ -3483,16 +3490,16 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2, int dolist)
   
 #ifdef TCL_NETGEN
     if (dolist) {
-       Tcl_Obj *dlist, *nlist;
+       Tcl_Obj *nlist;
 
-       dlist = Tcl_NewListObj(0, NULL);
        nlist = Tcl_NewListObj(0, NULL);
-       Tcl_ListObjAppendElement(netgeninterp, dlist,
-		Tcl_NewStringObj("name", -1));
-       Tcl_ListObjAppendElement(netgeninterp, dlist, nlist);
        Tcl_ListObjAppendElement(netgeninterp, nlist, Tcl_NewStringObj(name1, -1));
        Tcl_ListObjAppendElement(netgeninterp, nlist, Tcl_NewStringObj(name2, -1));
-       Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, dlist,
+
+       Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL,
+		Tcl_NewStringObj("name", -1),
+		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+       Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, nlist,
 		TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
     }
 #endif
@@ -4490,20 +4497,37 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial)
 #ifdef TCL_NETGEN
 
 /*--------------------------------------------------------------*/
+/* Property list starts with a pair of instance names, followed	*/
+/* by a list of corresponding but mismatched properties.	*/
+/*--------------------------------------------------------------*/
+
+Tcl_Obj *NewPropertyList(char *inst1, char *inst2)
+{
+   Tcl_Obj *proplist;
+   Tcl_Obj *mpair, *instobj;
+
+   mpair = Tcl_NewListObj(0, NULL);
+   instobj = Tcl_NewStringObj(inst1, -1);
+   Tcl_ListObjAppendElement(netgeninterp, mpair, instobj);
+   instobj = Tcl_NewStringObj(inst2, -1);
+   Tcl_ListObjAppendElement(netgeninterp, mpair, instobj);
+
+   proplist = Tcl_NewListObj(0, NULL);
+   Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
+   return proplist;
+}
+
+/*--------------------------------------------------------------*/
 /* Generate a Tcl list entry for a property mismatching pair	*/
 /*--------------------------------------------------------------*/
 
-Tcl_Obj *PropertyList(char *inst1, struct valuelist *vl1,
-		char *inst2, struct valuelist *vl2)
+Tcl_Obj *PropertyList(struct valuelist *vl1, struct valuelist *vl2)
 {
    Tcl_Obj *mobj, *mpair, *propobj;
 
    mpair = Tcl_NewListObj(0, NULL);
 
    mobj = Tcl_NewListObj(0, NULL);
-   propobj = Tcl_NewStringObj(inst1, -1);
-   Tcl_ListObjAppendElement(netgeninterp, mobj, propobj);
-
    if (vl1 == NULL)
       propobj = Tcl_NewStringObj("(no matching parameter)", -1);
    else
@@ -4523,9 +4547,6 @@ Tcl_Obj *PropertyList(char *inst1, struct valuelist *vl1,
    Tcl_ListObjAppendElement(netgeninterp, mpair, mobj);
 
    mobj = Tcl_NewListObj(0, NULL);
-   propobj = Tcl_NewStringObj(inst2, -1);
-   Tcl_ListObjAppendElement(netgeninterp, mobj, propobj);
-
    if (vl2 == NULL)
       propobj = Tcl_NewStringObj("(no matching parameter)", -1);
    else
@@ -4540,6 +4561,8 @@ Tcl_Obj *PropertyList(char *inst1, struct valuelist *vl1,
       propobj = Tcl_NewDoubleObj(vl2->value.dval);
    else if (vl2->type == PROP_STRING)
       propobj = Tcl_NewStringObj(vl2->value.string, -1);
+   else if (vl2->type == PROP_EXPRESSION)
+      propobj = Tcl_NewStringObj("(unresolved expression)", -1);
    Tcl_ListObjAppendElement(netgeninterp, mobj, propobj);
 
    Tcl_ListObjAppendElement(netgeninterp, mpair, mobj);
@@ -4582,9 +4605,8 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
    static struct property klm, kls;
    static char mkey[2], skey[2];
 
-#ifdef TCL_NETLIST
-   Tcl_Obj *proplist;
-   proplist = Tcl_NewListObj(0, NULL);
+#ifdef TCL_NETGEN
+   Tcl_Obj *proplist = NULL;
 #endif
 
    // Set up static records representing property M = 1 and S = 1
@@ -4648,9 +4670,10 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	             Fprintf(stdout, "Property %s in circuit2 has no matching "
 				"property in circuit1\n",  vl2->key);
 	          }
-#ifdef TCL_NETLIST
+#ifdef TCL_NETGEN
 	          if (do_list) {
-	              Tcl_Obj *mpair = PropertyList(inst1, vl1, inst2, vl2);
+	              Tcl_Obj *mpair = PropertyList(NULL, vl2);
+		      if (!proplist) proplist = Tcl_NewListObj(0, NULL);
 		      Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
 	          }
 #endif
@@ -4703,9 +4726,10 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	    Fprintf(stdout, "Property %s in circuit1 has no matching "
 			"property in circuit2\n",  vl1->key);
 	 }
-#ifdef TCL_NETLIST
+#ifdef TCL_NETGEN
          if (do_list) {
-             Tcl_Obj *mpair = PropertyList(inst1, vl1, inst2, vl2);
+             Tcl_Obj *mpair = PropertyList(vl1, NULL);
+	     if (!proplist) proplist = Tcl_NewListObj(0, NULL);
 	     Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
          }
 #endif
@@ -4785,9 +4809,10 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	    }
 	    Fprintf(stdout, "  (property type mismatch)\n");
 	 }
-#ifdef TCL_NETLIST
+#ifdef TCL_NETGEN
          if (do_list) {
-             Tcl_Obj *mpair = PropertyList(inst1, vl1, inst2, vl2);
+             Tcl_Obj *mpair = PropertyList(vl1, vl2);
+	     if (!proplist) proplist = Tcl_NewListObj(0, NULL);
 	     Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
          }
 #endif
@@ -4814,9 +4839,10 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 		  else
 		     Fprintf(stdout, "\n");
 	       }
-#ifdef TCL_NETLIST
+#ifdef TCL_NETGEN
 	       if (do_list) {
-                  Tcl_Obj *mpair = PropertyList(inst1, vl1, inst2, vl2);
+                  Tcl_Obj *mpair = PropertyList(vl1, vl2);
+		  if (!proplist) proplist = Tcl_NewListObj(0, NULL);
 	          Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
                }
 #endif
@@ -4840,9 +4866,10 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 		  else
 		     Fprintf(stdout, "\n");
 	       }
-#ifdef TCL_NETLIST
+#ifdef TCL_NETGEN
 	       if (do_list) {
-                  Tcl_Obj *mpair = PropertyList(inst1, vl1, inst2, vl2);
+                  Tcl_Obj *mpair = PropertyList(vl1, vl2);
+		  if (!proplist) proplist = Tcl_NewListObj(0, NULL);
 	          Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
                }
 #endif
@@ -4867,9 +4894,10 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 				kl1->key, vl1->value.string,
 				vl2->value.string);
 		  }
-#ifdef TCL_NETLIST
+#ifdef TCL_NETGEN
 	          if (do_list) {
-                     Tcl_Obj *mpair = PropertyList(inst1, vl1, inst2, vl2);
+                     Tcl_Obj *mpair = PropertyList(vl1, vl2);
+		     if (!proplist) proplist = Tcl_NewListObj(0, NULL);
 	             Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
                   }
 #endif
@@ -4886,9 +4914,10 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 		      		kl1->key, vl1->value.string,
 				vl2->value.string, islop);
 		  }
-#ifdef TCL_NETLIST
+#ifdef TCL_NETGEN
 	          if (do_list) {
-                     Tcl_Obj *mpair = PropertyList(inst1, vl1, inst2, vl2);
+                     Tcl_Obj *mpair = PropertyList(vl1, vl2);
+		     if (!proplist) proplist = Tcl_NewListObj(0, NULL);
 	             Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
                   }
 #endif
@@ -4900,9 +4929,10 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	    /* Expressions could potentially be compared. . . */
 	    if (do_print)
 	       Fprintf(stdout,  " %s (unresolved expressions.)\n", kl1->key);
-#ifdef TCL_NETLIST
+#ifdef TCL_NETGEN
 	    if (do_list) {
-               Tcl_Obj *mpair = PropertyList(inst1, vl1, inst2, vl2);
+               Tcl_Obj *mpair = PropertyList(vl1, vl2);
+	       if (!proplist) proplist = Tcl_NewListObj(0, NULL);
 	       Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
             }
 #endif
@@ -4917,8 +4947,8 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
    if (len2 > 0) FREE(check2);
    *count = mismatches;
 
-#ifdef TCL_NETLIST
-   if (dolist) return proplist;
+#ifdef TCL_NETGEN
+   return proplist;
 #endif
 
 }
@@ -4955,7 +4985,7 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
    int rval = 1;
    char *inst1, *inst2;
 #ifdef TCL_NETGEN
-   Tcl_Obj *proplist, *mpair;
+   Tcl_Obj *proplist = NULL, *mpair, *mlist;
 #endif
 
    tc1 = LookupCellFile(ob1->model.class, Circuit1->file);
@@ -5041,8 +5071,6 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
    inst2 = ob2->instance.name;
    if (*inst2 == '/') inst2++;
 
-   proplist = Tcl_NewListObj(0, NULL);
-
    while(1) {
       if (t1type != PROPERTY) {
 	 // t1 has no properties.  See if t2's properties are required
@@ -5063,8 +5091,11 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 			Circuit2->name, inst2);
 #ifdef TCL_NETGEN
 	    if (do_list) {
-	        mpair = PropertyList(inst1, NULL, inst2, vl2);
-		Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
+	        mpair = PropertyList(NULL, vl2);
+		if (mpair) {
+		   if (!proplist) proplist = NewPropertyList(inst1, inst2);
+		   Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
+		}
 	    }
 #endif
 	    rval = -1;
@@ -5091,8 +5122,11 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 			Circuit1->name, inst1);
 #ifdef TCL_NETGEN
 	    if (do_list) {
-	        mpair = PropertyList(inst1, vl1, inst2, NULL);
-		Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
+	        mpair = PropertyList(vl1, NULL);
+		if (mpair) {
+		   if (!proplist) proplist = NewPropertyList(inst1, inst2);
+		   Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
+		}
 	    }
 #endif
 	    rval = -1;
@@ -5115,13 +5149,16 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	    PropertyOptimize(tp2, tc2, 1, TRUE);
 	 }
 #ifdef TCL_NETGEN
-	 mpair =
+	 mlist =
 #endif
 	 PropertyCheckMismatch(tp1, tc1, inst1, tp2, tc2,
 			inst2, do_print, do_list, &count, &rval);
 	 mismatches += count;
 #ifdef TCL_NETGEN
-	 Tcl_ListObjAppendElement(netgeninterp, proplist, mpair);
+	 if (do_list && (mlist != NULL)) {
+	    if (!proplist) proplist = NewPropertyList(inst1, inst2);
+	    Tcl_ListObjAppendList(netgeninterp, proplist, mlist);
+	 }
 #endif
       }
 
@@ -5204,7 +5241,7 @@ void PrintPropertyResults(int do_list)
 #ifdef TCL_NETGEN
 
     if (do_list) {
-       Tcl_Obj *proprec, *proplist, *eprop;
+       Tcl_Obj *proplist, *eprop;
 
        proplist = Tcl_NewListObj(0, NULL);
        for (EC = ElementClasses; EC != NULL; EC = EC->next) {
@@ -5212,11 +5249,10 @@ void PrintPropertyResults(int do_list)
 	   if (eprop != NULL)
 	      Tcl_ListObjAppendElement(netgeninterp, proplist, eprop);
        }
-       proprec = Tcl_NewListObj(0, NULL);
-       Tcl_ListObjAppendElement(netgeninterp, proprec,
-		Tcl_NewStringObj("properties", -1));
-       Tcl_ListObjAppendElement(netgeninterp, proprec, proplist);
-       Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, proprec,
+       Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL,
+			Tcl_NewStringObj("properties", -1),
+			TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+       Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, proplist,
 			TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
     }
     else {
@@ -6245,7 +6281,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    int needclean1 = 0, needclean2 = 0;
    char ostr[89];
 #ifdef TCL_NETGEN
-   Tcl_Obj *dlist, *mlist, *plist1, *plist2;
+   Tcl_Obj *mlist, *plist1, *plist2;
 #endif
 
    if (tc1 == NULL) tc1 = Circuit1;
@@ -6274,11 +6310,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
 #ifdef TCL_NETGEN
    if (dolist) {
-      dlist = Tcl_NewListObj(0, NULL);
       mlist = Tcl_NewListObj(0, NULL);
-      Tcl_ListObjAppendElement(netgeninterp, dlist,
-		Tcl_NewStringObj("pins", -1));
-      Tcl_ListObjAppendElement(netgeninterp, dlist, mlist);
       plist1 = Tcl_NewListObj(0, NULL);
       plist2 = Tcl_NewListObj(0, NULL);
       Tcl_ListObjAppendElement(netgeninterp, mlist, plist1);
@@ -6322,9 +6354,13 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	             }
 	             if (N2 == NULL) {
 #ifdef TCL_NETGEN
-			if (dolist)
-			   Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, dlist,
+			if (dolist) {
+			   Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL,
+					Tcl_NewStringObj("pins", -1),
 					TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+			   Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, mlist,
+					TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+			}
 #endif
 			return 1;
 		     }
@@ -6738,9 +6774,13 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 #ifdef TCL_NETGEN
    /* Handle list output */
 
-   if (dolist)
-      Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, dlist,
+   if (dolist) {
+      Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL,
+			Tcl_NewStringObj("pins", -1),
 			TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+      Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, mlist,
+			TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+   }
 #endif
 
    return result;

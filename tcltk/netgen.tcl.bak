@@ -34,321 +34,127 @@ proc netgen::convert_to_json {filename lvs_final} {
    set pidx [string last . $filename]
    set jsonname [string replace $filename $pidx end ".json"]
    if {![catch {open $jsonname w} fjson]} {
-      puts $fjson "\["
       # Outer list is of each cell compared
-      set clen [llength $lvs_final]
-      set cidx 0
       foreach circuit $lvs_final {
-         incr cidx
-         puts $fjson "  \{"
-         set nkeys [llength $circuit]
-         set kidx 0
 	 foreach {key value} $circuit {
-            incr kidx 2
+	    puts $fjson "  $key"
 	    switch $key {
 	       name {
-	          puts $fjson "   \"${key}\": \["
 		  set cktval [lindex $value 0]
-		  puts $fjson "      \"${cktval}\","
+		  puts $fjson "    $cktval"
 		  set cktval [lindex $value 1]
-		  puts $fjson "      \"${cktval}\""
-		  if {$kidx == $nkeys} {
-		     puts $fjson "   \]"
-		  } else {
-		     puts $fjson "   \],"
-		  }
+		  puts $fjson "    $cktval"
 	       }
 	       pins {
-	          puts $fjson "   \"${key}\": \["
-	          puts $fjson "      \["
 		  set cktval [lindex $value 0]
-		  foreach pin [lrange $cktval 0 end-1] {
-		     puts $fjson "        \"$pin\","
+		  foreach pin $cktval {
+		     puts $fjson "    $pin"
 		  }
-		  set pin [lindex $cktval end]
-		  puts $fjson "        \"$pin\""
-	          puts $fjson "      \], \["
 		  set cktval [lindex $value 1]
-		  foreach pin [lrange $cktval 0 end-1] {
-		     puts $fjson "        \"$pin\","
-		  }
-		  set pin [lindex $cktval end]
-		  puts $fjson "        \"$pin\""
-	          puts $fjson "      \]"
-		  if {$kidx == $nkeys} {
-		     puts $fjson "   \]"
-		  } else {
-		     puts $fjson "   \],"
+		  foreach pin $cktval {
+		     puts $fjson "    $pin"
 		  }
 	       }
                nets {
-	          puts $fjson "   \"${key}\": \["
 		  set cktval [lindex $value 0]
-		  puts $fjson "    \"$cktval\","
+		  puts $fjson "    $cktval"
 		  set cktval [lindex $value 1]
-		  puts $fjson "    \"$cktval\""
-		  if {$kidx == $nkeys} {
-		     puts $fjson "   \]"
-		  } else {
-		     puts $fjson "   \],"
-		  }
+		  puts $fjson "    $cktval"
                }
 	       devices {
-	          puts $fjson "   \"${key}\": \["
-	          puts $fjson "       \["
 		  set cktval [lindex $value 0]
-		  foreach dev [lrange $cktval 0 end-1] {
+		  foreach dev $cktval {
 		     set devname [lindex $dev 0]
 		     set devnum  [lindex $dev 1]
-		     puts $fjson "         \[\"${devname}\", ${devnum}\],"
+		     puts $fjson "    $devname, $devnum"
 		  }
-		  set dev [lindex $cktval end]
-		  set devname [lindex $dev 0]
-		  set devnum  [lindex $dev 1]
-		  puts $fjson "         \[\"${devname}\", ${devnum} \]"
-	          puts $fjson "       \], \["
 		  set cktval [lindex $value 1]
-		  foreach dev [lrange $cktval 0 end-1] {
+		  foreach dev $cktval {
 		     set devname [lindex $dev 0]
 		     set devnum  [lindex $dev 1]
-		     puts $fjson "         \[\"${devname}\", ${devnum} \],"
-		  }
-		  set dev [lindex $cktval end]
-		  set devname [lindex $dev 0]
-		  set devnum  [lindex $dev 1]
-		  puts $fjson "         \[\"${devname}\", ${devnum} \]"
-	          puts $fjson "       \]"
-		  if {$kidx == $nkeys} {
-		     puts $fjson "   \]"
-		  } else {
-		     puts $fjson "   \],"
+		     puts $fjson "    $devname, $devnum"
 		  }
 	       }
 	       goodnets -
 	       badnets {
-	          puts $fjson "   \"${key}\": \["
-		  set glen [llength $value]
-		  set gidx 0
 		  foreach group $value {
-		     incr gidx
-	             puts $fjson "      \["
-	             puts $fjson "        \["
 		     set cktval [lindex $group 0]
-		     set nlen [llength $cktval]
-		     set nidx 0
 		     foreach net $cktval {
-			incr nidx
-	                puts $fjson "          \["
 			set netname [lindex $net 0]
-		        puts $fjson "            \"$netname\","
-		        puts $fjson "            \["
+		        puts $fjson "    $netname"
 			set netconn [lindex $net 1]
-			foreach fanout [lrange $netconn 0 end-1] {
+			foreach fanout $netconn {
 			   set devname [lindex $fanout 0]
 			   set pinname [lindex $fanout 1]
 			   set count [lindex $fanout 2]
-			   if {$count == {}} {set count 0}
-		           puts $fjson "              \[ \"$devname\", \"$pinname\", $count \],"
-			}
-			set fanout [lindex $netconn end]
-			set devname [lindex $fanout 0]
-			set pinname [lindex $fanout 1]
-			set count [lindex $fanout 2]
-			if {$count == {}} {set count 0}
-		        puts $fjson "              \[ \"$devname\", \"$pinname\", $count \]"
-		        puts $fjson "            \]"
-			if {$nidx == $nlen} {
-	                   puts $fjson "          \]"
-			} else {
-	                   puts $fjson "          \],"
+		           puts $fjson "      $devname, $pinname, $count"
 			}
 		     }
-	             puts $fjson "        \], \["
-		     set cktval [lindex $group 1]
-		     set nlen [llength $cktval]
-		     set nidx 0
+		     set cktval [lindex $value 1]
 		     foreach net $cktval {
-			incr nidx
-	                puts $fjson "          \["
 			set netname [lindex $net 0]
-		        puts $fjson "            \"$netname\","
-		        puts $fjson "            \["
+		        puts $fjson "    $netname"
 			set netconn [lindex $net 1]
-			foreach fanout [lrange $netconn 0 end-1] {
+			foreach fanout $netconn {
 			   set devname [lindex $fanout 0]
 			   set pinname [lindex $fanout 1]
 			   set count [lindex $fanout 2]
-			   if {$count == {}} {set count 0}
-		           puts $fjson "              \[ \"$devname\", \"$pinname\", $count \],"
-			}
-			set fanout [lindex $netconn end]
-			set devname [lindex $fanout 0]
-			set pinname [lindex $fanout 1]
-			set count [lindex $fanout 2]
-			if {$count == {}} {set count 0}
-		        puts $fjson "              \[ \"$devname\", \"$pinname\", $count \]"
-		        puts $fjson "            \]"
-			if {$nidx == $nlen} {
-	                   puts $fjson "          \]"
-			} else {
-	                   puts $fjson "          \],"
+		           puts $fjson "      $devname, $pinname, $count"
 			}
 		     }
-		     if {$gidx == $glen} {
-	                puts $fjson "        \]"
-		     } else {
-	                puts $fjson "        \],"
-		     }
-		  }
-		  puts $fjson "      \]"
-		  if {$kidx == $nkeys} {
-		     puts $fjson "   \]"
-		  } else {
-		     puts $fjson "   \],"
 		  }
 	       }
 	       goodelements -
 	       badelements {
-	          puts $fjson "   \"${key}\": \["
-		  set glen [llength $value]
-		  set gidx 0
 		  foreach group $value {
-		     incr gidx
-	             puts $fjson "      \["
-	             puts $fjson "        \["
 		     set cktval [lindex $group 0]
-		     set ilen [llength $cktval]
-		     set iidx 0
-		     foreach inst $cktval {
-			incr iidx
-	                puts $fjson "          \["
-			set instname [lindex $inst 0]
-		        puts $fjson "            \"$instname\","
-		        puts $fjson "            \["
-			set instpins [lindex $inst 1]
-			foreach fanout [lrange $instpins 0 end-1] {
+		     foreach elem $cktval {
+			set instname [lindex $elem 0]
+		        puts $fjson "    $instname"
+			set instpins [lindex $elem 1]
+			foreach fanout $instpins {
 			   set pinname [lindex $fanout 0]
 			   set count [lindex $fanout 1]
-			   if {$count == {}} {set count 0}
-		           puts $fjson "              \[ \"$pinname\", $count \],"
-			}
-			set fanout [lindex $instpins end]
-			set pinname [lindex $fanout 0]
-			set count [lindex $fanout 1]
-			if {$count == {}} {set count 0}
-		        puts $fjson "              \[ \"$pinname\", $count \]"
-		        puts $fjson "            \]"
-			if {$iidx == $ilen} {
-	                   puts $fjson "          \]"
-			} else {
-	                   puts $fjson "          \],"
+		           puts $fjson "      $pinname, $count"
 			}
 		     }
-	             puts $fjson "        \], \["
-		     set cktval [lindex $group 1]
-		     set ilen [llength $cktval]
-		     set iidx 0
-		     foreach inst $cktval {
-			incr iidx
-	                puts $fjson "          \["
-			set instname [lindex $inst 0]
-		        puts $fjson "            \"$instname\","
-		        puts $fjson "            \["
-			set instpins [lindex $inst 1]
-			foreach fanout [lrange $instpins 0 end-1] {
+		     set cktval [lindex $value 1]
+		     foreach elem $cktval {
+			set instname [lindex $net 0]
+		        puts $fjson "    $instname"
+			set instpins [lindex $net 1]
+			foreach fanout $instpins {
 			   set pinname [lindex $fanout 0]
 			   set count [lindex $fanout 1]
-			   if {$count == {}} {set count 0}
-		           puts $fjson "              \[ \"$pinname\", $count \],"
-			}
-			set fanout [lindex $instpins end]
-			set pinname [lindex $fanout 0]
-			set count [lindex $fanout 1]
-			if {$count == {}} {set count 0}
-		        puts $fjson "              \[ \"$pinname\", $count \]"
-		        puts $fjson "            \]"
-			if {$iidx == $ilen} {
-	                   puts $fjson "          \]"
-			} else {
-	                   puts $fjson "          \],"
+		           puts $fjson "      $pinname, $count"
 			}
 		     }
-		     if {$gidx == $glen} {
-	                puts $fjson "        \]"
-		     } else {
-	                puts $fjson "        \],"
-		     }
-		  }
-		  puts $fjson "      \]"
-		  if {$kidx == $nkeys} {
-		     puts $fjson "   \]"
-		  } else {
-		     puts $fjson "   \],"
 		  }
 	       }
 	       properties {
-	          puts $fjson "   \"${key}\": \["
-		  set plen [llength $value]
-                  set pidx 0
 		  foreach instance $value {
-		     incr pidx
-	             puts $fjson "      \["
 		     set instnames [lindex $instance 0]
 		     set instname0 [lindex $instnames 0]
-	             puts $fjson "         \["
-		     puts $fjson "           \"${instname0}\","
-	             puts $fjson "           \["
-		     foreach property [lrange $instance 1 end-1] {
+		     puts $fjson "    $instname0:"
+		     foreach property [lrange $instance 1 end] {
 		        set prop0 [lindex $property 0]
 			set propname [lindex $prop0 0]
 			set propval [lindex $prop0 1]
-		        puts $fjson "             \[\"${propname}\", \"${propval}\"\],"
+		        puts $fjson "      $propname: $propval"
 		     }
-		     set property [lindex $instance end]
-		     set prop0 [lindex $property 0]
-		     set propname [lindex $prop0 0]
-		     set propval [lindex $prop0 1]
-		     puts $fjson "             \[\"${propname}\", \"${propval}\"\]"
-	             puts $fjson "           \]"
-	             puts $fjson "         \],"
 		     set instname1 [lindex $instnames 1]
-	             puts $fjson "         \["
-		     puts $fjson "           \"${instname1}\","
-	             puts $fjson "           \["
-		     foreach property [lrange $instance 1 end-1] {
+		     puts $fjson "    $instname1:"
+		     foreach property [lrange $instance 1 end] {
 		        set prop1 [lindex $property 1]
 			set propname [lindex $prop1 0]
 			set propval [lindex $prop1 1]
-		        puts $fjson "             \[\"${propname}\", \"${propval}\"\],"
+		        puts $fjson "      $propname: $propval"
 		     }
-		     set property [lindex $instance end]
-		     set prop0 [lindex $property 0]
-		     set propname [lindex $prop0 0]
-		     set propval [lindex $prop0 1]
-		     puts $fjson "             \[\"${propname}\", \"${propval}\"\]"
-	             puts $fjson "           \]"
-	             puts $fjson "         \]"
-		     if {$pidx == $plen} {
-	                puts $fjson "      \]"
-		     } else {
-	                puts $fjson "      \],"
-		     }
-		  }
-		  if {$kidx == $nkeys} {
-		     puts $fjson "   \]"
-		  } else {
-		     puts $fjson "   \],"
 		  }
 	       }
 	    }
 	 }
-         if {$cidx == $clen} {
-            puts $fjson "  \}"
-	 } else {
-            puts $fjson "  \},"
-	 }
       }
-      puts $fjson "\]"
    }
    close $fjson
 }
