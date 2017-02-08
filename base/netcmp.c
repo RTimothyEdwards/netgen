@@ -6373,11 +6373,11 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			   if (Debug == 0) {
 			      for (m = 0; m < 43; m++) *(ostr + m) = ' ';
 			      for (m = 44; m < 87; m++) *(ostr + m) = ' ';
-			      sprintf(ostr, "%s", obn->name);
+			      snprintf(ostr, 43, "%s", obn->name);
 			      if (!strcasecmp(obn->name, obp->name))
-			         sprintf(ostr + 44, "%s", obp->name);
+			         snprintf(ostr + 44, 43, "%s", obp->name);
 			      else
-			         sprintf(ostr + 44, "%s **Mismatch**", obp->name);
+			         snprintf(ostr + 44, 43, "%s **Mismatch**", obp->name);
 			      for (m = 0; m < 88; m++)
 				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 			      Fprintf(stdout, ostr);
@@ -6411,8 +6411,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			   if (strcmp(obn->name, "(no pins)")) {
 			      for (m = 0; m < 43; m++) *(ostr + m) = ' ';
 			      for (m = 44; m < 87; m++) *(ostr + m) = ' ';
-			      sprintf(ostr, "%s", obn->name);
-			      sprintf(ostr + 44, "(no matching pin)");
+			      snprintf(ostr, 32, "%s", obn->name);
+			      snprintf(ostr + 44, 43, "(no matching pin)");
 			      for (m = 0; m < 88; m++)
 				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 			      Fprintf(stdout, ostr);
@@ -6456,8 +6456,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 		  if (Debug == 0) {
 		     for (m = 0; m < 43; m++) *(ostr + m) = ' ';
 		     for (m = 44; m < 87; m++) *(ostr + m) = ' ';
-		     sprintf(ostr, "%s", obn->name);
-		     sprintf(ostr + 44, "(no matching pin)");
+		     snprintf(ostr, 43, "%s", obn->name);
+		     snprintf(ostr + 44, 43, "(no matching pin)");
 		     for (m = 0; m < 88; m++)
 			if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 		     Fprintf(stdout, ostr);
@@ -6498,8 +6498,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       if (Debug == 0) {
 		  for (m = 0; m < 43; m++) *(ostr + m) = ' ';
 		  for (m = 44; m < 87; m++) *(ostr + m) = ' ';
-		  sprintf(ostr, "%s", ob1->name);
-		  sprintf(ostr + 44, "%s", ob2->name);
+		  snprintf(ostr, 43, "%s", ob1->name);
+		  snprintf(ostr + 44, 43, "%s", ob2->name);
 		  for (m = 0; m < 88; m++)
 		     if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 		  Fprintf(stdout, ostr);
@@ -6545,8 +6545,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    if (strcmp(ob2->name, "(no pins)")) {
 	       for (m = 0; m < 43; m++) *(ostr + m) = ' ';
 	       for (m = 44; m < 87; m++) *(ostr + m) = ' ';
-	       sprintf(ostr, "(no matching pin)");
-	       sprintf(ostr + 44, "%s", ob2->name);
+	       snprintf(ostr, 43, "(no matching pin)");
+	       snprintf(ostr + 44, 43, "%s", ob2->name);
 	       for (m = 0; m < 88; m++)
 		  if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 	       Fprintf(stdout, ostr);
