@@ -1,15 +1,14 @@
 TO_DO list for version 1.5
 ------------------------------
 
- 1) Parallel (transistors and capacitors) and serial (resistors)
-    device merging, plus methods for describing how any device
-    class may be merged.
+ As of version 1.5.70, the major to-do item list is complete.
 
 Possible useful additions (not critical)
 ----------------------
 
  1) Add new output style allowing netlists to be described by Tcl scripts
-    (similar to the C-Code format, but does not require compiling).
+    (similar to the C-Code format, but does not require compiling) (this
+    was done in 1.5.72, but now needs some scripts to make use of it.)
  2) Add automatic file format guessing from file extension for "write" command
  3) Add Tk GUI to match (and improve upon!) the original X11 GUI.
  4) Incorporate into Tcl-based xcircuit
@@ -33,5 +32,7 @@ Possible useful additions (not critical)
     ntk and ext formats, SPICE format writing, and sim format reading).
 11) Add a "property" command to add/remove properties to check, and change
     the slop values (done).
-12) Add a "subcircuit" command to mimic a SPICE ".SUBCKT ... .ENDS" card.
+12) Add a "subcircuit" command to mimic a SPICE ".SUBCKT ... .ENDS" card
+    (i.e., the ability to add subcircuit "stub" definitions from the
+    command line or from a setup file).
 

@@ -5002,10 +5002,12 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 
    /* Find the first property record of each circuit.  obn1, obn2 are	*/
    /* the last device record before the properties for each device.	*/
-   for (tp1 = ob1; (tp1 != NULL) && tp1->type >= FIRSTPIN; tp1 = tp1->next)
+   for (tp1 = ob1->next; (tp1 != NULL) && tp1->type > FIRSTPIN; tp1 = tp1->next)
       obn1 = tp1;
-   for (tp2 = ob2; (tp2 != NULL) && tp2->type >= FIRSTPIN; tp2 = tp2->next)
+   for (tp2 = ob2->next; (tp2 != NULL) && tp2->type > FIRSTPIN; tp2 = tp2->next)
       obn2 = tp2;
+   if (tp1 && (tp1->type == FIRSTPIN)) tp1 = NULL;	/* tp1 had no properties */
+   if (tp2 && (tp2->type == FIRSTPIN)) tp2 = NULL;	/* tp2 had no properties */
 
    /* Check if there are any properties to match */
 
