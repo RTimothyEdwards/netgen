@@ -194,14 +194,12 @@ proc netgen::convert_to_json {filename lvs_final} {
 	                   puts $fjson "          \],"
 			}
 		     }
+	             puts $fjson "        \]"
 		     if {$gidx == $glen} {
-	                puts $fjson "        \]"
+	                puts $fjson "      \]"
 		     } else {
-	                puts $fjson "        \],"
+	                puts $fjson "      \],"
 		     }
-		  }
-		  if {$glen > 0} {
-		     puts $fjson "      \]"
 		  }
 		  if {$kidx == $nkeys} {
 		     puts $fjson "   \]"
@@ -275,14 +273,12 @@ proc netgen::convert_to_json {filename lvs_final} {
 	                   puts $fjson "          \],"
 			}
 		     }
+	             puts $fjson "        \]"
 		     if {$gidx == $glen} {
-	                puts $fjson "        \]"
+	                puts $fjson "      \]"
 		     } else {
-	                puts $fjson "        \],"
+	                puts $fjson "      \],"
 		     }
-		  }
-		  if {$glen > 0} {
-		     puts $fjson "      \]"
 		  }
 		  if {$kidx == $nkeys} {
 		     puts $fjson "   \]"
