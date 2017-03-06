@@ -84,9 +84,9 @@ proc netgen::convert_to_json {filename lvs_final} {
                nets {
 	          puts $fjson "   \"${key}\": \["
 		  set cktval [lindex $value 0]
-		  puts $fjson "    \"$cktval\","
+		  puts $fjson "    $cktval,"
 		  set cktval [lindex $value 1]
-		  puts $fjson "    \"$cktval\""
+		  puts $fjson "    $cktval"
 		  if {$kidx == $nkeys} {
 		     puts $fjson "   \]"
 		  } else {
@@ -322,9 +322,9 @@ proc netgen::convert_to_json {filename lvs_final} {
 		        puts $fjson "             \[\"${propname}\", \"${propval}\"\],"
 		     }
 		     set property [lindex $instance end]
-		     set prop0 [lindex $property 0]
-		     set propname [lindex $prop0 0]
-		     set propval [lindex $prop0 1]
+		     set prop1 [lindex $property 1]
+		     set propname [lindex $prop1 0]
+		     set propval [lindex $prop1 1]
 		     puts $fjson "             \[\"${propname}\", \"${propval}\"\]"
 	             puts $fjson "           \]"
 	             puts $fjson "         \]"
