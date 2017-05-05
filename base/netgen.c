@@ -3463,7 +3463,8 @@ int CombineSerial(char *model, int file)
 
 	    /* Excise the 2nd instance.  instlist[i][1] remains as the	*/
 	    /* only pointer to it.					*/
-            for (obp = instlist[i][0]; obp->next->type != FIRSTPIN; obp = obp->next);
+            for (obp = instlist[i][0]; obp->next->type > FIRSTPIN ||
+			obp->next->type == PROPERTY; obp = obp->next);
             for (ob2 = obp; ob2->next != instlist[i][1]; ob2 = ob2->next);
 	    for (obs = ob2->next; obs->next && obs->next->type != FIRSTPIN;
 			obs = obs->next);
