@@ -5078,7 +5078,6 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	 // t1 has no properties.  See if t2's properties are required
 	 // to be checked.  If so, flag t2 instance as unmatched
 
-	 mismatches++;
 	 for (i = 0;; i++) {
 	    vl2 = &(tp2->instance.props[i]);
 	    if (vl2->type == PROP_ENDLIST) break;
@@ -5088,6 +5087,7 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	    if (kl2 != NULL) break;	// Property is required
 	 }
 	 if (vl2->type != PROP_ENDLIST) {
+	    mismatches++;
 	    if (do_print) Fprintf(stdout, "Circuit 2 %s instance %s has no"
 			" property match in circuit 1.\n",
 			Circuit2->name, inst2);
@@ -6597,8 +6597,14 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
          obn->model.port = -1;
          obn->instance.name = NULL;
          obn->node = -1;
-         obn->next = ob1->next;
-         ob1->next = obn;
+	 if (ob1 == tc1->cell) {
+	    obn->next = ob1;
+	    tc1->cell = obn;
+	 }
+	 else {
+            obn->next = ob1->next;
+            ob1->next = obn;
+	 }
          ob1 = obn;
 	 hasproxy1 = 1;
 

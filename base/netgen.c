@@ -3387,11 +3387,10 @@ int CombineSerial(char *model, int file)
 	    /* a parameter '_tag', string value set to "+".		*/
 
             for (obn = instlist[i][1]; obn->next &&
-			obn->next->type != PROPERTY &&
-			obn->next->type != FIRSTPIN; obn = obn->next);
+			obn->next->type > FIRSTPIN; obn = obn->next);
 	    obp = obn->next;
 
-	    if (obp == NULL || obp->type == FIRSTPIN) {
+	    if (obp == NULL || obp->type != PROPERTY) {
 	       struct objlist *nob;
 	       /* No property record, so insert one */
 	       nob = GetObject();
@@ -3466,8 +3465,8 @@ int CombineSerial(char *model, int file)
             for (obp = instlist[i][0]; obp->next->type > FIRSTPIN ||
 			obp->next->type == PROPERTY; obp = obp->next);
             for (ob2 = obp; ob2->next != instlist[i][1]; ob2 = ob2->next);
-	    for (obs = ob2->next; obs->next && obs->next->type != FIRSTPIN;
-			obs = obs->next);
+	    for (obs = ob2->next; obs->next && (obs->next->type > FIRSTPIN
+			|| obs->next->type == PROPERTY); obs = obs->next);
 	    ob2->next = obs->next;
 	    if (obs->next) obs->next = NULL;	// Terminate 2nd instance record
 
