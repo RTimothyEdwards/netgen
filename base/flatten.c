@@ -486,24 +486,30 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       }
 
       /* splice instance out of parent */
-      if (ParentParams == ThisCell->cell) {
-	/* ParentParams are the very first thing in the list */
-	ThisCell->cell = ChildObjList;
-	for (ob2 = ChildObjList; ob2 && ob2->next != NULL; ob2 = ob2->next) ;
+      if ((ParentParams == ThisCell->cell) && (ChildObjList == NULL)) {
+	ThisCell->cell = ob2;	/* Child cell was empty */
+	tmp = ob2;
       }
       else {
-	/* find ParentParams in ThisCell list */
-	for (ob2 = ThisCell->cell; ob2 && ob2->next != ParentParams; ob2=ob2->next); 
-	if (ob2)
-	   for (ob2->next = ChildObjList; ob2->next != NULL; ob2 = ob2->next) ;
-      }
-      /* now, ob2 is last element in child list, so skip and reclaim parent */
+         if (ParentParams == ThisCell->cell) {
+	   /* ParentParams are the very first thing in the list */
+	   ThisCell->cell = ChildObjList;
+	   for (ob2 = ChildObjList; ob2 && ob2->next != NULL; ob2 = ob2->next) ;
+         }
+         else {
+	   /* find ParentParams in ThisCell list */
+	   for (ob2 = ThisCell->cell; ob2 && ob2->next != ParentParams; ob2=ob2->next); 
+	   if (ob2)
+	      for (ob2->next = ChildObjList; ob2->next != NULL; ob2 = ob2->next) ;
+         }
+         /* now, ob2 is last element in child list, so skip and reclaim parent */
 
-      tmp = ParentParams;
-      do {
-	tmp = tmp->next;
-      } while ((tmp != NULL) && ((tmp->type > FIRSTPIN) || (tmp->type == PROPERTY)));
-      if (ob2) ob2->next = tmp;
+         tmp = ParentParams;
+         do {
+	   tmp = tmp->next;
+         } while ((tmp != NULL) && ((tmp->type > FIRSTPIN) || (tmp->type == PROPERTY)));
+         if (ob2) ob2->next = tmp;
+      }
       while (ParentParams != tmp) {
 	ob2 = ParentParams->next;
 	FreeObjectAndHash(ParentParams, ThisCell);
