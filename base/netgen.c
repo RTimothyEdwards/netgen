@@ -3306,11 +3306,6 @@ int CombineSerial(char *model, int file)
    int i, j, scnt = 0;
    struct valuelist *kv;
 
-   // To avoid posting a non-working version, serial combination is
-   // disabled here until code is finished to compare the serial/parallel
-   // property networks.
-   // return 0;
-
    if ((tp = LookupCellFile(model, file)) == NULL) {
       Printf("Cell: %s does not exist.\n", model);
       return -1;
