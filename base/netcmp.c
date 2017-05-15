@@ -6661,8 +6661,15 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
          obn->model.port = (i - j);
          obn->instance.name = NULL;
          obn->node = -1;
-         obn->next = ob2->next;
-         ob2->next = obn;
+
+	 if (ob2 == tc2->cell) {
+	    obn->next = ob2;
+	    tc2->cell = obn;
+	 }
+	 else {
+            obn->next = ob2->next;
+            ob2->next = obn;
+	 }
          ob2 = obn;
 	 hasproxy2 = 1;
 
