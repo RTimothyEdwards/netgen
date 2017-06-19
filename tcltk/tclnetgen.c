@@ -3093,8 +3093,12 @@ _netcmp_equate(ClientData clientData,
 /*	netgen::property <device>|<model> <option>	*/
 /*		yes|no					*/
 /* Where <option> is one of:				*/
-/*     serial	 --- allow/prohibit serial combination	*/
+/*     serial	--- allow/prohibit serial combination	*/
 /*     parallel --- allow/prohibit parallel combination	*/
+/* or							*/
+/*	netgen::property parallel none			*/
+/*		--- prohibit parallel combinations by	*/
+/*		    default.				*/
 /*							*/
 /* Formerly: (none)					*/
 /* Results:						*/
@@ -3185,6 +3189,18 @@ _netcmp_property(ClientData clientData,
 		    break;
 	    }
 	    tp = NextCell();
+	}
+	return TCL_OK;
+    }
+    else if ((objc == 3) && (!strcmp(Tcl_GetString(objv[1]), "parallel"))) {
+	if (!strcmp(Tcl_GetString(objv[2]), "none"))
+	    GlobalParallelNone = TRUE;
+	else if (!strcmp(Tcl_GetString(objv[2]), "all"))
+	    GlobalParallelNone = FALSE;
+	else {
+	    Tcl_SetResult(interp, "Bad option, should be property parallel none|all",
+			NONE);
+	    return TCL_ERROR;
 	}
 	return TCL_OK;
     }

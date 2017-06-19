@@ -49,6 +49,7 @@ int NextNode;
 
 int Composition = NONE;
 int QuickSearch = 0;
+int GlobalParallelNone = FALSE;
 
 int AddToExistingDefinition = 0;  /* default: overwrite cell when reopened */
 
@@ -1192,7 +1193,7 @@ void CellDef(char *name, int fnum)
 	np = InstallInCellHashTable(name, fnum);
 	CurrentCell = LookupCellFile(name, fnum);
 	CurrentCell->class = CLASS_SUBCKT;	/* default */
-	CurrentCell->flags = 0;
+	CurrentCell->flags = (GlobalParallelNone) ? COMB_NO_PARALLEL : 0;
 
 	LastPlaced = NULL;
 	CurrentTail = NULL;
