@@ -25,8 +25,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdarg.h>  /* what about varargs, like in pdutils.c ??? */
 #endif
 
-#ifdef IBMPC
-#include <stdlib.h>  /* for calloc(), free() */
+#include <stdlib.h>  /* for calloc(), free(), getenv() */
+#ifndef IBMPC
+#include <sys/types.h>	/* for getpwnam() tilde expansion */
+#include <pwd.h>
 #endif
 
 #ifdef TCL_NETGEN
@@ -743,7 +745,7 @@ skip_ends:
       SpiceSkipNewLine();
     }
     else if (matchnocase(nexttok, ".INCLUDE")) {
-      char *iname, *iptr, *quotptr, *pathend;
+      char *iname, *iptr, *quotptr, *pathend, *userpath = NULL;
 
       SpiceTokNoNewline();
       if (nexttok == NULL) continue;	/* Ignore if no filename */
@@ -755,12 +757,44 @@ skip_ends:
       pathend = strrchr(fname, '/');
       iptr = nexttok;
       while (*iptr == '\'' || *iptr == '\"' || *iptr == '`') iptr++;
-      if ((pathend != NULL) && (*iptr != '/')) {
+      if ((pathend != NULL) && (*iptr != '/') && (*iptr != '~')) {
 	 *pathend = '\0';
 	 iname = (char *)MALLOC(strlen(fname) + strlen(iptr) + 2);
 	 sprintf(iname, "%s/%s", fname, iptr);
 	 *pathend = '/';
       }
+#ifndef IBMPC
+      else if ((*iptr == '~') && (*(iptr + 1) == '/')) {
+	 /* For ~/<path>, substitute tilde from $HOME */
+	 userpath = getenv("HOME");
+	 iname = (char *)MALLOC(strlen(userpath) + strlen(iptr));
+	 sprintf(fname, "%s%s", userpath, iptr + 1);
+      }
+      else if (*iptr == '~') {
+	 /* For ~<user>/<path>, substitute tilde from getpwnam() */
+	 struct passwd *passwd;
+	 char *pathstart;
+         pathstart = strchr(iptr, '/');
+	 if (pathstart) *pathstart = '\0';
+	 passwd = getpwnam(iptr + 1);
+	 if (passwd != NULL) {
+	    userpath = passwd->pw_dir;
+	    if (pathstart) {
+	       *pathstart = '/';
+	       iname = (char *)MALLOC(strlen(userpath) + strlen(pathstart) + 1);
+	       sprintf(fname, "%s%s", userpath, pathstart);
+	    }
+	    else {
+	       /* Almost certainly an error, but make the substitution anyway */
+	       iname = STRDUP(userpath);
+	    }
+	 }
+	 else {
+	    /* Probably an error, but copy the filename verbatim */
+	    iname = STRDUP(iptr);
+	 }
+      }
+#endif
       else
 	 iname = STRDUP(iptr);
 
