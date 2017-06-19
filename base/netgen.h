@@ -53,6 +53,8 @@ extern void PortList(char *prefix, char *list_template);
 extern char *Cell(char *inststr, char *model, ...);
 extern int  IsIgnored(char *, int);
 
+extern int auto_blackbox;	/* For handling empty subcircuits */
+
 /* netcmp.c */
 extern struct nlist *LookupClassEquivalent(char *model, int file1, int file2);
 extern void AssignCircuits(char *name1, int file1, char *name2, int file2);

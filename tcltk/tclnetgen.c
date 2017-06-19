@@ -1528,8 +1528,27 @@ _netgen_model(ClientData clientData,
       return TCL_ERROR;
    }
 
+   /* Check for "model blackbox on|off"	*/
+   /* Behavior is to treat empty subcircuits as blackbox cells */
+
+   if ((objc > 1) && !strcmp(Tcl_GetString(objv[1]), "blackbox")) {
+      if ((objc > 2) && !strcmp(Tcl_GetString(objv[2]), "on")) {
+	 auto_blackbox = TRUE;
+	 return TCL_OK;
+      }
+      else if ((objc > 2) && !strcmp(Tcl_GetString(objv[2]), "off")) {
+	 auto_blackbox = FALSE;
+	 return TCL_OK;
+      }
+      else if (objc == 2) {
+	 Tcl_SetObjResult(interp, Tcl_NewBooleanObj(auto_blackbox));
+	 return TCL_OK;
+      }
+   }
+
    result = CommonParseCell(interp, objv[1], &tp, &fnum);
-   if (result != TCL_OK) return result;
+   if (result != TCL_OK)
+      return result;
 
    if (objc == 3) {
       model = Tcl_GetString(objv[2]);

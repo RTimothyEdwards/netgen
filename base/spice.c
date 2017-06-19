@@ -44,6 +44,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 // Global storage for parameters from .PARAM
 struct hashdict spiceparams;
 
+// Global setting for auto-detect of empty subcircuits as
+// black-box subcells.
+int auto_blackbox = FALSE;
+
 // Check if a token represents a numerical value (with
 // units) or an expression.  This is basically a hack
 // to see if it either passes StringIsValue() or is
@@ -400,6 +404,7 @@ int renamepins(struct hashlist *p, int file)
 
 void CleanupSubcell() {
    int maxnode = 0;
+   int has_devices = FALSE;
    struct objlist *sobj, *nobj, *lobj, *pobj;
 
    if (CurrentCell == NULL) return;
@@ -411,6 +416,8 @@ void CleanupSubcell() {
    lobj = NULL;
    for (sobj = CurrentCell->cell; sobj != NULL;) {
       nobj = sobj->next;
+      if (sobj->type == FIRSTPIN)
+	 has_devices = TRUE;
       if (sobj->node < 0) {
          if (IsGlobal(sobj)) {
  	    if (lobj != NULL)
@@ -439,6 +446,8 @@ void CleanupSubcell() {
          lobj = sobj;
       sobj = nobj;
    }
+   if ((has_devices == FALSE) && (auto_blackbox == TRUE))
+      SetClass(CLASS_MODULE);
 }
 
 /*------------------------------------------------------*/

@@ -381,6 +381,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	 set dolist 1
 	 set dojson 1
 	 set lvs_final {}
+      } elseif {$arg == "-blackbox"} {
+	 puts stdout "Treating empty subcircuits as black-box cells"
+	 netgen::model blackbox on
       }
    }
 
