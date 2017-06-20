@@ -872,6 +872,32 @@ int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
 }
 
 /*----------------------------------------------------------------------*/
+/* Set/clear the flag bit COMB_NO_PARALLEL on all cells.  Note that the	*/
+/* function is called with value for enabling combine parallel, so	*/
+/* value TRUE means clear bit, value FALSE means set bit.		*/
+/*----------------------------------------------------------------------*/
+
+struct nlist *SetParallelCombineFlag(struct hashlist *p, void *clientdata)
+{
+  struct nlist *ptr;
+  int *value = (int *)clientdata;
+
+  ptr = (struct nlist *)(p->ptr);
+  if (*value == TRUE)
+     ptr->flags &= (~COMB_NO_PARALLEL);
+  else
+     ptr->flags |= COMB_NO_PARALLEL;
+
+  return NULL;	/* NULL keeps search alive */
+}
+
+void SetParallelCombine(int value)
+{
+  ClearDumpedList();
+  RecurseCellHashTable2(SetParallelCombineFlag, (void *)(&value));
+}
+
+/*----------------------------------------------------------------------*/
 /* Delete a property from the master cell record.			*/
 /*----------------------------------------------------------------------*/
 

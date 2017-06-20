@@ -35,6 +35,7 @@ extern struct property *PropertyInteger(char *name, int fnum, char *key,
 extern struct property *PropertyString(char *name, int fnum, char *key,
 		double slop, char *pdefault);
 extern int  PropertyDelete(char *name, int fnum, char *key);
+extern void SetParallelCombine(int value);
 extern int  PropertyTolerance(char *name, int fnum, char *key, int ival,
 		double dval);
 extern int  PropertyMerge(char *name, int fnum, char *key, int merge_type);
