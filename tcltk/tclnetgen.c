@@ -1437,9 +1437,9 @@ _netgen_cells(ClientData clientData,
    char *optstart;
    int filenum = -1;
    struct nlist *np = NULL;
-   int result, dolist = 0;
+   int result, printopt, dolist = 0, doall = 0, dotop = 0;
 
-   if (objc > 1) {
+   while (objc > 1) {
       optstart = Tcl_GetString(objv[1]);
       if (*optstart == '-') optstart++;
       if (!strcmp(optstart, "list")) {
@@ -1447,27 +1447,41 @@ _netgen_cells(ClientData clientData,
 	 objv++;
 	 objc--;
       }
+      else if (!strcmp(optstart, "all")) {
+	 doall = 1;
+	 objv++;
+	 objc--;
+      }
+      else if (!strcmp(optstart, "top")) {
+	 dotop = 1;
+	 objv++;
+	 objc--;
+      }
+      else {
+	 result = CommonParseCell(interp, objv[1], &np, &filenum);
+	 if (result != TCL_OK) return result;
+	 objv++;
+	 objc--;
+      }
    }
 
-   if (objc == 1) {
-      PrintCellHashTable((dolist) ? 2 : 0, -1);
-   }
-   else if (objc != 2 && objc != 3) {
-      Tcl_WrongNumArgs(interp, 1, objv, "[list] -top|[-all] valid_filename");
+   if (objc != 1) {
+      Tcl_WrongNumArgs(interp, 1, objv, "[list] [-top] [-all] [valid_filename]");
       return TCL_ERROR;
    }
    else {
       Tcl_Obj *lobj;
 
-      repstr = Tcl_GetString(objv[1]);
-      if (!strncmp(repstr, "-top", 4)) {
+      if (dotop) {
 	 if (dolist)
 	     lobj = Tcl_NewListObj(0, NULL);
 	 else
 	     Fprintf(stdout, "Top level cells: ");
 	 np = FirstCell();
 	 while (np != NULL) {
-	    if (np->flags & CELL_TOP) {
+	    if ((np->flags & CELL_TOP) && ((filenum == -1) ||
+			(np->file == filenum))) {
+		
 		if (dolist)
 		    Tcl_ListObjAppendElement(interp, lobj,
 			Tcl_NewStringObj(np->name, -1));
@@ -1483,11 +1497,13 @@ _netgen_cells(ClientData clientData,
 
 	 return TCL_OK;
       }
-      else if (strncmp(repstr, "-all", 4)) {
-	 result = CommonParseCell(interp, objv[2], &np, &filenum);
-	 if (result != TCL_OK) return result;
+      else {
+	 if (dolist)
+	    printopt = (doall) ? 3 : 2;
+	 else
+	    printopt = (doall) ? 1 : 0;
+         PrintCellHashTable(printopt, filenum);
       }
-      PrintCellHashTable((dolist) ? 2 : 1, filenum);
    }
    return TCL_OK;
 }

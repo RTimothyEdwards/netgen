@@ -563,8 +563,11 @@ static int PrintCellHashTableElement(struct hashlist *p)
     /* only print primitive cells if Debug is enabled */
     if (Debug == 1)  Printf("Cell: %s (instanced %d times); Primitive\n",
 		       ptr->name, ptr->number);
+    else if (Debug == 3) {	/* list */
+       Tcl_AppendElement(netgeninterp, ptr->name);
+    }
   }
-  else if (Debug == 2) {	/* list only */
+  else if ((Debug == 2) || (Debug == 3)) {	/* list only */
 #ifdef TCL_NETGEN
      Tcl_AppendElement(netgeninterp, ptr->name);
 #else
@@ -595,7 +598,7 @@ void PrintCellHashTable(int full, int filenum)
 
   bins  = RecurseHashTable(&cell_dict, CountHashTableBinsUsed);
   total = RecurseHashTable(&cell_dict, CountHashTableEntries);
-  if (full != 2)
+  if (full < 2)
      Printf("Hash table: %d of %d bins used; %d cells total (%.2f per bin)\n",
 		bins, CELLHASHSIZE, total, (bins == 0) ? 0 :
 		(float)((float)total / (float)bins));
@@ -605,7 +608,7 @@ void PrintCellHashTable(int full, int filenum)
   RecurseHashTable(&cell_dict, PrintCellHashTableElement);
   Debug = OldDebug;
 #ifndef TCL_NETGEN
-  if (full == 2) Printf("\n");
+  if (full >= 2) Printf("\n");
 #endif
 }
 
