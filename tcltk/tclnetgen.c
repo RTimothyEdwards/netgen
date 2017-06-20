@@ -1452,8 +1452,8 @@ _netgen_cells(ClientData clientData,
    if (objc == 1) {
       PrintCellHashTable((dolist) ? 2 : 0, -1);
    }
-   else if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 1, objv, "[list] [-all|-top|valid_filename]");
+   else if (objc != 2 && objc != 3) {
+      Tcl_WrongNumArgs(interp, 1, objv, "[list] -top|[-all] valid_filename");
       return TCL_ERROR;
    }
    else {
@@ -1484,7 +1484,7 @@ _netgen_cells(ClientData clientData,
 	 return TCL_OK;
       }
       else if (strncmp(repstr, "-all", 4)) {
-	 result = CommonParseCell(interp, objv[1], &np, &filenum);
+	 result = CommonParseCell(interp, objv[2], &np, &filenum);
 	 if (result != TCL_OK) return result;
       }
       PrintCellHashTable((dolist) ? 2 : 1, filenum);
