@@ -626,7 +626,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	    }
 	    SpiceTokNoNewline();
          }
-         SetClass((blackbox) ? CLASS_MODULE : CLASS_SUBCKT);
+	 SetClass((blackbox) ? CLASS_MODULE : CLASS_SUBCKT);
 
 	 if (hasports == 0) {
 	    // If the cell defines no ports, then create a proxy

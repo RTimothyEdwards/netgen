@@ -1230,6 +1230,10 @@ int CleanupPins(char *name, int filenum)
       return 0;
    }
 
+   // If cell is type MODULE, this is a black-box circuit and
+   // pins are expected to be disconnected (so don't remove them).
+   if (ThisCell->class == CLASS_MODULE) return 0;
+
    // Avoid a loop through all cells unless we have to do it.
 
    for (ob = ThisCell->cell; ob != NULL; ob = ob->next) {

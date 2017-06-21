@@ -370,7 +370,6 @@ proc netgen::convert_to_json {filename lvs_final} {
 proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    set dolist 0
    set dojson 0
-   puts stdout "Diagnostic version"
    foreach arg $args {
       if {$arg == "-list"} {
 	 puts stdout "Generating list result"

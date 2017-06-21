@@ -6274,6 +6274,7 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 {
    char *cover, *ctemp;
+   char *bangptr1, *bangptr2;
    struct objlist *ob1, *ob2, *obn, *obp, *ob1s, *ob2s, *obt;
    struct NodeClass *NC;
    struct Node *N1, *N2;
@@ -6486,13 +6487,25 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
    /* Do any unmatched pins have the same name? 		  */
    /* (This should not happen if unconnected pins are eliminated) */
+   /* (Semi-hack: Allow "!" global flag) */
 
    ob1 = tc1->cell;
+   bangptr1 = strrchr(ob1->name, '!');
+   if (bangptr1 && (*(bangptr1 + 1) == '\0'))
+      *bangptr1 = '\0';
+   else bangptr1 = NULL;
+  
    for (i = 0; i < numorig; i++) {
       if (*(cover + i) == (char)0) {
 	 j = 0;
          for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
 	    if (!IsPort(ob2)) break;
+
+	    bangptr2 = strrchr(ob2->name, '!');
+	    if (bangptr2 && (*(bangptr2 + 1) == '\0'))
+	       *bangptr2 = '\0';
+	    else bangptr2 = NULL;
+
 	    if ((*matchfunc)(ob1->name, ob2->name)) {
 	       ob2->model.port = i;		/* save order */
 	       *(cover + i) = (char)1;
@@ -6521,11 +6534,13 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       }
 #endif
 	    }
+	    if (bangptr2) *bangptr2 = '!';
 	    j++;
 	 }
       }
       ob1 = ob1->next;
    }
+   if (bangptr1) *bangptr1 = '!';
 
    /* Find the end of the pin list in tc1, for adding proxy pins */
 
@@ -6709,7 +6724,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
    /* Clean up "UNKNOWN" records from Circuit1 */
 
-   for (obn = tc1->cell; ; obn = obn->next) {
+   for (obn = tc1->cell; obn; obn = obn->next) {
       if (obn->type == UNKNOWN) obn->type = PORT;
       else if (obn->type != PORT) break;
    }
@@ -6728,13 +6743,13 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
    /* Clean up "UNKNOWN" records from Circuit2 */
 
-   for (obn = tc2->cell; ; obn = obn->next) {
+   for (obn = tc2->cell; obn; obn = obn->next) {
       if (obn->type == UNKNOWN) obn->type = PORT;
       else if (obn->type != PORT) break;
    }
 
    /* Check for ports that did not get ordered */
-   for (obn = tc2->cell; obn->type == PORT; obn = obn->next) {
+   for (obn = tc2->cell; obn && (obn->type == PORT); obn = obn->next) {
       if (obn->model.port == -1) {
 	 if (obn->node == -1) {
 	    // This only happens when pins have become separated from any net.

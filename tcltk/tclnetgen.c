@@ -1676,6 +1676,13 @@ _netgen_model(ClientData clientData,
 	    retclass = modelclasses[SUBCKT_IDX];
 	    break;
 
+	 case CLASS_MODULE:
+	    if (auto_blackbox)
+		retclass = modelclasses[BLACKBOX_IDX];
+	    else
+		retclass = modelclasses[MODULE_IDX];
+	    break;
+
 	 default: /* (includes case CLASS_UNDEF) */
 	    retclass = modelclasses[UNDEF_IDX];
 	    break;
@@ -2713,10 +2720,10 @@ _netcmp_equate(ClientData clientData,
    };
    int result, index;
    char *name1 = NULL, *name2 = NULL, *optstart;
-   struct nlist *tp1, *tp2;
+   struct nlist *tp1, *tp2, *SaveC1, *SaveC2;
    struct objlist *ob1, *ob2;
    int file1, file2;
-   int i, l1, l2, ltest, lent, dolist;
+   int i, l1, l2, ltest, lent, dolist = 0;
    Tcl_Obj *tobj1, *tobj2, *tobj3;
 
    if (objc > 1) {
@@ -2884,7 +2891,7 @@ _netcmp_equate(ClientData clientData,
 	 break;
 
       case PINS_IDX:
-	 if (ElementClasses == NULL) {
+	 if ((ElementClasses == NULL) && (auto_blackbox == FALSE)) {
 	    if (CurrentCell == NULL)
 		Fprintf(stderr, "Equate elements:  no current cell.\n");
 	    Fprintf(stderr, "Equate pins:  cell %s and/or %s has no elements.\n",
@@ -2892,20 +2899,30 @@ _netcmp_equate(ClientData clientData,
 	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
 	    return TCL_OK;
 	 }
-	 if (tp1 == Circuit1 && tp2 == Circuit2) {
-	    int result;
-	    if (MatchPins(tp1, tp2, dolist)) {
-	       Fprintf(stdout, "Cell pin lists are equivalent.\n");
-	       Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
-	    }
-	    else {
-	       Fprintf(stdout, "Cell pin lists for %s and %s altered to match.\n",
-			name1, name2);
-	       Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
-	    }
+	 else if (ElementClasses == NULL) {
+	    /* This has been called outside of a netlist compare,	*/
+	    /* probably to force name matching of pins on black-box	*/
+	    /* devices.  But MatchPins only works if tp1 == Circuit1	*/
+	    /* and tp2 == Circuit2, so preserve these values and 	*/
+	    /* recover afterward (what a hack).				*/
+	    SaveC1 = Circuit1;
+	    SaveC2 = Circuit2;
+	    Circuit1 = tp1;
+	    Circuit2 = tp2;
+	 }
+	 if (MatchPins(tp1, tp2, dolist)) {
+	    Fprintf(stdout, "Cell pin lists are equivalent.\n");
+	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
 	 }
 	 else {
-	    Fprintf(stderr, "Function not defined outside of LVS scope.\n");
+	    Fprintf(stdout, "Cell pin lists for %s and %s altered to match.\n",
+			name1, name2);
+	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
+	 }
+	 if (ElementClasses == NULL) {
+	    /* Recover temporarily set global variables (see above) */
+	    Circuit1 = SaveC1;
+	    Circuit2 = SaveC2;
 	 }
 	 break;
 
