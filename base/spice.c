@@ -777,7 +777,7 @@ skip_ends:
 	 /* For ~/<path>, substitute tilde from $HOME */
 	 userpath = getenv("HOME");
 	 iname = (char *)MALLOC(strlen(userpath) + strlen(iptr));
-	 sprintf(fname, "%s%s", userpath, iptr + 1);
+	 sprintf(iname, "%s%s", userpath, iptr + 1);
       }
       else if (*iptr == '~') {
 	 /* For ~<user>/<path>, substitute tilde from getpwnam() */
@@ -791,7 +791,7 @@ skip_ends:
 	    if (pathstart) {
 	       *pathstart = '/';
 	       iname = (char *)MALLOC(strlen(userpath) + strlen(pathstart) + 1);
-	       sprintf(fname, "%s%s", userpath, pathstart);
+	       sprintf(iname, "%s%s", userpath, pathstart);
 	    }
 	    else {
 	       /* Almost certainly an error, but make the substitution anyway */
