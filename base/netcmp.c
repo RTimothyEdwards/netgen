@@ -6057,7 +6057,7 @@ int reorderpins(struct hashlist *p, int file)
     struct nlist *ptr;
     struct nlist *tc2 = Circuit2;
     struct objlist *ob, *ob2, *firstpin;
-    int i, numports, *nodes;
+    int i, numports, *nodes, unordered;
     char **names;
 
     ptr = (struct nlist *)(p->ptr);
@@ -6071,13 +6071,22 @@ int reorderpins(struct hashlist *p, int file)
     /* instances of both cells.					*/
 
     numports = 0;
+    unordered = 0;
     ob2 = tc2->cell;
     while (ob2 && ob2->type == PORT) {
+	if (ob2->model.port < 0) {
+	    ob2->model.port = numports;
+	    unordered = 1;
+	}
 	numports++;
 	ob2 = ob2->next;
     }
     nodes = (int *)CALLOC(numports, sizeof(int));
     names = (char **)CALLOC(numports, sizeof(char *));
+
+    if (unordered)
+	Fprintf(stderr, "Ports of %s are unordered.  "
+		"Ordering will be arbitrary.", tc2->name);
 
     for (ob = ptr->cell; ob != NULL; ) {
 	if (ob->type == FIRSTPIN) {
