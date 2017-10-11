@@ -3309,7 +3309,9 @@ int check_pin_nodes(struct objlist *ob1, struct objlist *ob2)
       pob = pob->next;
    }
 
-   if (nob->type > FIRSTPIN || pob->type > FIRSTPIN) return FALSE;
+   if (nob && pob && (nob->type > FIRSTPIN || pob->type > FIRSTPIN))
+      return FALSE;
+
    return TRUE;
 }
 
@@ -3486,7 +3488,13 @@ int CombineSerial(char *model, int file)
 	    /* only pointer to it.					*/
             for (obp = instlist[i][0]; obp->next->type > FIRSTPIN ||
 			obp->next->type == PROPERTY; obp = obp->next);
-            for (ob2 = obp; ob2->next != instlist[i][1]; ob2 = ob2->next);
+            for (ob2 = obp; ob2 && ob2->next != instlist[i][1]; ob2 = ob2->next);
+
+	    /* Device may have been moved by the above code.  If so, look for	*/
+	    /* it from the beginning of the list. */
+	    if (ob2 == NULL)
+               for (ob2 = tp->cell; ob2->next != instlist[i][1]; ob2 = ob2->next);
+
 	    for (obs = ob2->next; obs->next && (obs->next->type > FIRSTPIN
 			|| obs->next->type == PROPERTY); obs = obs->next);
 	    ob2->next = obs->next;
