@@ -4956,6 +4956,52 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 }
 
 /*--------------------------------------------------------------*/
+/* Dump a description of a device's serial/parallel network	*/
+/*--------------------------------------------------------------*/
+
+void DumpNetwork(struct objlist *ob, int cidx)
+{
+    struct valuelist *vl;
+    struct objlist *tp;
+    int i;
+
+    for (tp = ob; tp && (tp->type != PROPERTY); tp = tp->next)
+	if ((tp > ob) && (tp->type == FIRSTPIN))
+	    return;
+
+    if (tp == NULL) return;
+
+    Fprintf(stdout, "Circuit %d instance %s network:\n", cidx, ob->instance.name);
+
+    for (; tp && (tp->type == PROPERTY); tp = tp->next) {
+	for (i = 0;; i++) {
+	    vl = &(tp->instance.props[i]);
+	    if (vl->type == PROP_ENDLIST) break;
+	    if (!strcmp(vl->key, "_tag")) {
+		Fprintf(stdout, "%s\n", vl->value.string);
+		continue;
+	    }
+	    Fprintf(stdout, "  %s = ", vl->key); 
+	    switch(vl->type) {
+		case PROP_STRING:
+		    Fprintf(stdout, "%s\n", vl->value.string); 
+		    break;
+		case PROP_INTEGER:
+		    Fprintf(stdout, "%d\n", vl->value.ival); 
+		    break;
+		case PROP_DOUBLE:
+		case PROP_VALUE:
+		    Fprintf(stdout, "%g\n", vl->value.dval); 
+		    break;
+		case PROP_EXPRESSION:
+		    Fprintf(stdout, "(expression)\n");
+		    break;
+	    }
+	}
+    }
+}
+
+/*--------------------------------------------------------------*/
 /* Compare the properties of two objects.  The passed values	*/
 /* ob1 and ob2 are pointers to the first entry (firstpin) of	*/
 /* each object.							*/
@@ -4983,7 +5029,7 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
    struct property *kl1, *kl2;
    struct valuelist *vl1, *vl2;
    int t1type, t2type;
-   int i, mismatches = 0;
+   int i, mismatches = 0, checked_one;
    int rval = 1;
    char *inst1, *inst2;
 #ifdef TCL_NETGEN
@@ -5075,8 +5121,18 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
    inst2 = ob2->instance.name;
    if (*inst2 == '/') inst2++;
 
+   checked_one = FALSE;
    while(1) {
-      if (t1type != PROPERTY) {
+      if ((t1type != PROPERTY) && (checked_one == TRUE)) {
+	 // t2 has more property records than t1, and they did not get
+	 // merged equally by PropertySortAndCombine().
+	 Fprintf(stdout, "Circuit 1 parallel/serial network does not match"
+			" Circuit 2\n");
+	 DumpNetwork(ob1, 1);
+	 DumpNetwork(ob2, 2);
+	 mismatches++;
+      }
+      else if (t1type != PROPERTY) {
 	 // t1 has no properties.  See if t2's properties are required
 	 // to be checked.  If so, flag t2 instance as unmatched
 
@@ -5096,8 +5152,8 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	    mismatches++;
 	    if (do_print) {
 		if (vl2 && vl2->key)
-		    Fprintf(stdout, "Circuit 2 %s instance %s has no"
-				" property \"%s\" to match circuit 1.\n",
+		    Fprintf(stdout, "Circuit 2 %s instance %s property"
+				" \"%s\" has no match in circuit 1.\n",
 				Circuit2->name, inst2, vl2->key);
 		else
 		    Fprintf(stdout, "Circuit 2 %s instance %s has no"
@@ -5117,6 +5173,15 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	 }
 	 else
 	    rval = 0;
+      }
+      else if ((t2type != PROPERTY) && (checked_one == TRUE)) {
+	 // t1 has more property records than t2, and they did not get
+	 // merged equally by PropertySortAndCombine().
+	 Fprintf(stdout, "Circuit 2 parallel/serial network does not match"
+			" Circuit 1\n");
+	 DumpNetwork(ob1, 1);
+	 DumpNetwork(ob2, 2);
+	 mismatches++;
       }
       else if (t2type != PROPERTY) {
 	 // t2 has no properties.  See if t1's properties are required
@@ -5138,8 +5203,8 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	    mismatches++;
 	    if (do_print) {
 		if (vl1 && vl1->key)
-		    Fprintf(stdout, "Circuit 1 %s instance %s has no"
-				" property \"%s\" to match circuit 2.\n",
+		    Fprintf(stdout, "Circuit 1 %s instance %s property"
+				" \"%s\" has no match in circuit 2.\n",
 				Circuit1->name, inst1, vl1->key);
 		else
 		    Fprintf(stdout, "Circuit 1 %s instance %s has no"
@@ -5195,6 +5260,7 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
       t1type = (tp1) ? tp1->type : 0;
       t2type = (tp2) ? tp2->type : 0;
       if ((t1type != PROPERTY) && (t2type != PROPERTY)) break;
+      checked_one = TRUE;
    }
  
    *retval = (rval < 0) ? rval : mismatches;
