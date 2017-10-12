@@ -5086,13 +5086,24 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	    if (vl2 == NULL) continue;
 	    if (vl2->key == NULL) continue;
 	    kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
-	    if (kl2 != NULL) break;	// Property is required
+	    if (kl2 != NULL) {
+		// Allowed for one instance to be missing "M" or "S".
+		if (strcasecmp(vl2->key, "M") && strcasecmp(vl2->key, "S"))
+		    break;	// Property is required
+	    }
 	 }
 	 if (vl2->type != PROP_ENDLIST) {
 	    mismatches++;
-	    if (do_print) Fprintf(stdout, "Circuit 2 %s instance %s has no"
-			" property match in circuit 1.\n",
-			Circuit2->name, inst2);
+	    if (do_print) {
+		if (vl2 && vl2->key)
+		    Fprintf(stdout, "Circuit 2 %s instance %s has no"
+				" property \"%s\" to match circuit 1.\n",
+				Circuit2->name, inst2, vl2->key);
+		else
+		    Fprintf(stdout, "Circuit 2 %s instance %s has no"
+				" property match in circuit 1.\n",
+				Circuit2->name, inst2);
+	    }
 #ifdef TCL_NETGEN
 	    if (do_list) {
 	        mpair = PropertyList(NULL, vl2);
@@ -5111,19 +5122,30 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	 // t2 has no properties.  See if t1's properties are required
 	 // to be checked.  If so, flag t1 instance as unmatched
 
-	 mismatches++;
 	 for (i = 0;; i++) {
 	    vl1 = &(tp1->instance.props[i]);
 	    if (vl1->type == PROP_ENDLIST) break;
 	    if (vl1 == NULL) continue;
 	    if (vl1->key == NULL) continue;
 	    kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
-	    if (kl1 != NULL) break;	// Property is required
+	    if (kl1 != NULL) {
+		// Allowed for one instance to be missing "M" or "S".
+		if (strcasecmp(vl1->key, "M") && strcasecmp(vl1->key, "S"))
+		    break;	// Property is required
+	    }
 	 }
 	 if (vl1->type != PROP_ENDLIST) {
-	    if (do_print) Fprintf(stdout, "Circuit 1 %s instance %s has no"
-			" property match in Circuit 2.\n",
-			Circuit1->name, inst1);
+	    mismatches++;
+	    if (do_print) {
+		if (vl1 && vl1->key)
+		    Fprintf(stdout, "Circuit 1 %s instance %s has no"
+				" property \"%s\" to match circuit 2.\n",
+				Circuit1->name, inst1, vl1->key);
+		else
+		    Fprintf(stdout, "Circuit 1 %s instance %s has no"
+				" property match in circuit 2.\n",
+				Circuit1->name, inst1);
+	    }
 #ifdef TCL_NETGEN
 	    if (do_list) {
 	        mpair = PropertyList(vl1, NULL);
