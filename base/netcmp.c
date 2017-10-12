@@ -3780,12 +3780,14 @@ void serial_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 if (vl->key == NULL) continue;
          if (!strcmp(vl->key, "S"))
 	    sval = vl->value.ival;
-         kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
-         if (kl->merge == MERGE_SER_CRIT)
-	    if (vl->type == PROP_INTEGER)
-	        cval = (double)vl->value.ival;
-	    else
-	        cval = vl->value.dval;
+	 else {
+	    kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
+	    if (kl && (kl->merge == MERGE_SER_CRIT))
+		if (vl->type == PROP_INTEGER)
+		   cval = (double)vl->value.ival;
+		else
+		   cval = vl->value.dval;
+	 }
       }
       proplist[i].value = (double)sval * cval;
       proplist[i].idx = i;
