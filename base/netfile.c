@@ -194,6 +194,67 @@ static struct filestack *OpenFiles = NULL;
 #define TOKEN_DELIMITER " \t\n\r"
 
 /*----------------------------------------------------------------------*/
+/* TrimQuoted() ---							*/
+/* Remove spaces from inside single- or double-quoted strings.		*/
+/*----------------------------------------------------------------------*/
+
+void TrimQuoted(char *line)
+{
+    char *qstart, *qend, *lptr;
+    int slen;
+    int changed;
+
+    /* Single-quoted entries */
+    changed = TRUE;
+    lptr = line;
+    while (changed)
+    {
+	changed = FALSE;
+	qstart = strchr(lptr, '\'');
+	if (qstart)
+	{
+	    qend = strchr(qstart + 1, '\'');
+	    if (qend && (qend > qstart)) {
+		slen = strlen(lptr);
+		for (lptr = qstart + 1; lptr < qend; lptr++) {
+		    if (*lptr == ' ') {
+			memmove(lptr, lptr + 1, slen);
+			qend--;
+			changed = TRUE;
+		    }
+		}
+		lptr++;
+	    }
+	}
+    }
+
+    /* Double-quoted entries */
+    changed = TRUE;
+    lptr = line;
+    while (changed)
+    {
+	changed = FALSE;
+	qstart = strchr(lptr, '\"');
+	if (qstart)
+	{
+	    qend = strchr(qstart + 1, '\"');
+	    if (qend && (qend > qstart)) {
+		slen = strlen(lptr);
+		for (lptr = qstart + 1; lptr < qend; lptr++) {
+		    if (*lptr == ' ') {
+			memmove(lptr, lptr + 1, slen);
+			qend--;
+			changed = TRUE;
+		    }
+		}
+		lptr++;
+	    }
+	}
+    }
+
+}
+
+/*----------------------------------------------------------------------*/
 /* GetNextLineNoNewline()						*/
 /*									*/
 /* Fetch the next line, and grab the first token from the next line.	*/
@@ -233,6 +294,7 @@ int GetNextLineNoNewline()
   }
   linenum++;
   strcpy(linetok, line);
+  TrimQuoted(linetok);
 
   nexttok = strtok(linetok, TOKEN_DELIMITER);
   return 0;
