@@ -4226,9 +4226,9 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial)
    struct property *kl, *m_rec, **plist;
    struct valuelist ***vlist, *vl, *vl2, *newvlist;
    proplinkptr plink, ptop;
-   int pcount, p, i, j, pmatch, ival, crit, ctype;
+   int pcount, p, i, j, k, pmatch, ival, crit, ctype;
    double dval;
-   static struct valuelist nullvl;
+   static struct valuelist nullvl, dfltvl;
    char multiple[2];
    int changed = 0;
 
@@ -4338,9 +4338,37 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial)
 	       pmatch++;
 	       continue;
 	    }
-	    // TO-DO:  If either value is missing, it takes kl->pdefault
+
+	    // If either value is missing, it takes kl->pdefault
 	    // and must apply promotions if necessary.
-	    else if (vl == NULL || vl2 == NULL) continue;
+
+	    else if (vl == NULL || vl2 == NULL) {
+		if (vl == NULL) {
+		    if (kl->type != vlist[p][j]->type)
+			PromoteProperty(kl, vl2);
+		}
+		else {
+		    if (kl->type != vlist[p][i]->type)
+			PromoteProperty(kl, vl);
+		}
+		vl = &dfltvl;
+		dfltvl.type = kl->type;
+		switch (kl->type) {
+		    case PROP_STRING:
+			dfltvl.value.string = kl->pdefault.string;
+			break;
+		    case PROP_INTEGER:
+			dfltvl.value.ival = kl->pdefault.ival;
+			break;
+		    case PROP_DOUBLE:
+		    case PROP_VALUE:
+			dfltvl.value.ival = kl->pdefault.ival;
+			break;
+		    case PROP_EXPRESSION:
+			dfltvl.value.stack = kl->pdefault.stack;
+			break;
+		}
+	    }
 
 	    // Critical properties can be multiplied up by M (S) and do not
 	    // need to match.  May want a more nuanced comparison, though.
