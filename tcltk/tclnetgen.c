@@ -4071,7 +4071,7 @@ int Tclnetgen_Init(Tcl_Interp *interp)
    if (cadroot == NULL) cadroot = CAD_DIR;
    Tcl_SetVar(interp, "CAD_ROOT", cadroot, TCL_GLOBAL_ONLY);
 
-   Tcl_PkgProvide(interp, "Tclnetgen", "1.1");
+   Tcl_PkgProvide(interp, "Tclnetgen", NETGEN_VERSION);
 
    if ((consoleinterp = Tcl_GetMaster(interp)) == NULL)
       consoleinterp = interp;

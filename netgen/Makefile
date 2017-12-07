@@ -22,8 +22,8 @@ tclnetgen${SHDLIB_EXT}: ${EXTRA_LIBS}
 	@echo --- making netgen Tcl library \(tclnetgen${SHDLIB_EXT}\)
 	${RM} tclnetgen${SHDLIB_EXT}
 	${CC} ${CFLAGS} ${CPPFLAGS} -o $@ ${LDDL_FLAGS} \
-		${LD_RUN_PATH} ${EXTRA_LIBS} ${LD_EXTRA_LIBS} -lc ${LIBS} \
-		${LIB_SPECS} ${LDFLAGS}
+		${LD_RUN_PATH} ${EXTRA_LIBS} ${LD_EXTRA_LIBS} \
+		-lc ${LIBS} ${LIB_SPECS} ${LDFLAGS}
 
 $(DESTDIR)${BINDIR}/netgen:
 	${RM} $@
