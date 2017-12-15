@@ -1941,12 +1941,15 @@ void IncludeSpice(char *fname, int parent, struct cellstack **CellStackPtr,
      if ((filenum = OpenParseFile(fname, parent)) < 0) {
 
 	/* If that fails, see if a standard SPICE extension	*/
-	/* helps.  But really, we're getting desperate at this	*/
-	/* point.						*/
+	/* helps, if the file didn't have an extension.  But	*/
+	/* really, we're getting desperate at this point.	*/
 
-        SetExtension(name, fname, SPICE_EXTENSION);
-        if ((filenum = OpenParseFile(name, parent)) < 0) {
-           Fprintf(stderr,"Error in SPICE file read: No file %s\n",name);
+	if (strchr(fname, '.') == NULL) {
+           SetExtension(name, fname, SPICE_EXTENSION);
+           filenum = OpenParseFile(name, parent);
+	}
+        if (filenum < 0) {
+           Fprintf(stderr,"Error in SPICE file include: No file %s\n",name);
            return;
         }    
      }
