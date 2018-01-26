@@ -573,7 +573,7 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
   elemlist = (struct FormattedList *)MALLOC(sizeof(struct FormattedList));
   if (elemlist == NULL) {
      Fprintf(stdout, "Unable to allocated memory to print element fanout.\n");
-     return;
+     return NULL;
   }
 
   fanout = 0;
@@ -582,7 +582,7 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
   if (nodes == NULL) {
     Fprintf(stderr, "Unable to allocate memory to print element fanout.\n");
     FREE(elemlist);
-    return;
+    return NULL;
   }
 
   elemlist->flist = (struct FanoutList *)CALLOC(fanout, sizeof(struct FanoutList));
@@ -829,14 +829,14 @@ struct FormattedList *FormatBadNodeFragment(struct Node *N)
   pins = (struct ElementList **)CALLOC(fanout, sizeof(struct ElementList *));
   if (pins == NULL) {
     Fprintf(stdout, "Unable to allocate memory to print node fanout.\n");
-    return;
+    return NULL;
   }
 
   nodelist = (struct FormattedList *)MALLOC(sizeof(struct FormattedList));
   if (nodelist == NULL) {
     Fprintf(stdout, "Unable to allocate memory to print node fanout.\n");
     FREE(pins);
-    return;
+    return NULL;
   }
   nodelist->flist = (struct FanoutList *)CALLOC(fanout, sizeof(struct FanoutList));
   nodelist->fanout = fanout;
@@ -6054,7 +6054,7 @@ int IgnoreClass(char *name, int file, unsigned char type)
    if ((file == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
       IgnoreClass(name, Circuit1->file, type);
       IgnoreClass(name, Circuit2->file, type);
-      return;
+      return 0;
    }
 
    newIgnore = (struct IgnoreList *)MALLOC(sizeof(struct IgnoreList));

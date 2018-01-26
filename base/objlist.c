@@ -348,7 +348,7 @@ int removeshorted(struct hashlist *p, int file)
 
    ptr = (struct nlist *)(p->ptr);
 
-   if ((file != -1) && (ptr->file != file)) return;
+   if ((file != -1) && (ptr->file != file)) return 0;
 
    lob = NULL;
    for (ob = ptr->cell; ob != NULL;) {
@@ -412,7 +412,7 @@ int deleteclass(struct hashlist *p, int file)
 
    ptr = (struct nlist *)(p->ptr);
 
-   if ((file != -1) && (ptr->file != file)) return;
+   if ((file != -1) && (ptr->file != file)) return 0;
 
    lob = NULL;
    for (ob = ptr->cell; ob != NULL;) {
@@ -469,7 +469,7 @@ int renameinstances(struct hashlist *p, int file)
 
    ptr = (struct nlist *)(p->ptr);
 
-   if ((file != -1) && (ptr->file != file)) return;
+   if ((file != -1) && (ptr->file != file)) return 0;
 
    for (ob = ptr->cell; ob != NULL; ob = ob->next) {
       if ((ob->type >= FIRSTPIN) && (ob->model.class != NULL)) {

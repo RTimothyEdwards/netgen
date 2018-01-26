@@ -132,6 +132,7 @@ char *xilinx_class(model)
 	}
 	return(model);
 }
+void
 Xilinx(cellname, filename)
 	char *cellname;
 	char *filename;

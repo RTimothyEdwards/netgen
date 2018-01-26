@@ -25,6 +25,7 @@ extern struct nlist *RecurseHashTablePointer(struct hashdict *dict,
 	void *pointer);
 extern void HashDelete(char *name, struct hashdict *dict);
 extern void HashIntDelete(char *name, int value, struct hashdict *dict);
+extern void HashKill(struct hashdict *dict);
 
 
 extern int CountHashTableEntries(struct hashlist *p);

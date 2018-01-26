@@ -868,6 +868,7 @@ case $target in
     AC_DEFINE(i386)
     ;; 
   *darwin*)
+    $as_echo "#define macosx macos" >> confdefs.h
     if test "$CPP" = "cc -E" ; then
        CPPFLAGS="$CPPFLAGS -no-cpp-precomp"
     fi

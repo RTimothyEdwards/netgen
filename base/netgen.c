@@ -1038,7 +1038,7 @@ struct property *PropertyValue(char *name, int fnum, char *key,
    if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
       PropertyValue(name, Circuit1->file, key, slop, pdefault);
       PropertyValue(name, Circuit2->file, key, slop, pdefault);
-      return;
+      return NULL;
    }
 
    tc = LookupCellFile(name, fnum);
@@ -1073,7 +1073,7 @@ struct property *PropertyDouble(char *name, int fnum, char *key,
    if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
       PropertyDouble(name, Circuit1->file, key, slop, pdefault);
       PropertyDouble(name, Circuit2->file, key, slop, pdefault);
-      return;
+      return NULL;
    }
 
    tc = LookupCellFile(name, fnum);
@@ -1106,7 +1106,7 @@ struct property *PropertyInteger(char *name, int fnum, char *key,
    if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
       PropertyInteger(name, Circuit1->file, key, slop, pdefault);
       PropertyInteger(name, Circuit2->file, key, slop, pdefault);
-      return;
+      return NULL;
    }
 
    tc = LookupCellFile(name, fnum);
@@ -1139,7 +1139,7 @@ struct property *PropertyString(char *name, int fnum, char *key, double dval,
    if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
       PropertyString(name, Circuit1->file, key, dval, pdefault);
       PropertyString(name, Circuit2->file, key, dval, pdefault);
-      return;
+      return NULL;
    }
 
    tc = LookupCellFile(name, fnum);

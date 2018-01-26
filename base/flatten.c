@@ -1417,7 +1417,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     else
 	tc2 = LookupCellFile(name2, file2);
 
-    if (tc1 == NULL || tc2 == NULL) return;
+    if (tc1 == NULL || tc2 == NULL) return 0;
 
     InitializeHashTable(&compdict, OBJHASHSIZE);
 

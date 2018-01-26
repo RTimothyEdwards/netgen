@@ -309,7 +309,7 @@ struct hashlist *HashInt2PtrInstall(char *name, int c, void *ptr,
 /* destroy a hash table, freeing associated memory 			*/
 /*----------------------------------------------------------------------*/
 
-void *HashKill(struct hashdict *dict)
+void HashKill(struct hashdict *dict)
 {
   struct hashlist *np, *p;
   int i;

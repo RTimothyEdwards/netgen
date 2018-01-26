@@ -20,11 +20,10 @@ foreach i $nlist {
    }
 }
 
-if {${tcl_version} >= 8.6} {
-   load -lazy TCL_DIR/tclnetgenSHDLIB_EXT
-} else {
-   load TCL_DIR/tclnetgenSHDLIB_EXT
-}
+# -lazy option not needed if stubs libraries are handled correctly
+# load -lazy TCL_DIR/tclnetgenSHDLIB_EXT
+
+load TCL_DIR/tclnetgenSHDLIB_EXT
 
 #----------------------------------------------------------------
 # Convert LVS list result into a JSON file 
