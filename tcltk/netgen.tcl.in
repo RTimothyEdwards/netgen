@@ -475,15 +475,22 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       if {$perrors > 0} {
 	 puts stdout "Warning:  There were errors reading the setup file"
       }
-   } else {
+   } elseif {[string first nosetup $setupfile] < 0} {
       netgen::permute default	;# transistors and resistors
       netgen::property default
    }
 
-   puts stdout "Comparison output logged to file $logfile"
-   netgen::log file $logfile
-   netgen::log start
-   netgen::log echo off
+   if {[string first nolog $logfile] < 0} {
+      puts stdout "Comparison output logged to file $logfile"
+      netgen::log file $logfile
+
+      netgen::log start
+      netgen::log echo off
+      set dolog true
+   } else {
+      set dolog false
+   }
+
    if {$dolist == 1} {
       set endval [netgen::compare -list hierarchical "$fnum1 $cell1" "$fnum2 $cell2"]
    } else {
@@ -566,7 +573,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    if {$properr != {}} {
       netgen::log put "The following cells had property errors: $properr\n"
    }
-   netgen::log end
+   if {$dolog} {
+      netgen::log end
+   }
    puts stdout "LVS Done."
    if {$dojson == 1} {
       netgen::convert_to_json $logfile $lvs_final
