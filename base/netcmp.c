@@ -6675,6 +6675,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       if (ob1 && ob1->next && ob1->next->type != PORT)
 	 break;
    }
+   if (ob1 == NULL) ob1 = tc1->cell;	/* No ports */
 
    /* Assign non-matching pins in tc2 with real node	*/
    /* connections in the cell to the end.  Create pins	*/
@@ -6760,6 +6761,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       if (ob2 && ob2->next && ob2->next->type != PORT)
 	 break;
    }
+   if (ob2 == NULL) ob2 = tc2->cell;	/* No ports */
 
    /* If cell 2 has fewer nodes than cell 1, then add dummy (unconnected)  */
    /* pins to cell 2.  If these correspond to numbers missing in the match */
