@@ -6393,9 +6393,13 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 /* circuit pair has been matched with automorphisms,	*/
 /* then some pins may be matched arbitrarily.		*/
 /*							*/
-/* Return 1 on success, 0 on failure.			*/
 /* If "dolist" is 1, append the list representing the	*/
 /* output (if any) to variable tcl_out, if it exists.	*/
+/*							*/
+/* Return codes:					*/
+/* 2: Neither cell had pins, so matching is unnecessary	*/
+/* 1: Exact match					*/
+/* 0: Inexact match resolved by proxy pin insertion	*/
 /*------------------------------------------------------*/
 
 int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
@@ -6432,7 +6436,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    if (haspins == 0) {
       // Neither cell has any ports, so this is probably a top-level
       // cell and there is nothing to do.
-      return 1;
+      return 2;
    }
 
    cover = (char *)CALLOC(numnodes, sizeof(char));

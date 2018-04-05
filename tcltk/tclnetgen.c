@@ -2910,15 +2910,26 @@ _netcmp_equate(ClientData clientData,
 	    Circuit1 = tp1;
 	    Circuit2 = tp2;
 	 }
-	 if (MatchPins(tp1, tp2, dolist)) {
+
+	 // Check for and remove duplicate pins.  Normally this is called
+	 // from "compare", but since "equate pins" may be called outside
+	 // of and before "compare", pin uniqueness needs to be ensured.
+
+	 UniquePins(tp1->name, tp1->file);
+	 UniquePins(tp2->name, tp2->file);
+
+	 result = MatchPins(tp1, tp2, dolist);
+	 if (result == 2) {
+	    Fprintf(stdout, "Cells have no pins;  pin matching not needed.\n");
+	 }
+	 else if (result > 0) {
 	    Fprintf(stdout, "Cell pin lists are equivalent.\n");
-	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
 	 }
 	 else {
 	    Fprintf(stdout, "Cell pin lists for %s and %s altered to match.\n",
 			name1, name2);
-	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
 	 }
+	 Tcl_SetObjResult(interp, Tcl_NewIntObj(result));
 	 if (ElementClasses == NULL) {
 	    /* Recover temporarily set global variables (see above) */
 	    Circuit1 = SaveC1;
