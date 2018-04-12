@@ -263,7 +263,7 @@ void TrimQuoted(char *line)
 /*									*/
 /*----------------------------------------------------------------------*/
 
-int GetNextLineNoNewline()
+int GetNextLineNoNewline(char *delimiter)
 {
   char *newbuf;
   int testc;
@@ -296,7 +296,7 @@ int GetNextLineNoNewline()
   strcpy(linetok, line);
   TrimQuoted(linetok);
 
-  nexttok = strtok(linetok, TOKEN_DELIMITER);
+  nexttok = strtok(linetok, delimiter);
   return 0;
 }
 
@@ -305,10 +305,10 @@ int GetNextLineNoNewline()
 /* valid token.								*/
 /*----------------------------------------------------------------------*/
 
-void GetNextLine()
+void GetNextLine(char *delimiter)
 {
     do {
-	if (GetNextLineNoNewline() == -1) return;
+	if (GetNextLineNoNewline(delimiter) == -1) return;
     } while (nexttok == NULL);
 }
 
@@ -316,11 +316,13 @@ void GetNextLine()
 /* if nexttok is already NULL, force scanner to read new line		*/
 /*----------------------------------------------------------------------*/
 
-void SkipTok(void)
+void SkipTok(char *delimiter)
 {
-  if (nexttok != NULL && 
-      (nexttok = strtok(NULL, TOKEN_DELIMITER)) != NULL) return;
-  GetNextLine();
+    if (nexttok != NULL && 
+		(nexttok = strtok(NULL, (delimiter) ? delimiter : TOKEN_DELIMITER))
+		!= NULL)
+	return;
+    GetNextLine((delimiter) ? delimiter : TOKEN_DELIMITER);
 }
 
 /*----------------------------------------------------------------------*/
@@ -328,9 +330,9 @@ void SkipTok(void)
 /* must be preceeded by at least one call to SkipTok()			*/
 /*----------------------------------------------------------------------*/
 
-void SkipTokNoNewline(void)
+void SkipTokNoNewline(char *delimiter)
 {
-  nexttok = strtok(NULL, TOKEN_DELIMITER);
+  nexttok = strtok(NULL, (delimiter) ? delimiter : TOKEN_DELIMITER);
 }
 
 /*----------------------------------------------------------------------*/
@@ -357,15 +359,15 @@ void SpiceTokNoNewline(void)
     while (nexttok == NULL) {
 	contline = getc(infile);
 	if (contline == '*') {
-	   GetNextLine();
-	   SkipNewLine();
+	   GetNextLine(TOKEN_DELIMITER);
+	   SkipNewLine(NULL);
 	   continue;
 	}
 	else if (contline != '+') {
 	    ungetc(contline, infile);
 	    return;
 	}
-	if (GetNextLineNoNewline() == -1) break;
+	if (GetNextLineNoNewline(TOKEN_DELIMITER) == -1) break;
     }
 }
 
@@ -373,9 +375,10 @@ void SpiceTokNoNewline(void)
 /* skip to the end of the current line					*/
 /*----------------------------------------------------------------------*/
 
-void SkipNewLine(void)
+void SkipNewLine(char *delimiter)
 {
-  while (nexttok != NULL) nexttok = strtok(NULL, TOKEN_DELIMITER);
+    while (nexttok != NULL)
+	nexttok = strtok(NULL, (delimiter) ? delimiter : TOKEN_DELIMITER);
 }
 
 /*----------------------------------------------------------------------*/
@@ -387,13 +390,13 @@ void SpiceSkipNewLine(void)
 {
   int contline;
 
-  SkipNewLine();
+  SkipNewLine(NULL);
   contline = getc(infile);
 
   while (contline == '+') {
      ungetc(contline, infile);
-     GetNextLine();
-     SkipNewLine();
+     GetNextLine(TOKEN_DELIMITER);
+     SkipNewLine(NULL);
      contline = getc(infile);
   }
   ungetc(contline, infile);
@@ -480,7 +483,7 @@ char *ReadNetlist(char *fname, int *fnum)
   };
   
 #ifdef mips
-  struct filetype formats[6];
+  struct filetype formats[7];
 
   formats[0].extension = NTK_EXTENSION;
   formats[0].proc = ReadNtk;
@@ -492,8 +495,10 @@ char *ReadNetlist(char *fname, int *fnum)
   formats[3].proc = ReadSpice;
   formats[4].extension = NETGEN_EXTENSION;
   formats[4].proc = ReadNetgenFile;
-  formats[5].extension = NULL;
-  formats[5].proc = NULL;
+  formats[5].extension = VERILOG_EXTENSION;
+  formats[5].proc = ReadVerilogFile;
+  formats[6].extension = NULL;
+  formats[6].proc = NULL;
 
 #else  /* not mips (i.e. compiler with reasonable initializers) */
   
@@ -505,6 +510,7 @@ char *ReadNetlist(char *fname, int *fnum)
       {SPICE_EXTENSION, ReadSpice},
       {SPICE_EXT2, ReadSpice},
       {SPICE_EXT3, ReadSpice},
+      {VERILOG_EXTENSION, ReadVerilog},
       {NETGEN_EXTENSION, ReadNetgenFile},
       {NULL, NULL}
     };

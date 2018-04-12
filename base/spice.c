@@ -512,10 +512,10 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   
   while (!EndParseFile()) {
 
-    SkipTok(); /* get the next token */
+    SkipTok(NULL); /* get the next token */
     if ((EndParseFile()) && (nexttok == NULL)) break;
 
-    if (nexttok[0] == '*') SkipNewLine();
+    if (nexttok[0] == '*') SkipNewLine(NULL);
 
     else if (matchnocase(nexttok, ".SUBCKT")) {
       SpiceTokNoNewline();
@@ -574,18 +574,18 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	 Printf("Renaming original cell to %s\n", model);
 	 InstanceRename(nexttok, model, filenum);
 	 CellRehash(nexttok, model, filenum);
-         CellDefNoCase(nexttok, filenum);
+         CellDef(nexttok, filenum);
          tp = LookupCellFile(nexttok, filenum);
       }
       else if (tp != NULL) {	/* Make a new definition for an empty cell */
 	 FreePorts(nexttok);
 	 CellDelete(nexttok, filenum);	/* This removes any PLACEHOLDER flag */
-	 CellDefNoCase(model, filenum);
+	 CellDef(model, filenum);
 	 tp = LookupCellFile(model, filenum);
 	 update = 1;	/* Will need to update existing instances */
       }
       else if (tp == NULL) {	/* Completely new cell, no name conflict */
-         CellDefNoCase(model, filenum);
+         CellDef(model, filenum);
          tp = LookupCellFile(model, filenum);
       }
 
@@ -651,7 +651,7 @@ skip_ends:
 
 	 while (1) {
 	    SpiceSkipNewLine();
-	    SkipTok();
+	    SkipTok(NULL);
 	    if (EndParseFile()) break;
 	    if (matchnocase(nexttok, ".ENDS")) {
 	       in_subckt = 0;
@@ -673,7 +673,7 @@ skip_ends:
 
       if (*CellStackPtr) PopStack(CellStackPtr);
       if (*CellStackPtr) ReopenCellDef((*CellStackPtr)->cellname, filenum);
-      SkipNewLine();
+      SkipNewLine(NULL);
     }
     else if (matchnocase(nexttok, ".MODEL")) {
       unsigned char class = CLASS_SUBCKT;
@@ -745,7 +745,7 @@ skip_ends:
          if (numnodes == 0) {
 	    // If there is no current cell, make one
 	    if (!(*CellStackPtr)) {
-	       CellDefNoCase(fname, filenum);
+	       CellDef(fname, filenum);
 	       PushStack(fname, CellStackPtr);
 	    }
 	    Global(nexttok);
@@ -859,7 +859,7 @@ skip_ends:
       collector[99] = '\0';
 
       if (!(*CellStackPtr)) {
-	CellDefNoCase(fname, filenum);
+	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
       strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -891,7 +891,7 @@ skip_ends:
       }
 
       if (LookupCellFile(model, filenum) == NULL) {
-	 CellDefNoCase(model, filenum);
+	 CellDef(model, filenum);
 	 Port("collector");
 	 Port("base");
 	 Port("emitter");
@@ -920,7 +920,7 @@ skip_ends:
       bulk[99] = '\0';
 
       if (!(*CellStackPtr)) {
-	CellDefNoCase(fname, filenum);
+	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
       strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -961,7 +961,7 @@ skip_ends:
       /* SPICE transistor.						*/
 
       if (LookupCellFile(model, filenum) == NULL) {
-	 CellDefNoCase(model, filenum);
+	 CellDef(model, filenum);
 	 Port("drain");
 	 Port("gate");
 	 Port("source");
@@ -998,7 +998,7 @@ skip_ends:
         cbot[99] = '\0';
 
         if (!(*CellStackPtr)) {
-	  CellDefNoCase(fname, filenum);
+	  CellDef(fname, filenum);
 	  PushStack(fname, CellStackPtr);
         }
         strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -1052,7 +1052,7 @@ skip_ends:
 	else
 	{
 	   if (LookupCellFile(model, filenum) == NULL) {
-	      CellDefNoCase(model, filenum);
+	      CellDef(model, filenum);
 	      Port("top");
 	      Port("bottom");
 	      PropertyValue(model, filenum, "value", 0.01, 0.0);
@@ -1092,7 +1092,7 @@ skip_ends:
 	rbot[99] = '\0';
 
         if (!(*CellStackPtr)) {
-	  CellDefNoCase(fname, filenum);
+	  CellDef(fname, filenum);
 	  PushStack(fname, CellStackPtr);
         }
         strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -1143,7 +1143,7 @@ skip_ends:
 	if (model[0] != '\0')
 	{
 	   if (LookupCellFile(model, filenum) == NULL) {
-	      CellDefNoCase(model, filenum);
+	      CellDef(model, filenum);
 	      Port("end_a");
 	      Port("end_b");
 	      PropertyValue(model, filenum, "value", 0.01, 0.0);
@@ -1179,7 +1179,7 @@ skip_ends:
       anode[99] = '\0';
 
       if (!(*CellStackPtr)) {
-	CellDefNoCase(fname, filenum);
+	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
       strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -1208,7 +1208,7 @@ skip_ends:
       }
 
       if (LookupCellFile(model, filenum) == NULL) {
-	 CellDefNoCase(model, filenum);
+	 CellDef(model, filenum);
 	 Port("anode");
 	 Port("cathode");
          PropertyInteger(model, filenum, "M", 0, 1);
@@ -1241,7 +1241,7 @@ skip_ends:
 	node4[99] = '\0';
 
         if (!(*CellStackPtr)) {
-	  CellDefNoCase(fname, filenum);
+	  CellDef(fname, filenum);
 	  PushStack(fname, CellStackPtr);
         }
         strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -1279,7 +1279,7 @@ skip_ends:
 	if (model[0] != '\0')
 	{
 	   if (LookupCellFile(model, filenum) == NULL) {
-	      CellDefNoCase(model, filenum);
+	      CellDef(model, filenum);
 	      Port("node1");
 	      Port("node2");
 	      Port("node3");
@@ -1319,7 +1319,7 @@ skip_ends:
       end_b[99] = '\0';
 
       if (!(*CellStackPtr)) {
-	CellDefNoCase(fname, filenum);
+	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
       strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -1364,7 +1364,7 @@ skip_ends:
       if (model[0] != '\0')
       {
 	 if (LookupCellFile(model, filenum) == NULL) {
-	    CellDefNoCase(model, filenum);
+	    CellDef(model, filenum);
 	    Port("end_a");
 	    Port("end_b");
 	    PropertyInteger(model, filenum, "M", 0, 1);
@@ -1402,7 +1402,7 @@ skip_ends:
       neg[99] = '\0';
 
       if (!(*CellStackPtr)) {
-	CellDefNoCase(fname, filenum);
+	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
       strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -1432,7 +1432,7 @@ skip_ends:
       }
       strcpy(model, "vsrc");		/* Default voltage source */
       if (LookupCellFile(model, filenum) == NULL) {
-	 CellDefNoCase(model, filenum);
+	 CellDef(model, filenum);
 	 Port("pos");
 	 Port("neg");
 	 PropertyInteger(model, filenum, "M", 0, 1);
@@ -1457,7 +1457,7 @@ skip_ends:
       neg[99] = '\0';
 
       if (!(*CellStackPtr)) {
-	CellDefNoCase(fname, filenum);
+	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
       strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -1486,7 +1486,7 @@ skip_ends:
       }
       strcpy(model, "isrc");		/* Default current source */
       if (LookupCellFile(model, filenum) == NULL) {
-	 CellDefNoCase(model, filenum);
+	 CellDef(model, filenum);
 	 Port("pos");
 	 Port("neg");
 	 PropertyInteger(model, filenum, "M", 0, 1);
@@ -1513,7 +1513,7 @@ skip_ends:
       ctrln[99] = '\0';
 
       if (!(*CellStackPtr)) {
-	CellDefNoCase(fname, filenum);
+	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
       strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
@@ -1549,7 +1549,7 @@ skip_ends:
       }
       strcpy(model, "vcvs");		/* Default controlled voltage source */
       if (LookupCellFile(model, filenum) == NULL) {
-	 CellDefNoCase(model, filenum);
+	 CellDef(model, filenum);
 	 Port("pos");
 	 Port("neg");
 	 Port("ctrlp");
@@ -1589,7 +1589,7 @@ skip_ends:
       snprintf(instancename, 99, "%s", nexttok + 1);
       strncpy(instancename, nexttok + 1, 99);
       if (!(*CellStackPtr)) {
-	CellDefNoCase(fname, filenum);
+	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
       
@@ -1714,7 +1714,7 @@ skip_ends:
 
 	 Fprintf(stdout, "Call to undefined subcircuit %s\n"
 		"Creating placeholder cell definition.\n", subcktname);
-	 CellDefNoCase(subcktname, filenum);
+	 CellDef(subcktname, filenum);
 	 CurrentCell->flags |= CELL_PLACEHOLDER;
          for (scan = head, i = 1; scan != NULL; scan = scan->next, i++) {
 	    sprintf(defport, "%d", i);	
@@ -1882,7 +1882,7 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
   // as an empty cell.  Otherwise, the filename is lost and cells
   // cannot be matched to the file!
 
-  if (LookupCellFile(fname, filenum) == NULL) CellDefNoCase(fname, filenum);
+  if (LookupCellFile(fname, filenum) == NULL) CellDef(fname, filenum);
 
   tp = LookupCellFile(fname, filenum);
   if (tp) tp->flags |= CELL_TOP;

@@ -6204,7 +6204,7 @@ int reorderpins(struct hashlist *p, int file)
 
     if (unordered)
 	Fprintf(stderr, "Ports of %s are unordered.  "
-		"Ordering will be arbitrary.", tc2->name);
+		"Ordering will be arbitrary.\n", tc2->name);
 
     for (ob = ptr->cell; ob != NULL; ) {
 	if (ob->type == FIRSTPIN) {

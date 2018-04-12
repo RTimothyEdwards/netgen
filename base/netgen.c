@@ -1203,40 +1203,31 @@ void CellDef(char *name, int fnum)
 {
     struct nlist *np;
 
-	if (Debug) Printf("Defining cell: %s\n",name);
-	GarbageCollect();
-	if ((CurrentCell = LookupCellFile(name, fnum)) != NULL) {
-	  if (AddToExistingDefinition) {
+    if (Debug) Printf("Defining cell: %s\n",name);
+    GarbageCollect();
+    if ((CurrentCell = LookupCellFile(name, fnum)) != NULL) {
+	if (AddToExistingDefinition) {
 	    ReopenCellDef(name, fnum);
 	    return ;
-	  }
-	  else {
+	}
+	else {
 	    Printf("Cell: %s exists already, and will be overwritten.\n", name);
 	    CellDelete(name, fnum);
-	  }
 	}
-	/* install a new cell in lookup table (hashed) */
-	np = InstallInCellHashTable(name, fnum);
-	CurrentCell = LookupCellFile(name, fnum);
-	CurrentCell->class = CLASS_SUBCKT;	/* default */
-	CurrentCell->flags = (GlobalParallelNone) ? COMB_NO_PARALLEL : 0;
+    }
+    /* install a new cell in lookup table (hashed) */
+    np = InstallInCellHashTable(name, fnum);
+    CurrentCell = LookupCellFile(name, fnum);
+    CurrentCell->class = CLASS_SUBCKT;	/* default */
+    CurrentCell->flags = (GlobalParallelNone) ? COMB_NO_PARALLEL : 0;
 
-	LastPlaced = NULL;
-	CurrentTail = NULL;
-	FreeNodeNames(CurrentCell);
-	NextNode = 1;
-}
+    LastPlaced = NULL;
+    CurrentTail = NULL;
+    FreeNodeNames(CurrentCell);
+    NextNode = 1;
 
-/*----------------------------------------------------------------------*/
-/* Same as CellDef() above, but mark cell as case-insensitive.		*/
-/* This routine is used only by	the ReadSpice() function.		*/
-/*----------------------------------------------------------------------*/
-
-void CellDefNoCase(char *name, int file)
-{
-   CellDef(name, file);
-   CurrentCell->file = file;
-   CurrentCell->flags |= CELL_NOCASE;
+    // Mark cell as case insensitive if case insensitivity is in effect
+    if (matchfunc == matchnocase) CurrentCell->flags |= CELL_NOCASE;
 }
 
 /*----------------------------------------------------------------------*/

@@ -184,13 +184,46 @@ int match(char *st1, char *st2)
 
 /* Case-insensitive matching */
 
+/* For case-insensitivity, the alphabet is lower-cased, but	*/
+/* also all common vector delimiters are cast to the same	*/
+/* character so that different vector notations will match.	*/
+
+static char to_lower[256] = {
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+	20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+	30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+	40, 41, 42, 43, 44, 45, 46, 47,
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+	':', ';', '<', '=', '>', '?', '@',
+	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+	'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+	'<', '\\', '>', '^', '_', '`',
+	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+	'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+	'<', '|', '>', '~', 127,
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+	20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+	30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+	40, 41, 42, 43, 44, 45, 46, 47,
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+	':', ';', '<', '=', '>', '?', '@',
+	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+	'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+	'<', '\\', '>', '^', '_', '`',
+	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+	'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+	'<', '|', '>', '~', 127
+};
+
 int matchnocase(char *st1, char *st2)
 {
    char *sp1 = st1;
    char *sp2 = st2;
 
    while (*sp1 != '\0' && *sp2 != '\0') {
-      if (tolower(*sp1) != tolower(*sp2)) break;
+      if (to_lower[*sp1] != to_lower[*sp2]) break;
       sp1++;
       sp2++;
    }
@@ -216,7 +249,7 @@ int matchfilenocase(char *st1, char *st2, int f1, int f2)
 
    if (f1 != f2) return 0;
    while (*sp1 != '\0' && *sp2 != '\0') {
-      if (tolower(*sp1) != tolower(*sp2)) break;
+      if (to_lower[*sp1] != to_lower[*sp2]) break;
       sp1++;
       sp2++;
    }

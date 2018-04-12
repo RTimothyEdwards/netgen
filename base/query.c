@@ -1024,6 +1024,10 @@ void Query(void)
       promptstring("Write SPICE: circuit name: ", repstr);
       SpiceCell(repstr, filenum, "");
       break;
+    case 'v':
+      promptstring("Write Verilog: circuit name: ", repstr);
+      VerilogModule(repstr, filenum, "");
+      break;
     case 'E':
       promptstring("Write ESACAP: circuit name: ", repstr);
       EsacapCell(repstr,"");
@@ -1061,6 +1065,10 @@ void Query(void)
     case 'S':
       promptstring("Read SPICE (.ckt) file? ", repstr);
       ReadSpice(repstr, &filenum);
+      break;
+    case 'V':
+      promptstring("Read Verilog (.v) file? ", repstr);
+      ReadVerilog(repstr, &filenum);
       break;
     case 'G' : 
       promptstring("Read NETGEN: file? ", repstr);

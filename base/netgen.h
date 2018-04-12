@@ -178,6 +178,7 @@ extern char *ReadSim(char *fname, int *fnum);
 extern char *ReadSpice(char *fname, int *fnum);
 extern char *ReadSpiceLib(char *fname, int *fnum);
 extern char *ReadNetgenFile (char *fname, int *fnum);
+extern char *ReadVerilog(char *fname, int *fnum);
 
 extern char *ReadNetlist(char *fname, int *fnum);
 

@@ -13,6 +13,7 @@
 #define NETGEN_EXTENSION ".ntg"
 #define CCODE_EXTENSION ".c.code"
 #define ESACAP_EXTENSION ".esa"
+#define VERILOG_EXTENSION ".v"
 
 #define LINELENGTH 80
 
@@ -27,11 +28,11 @@ extern int File;
 /* input routines */
 
 extern char *nexttok;
-#define SKIPTO(a) do {SkipTok();} while (!match(nexttok,a))
-extern void SkipTok(void);
-extern void SkipTokNoNewline(void);
+#define SKIPTO(a) do {SkipTok(NULL);} while (!match(nexttok,a))
+extern void SkipTok(char *delimiter);
+extern void SkipTokNoNewline(char *delimiter);
+extern void SkipNewLine(char *delimiter);
 extern void SpiceTokNoNewline(void);	/* handles SPICE "+" continuation line */
-extern void SkipNewLine(void);
 extern void SpiceSkipNewLine(void);	/* handles SPICE "+" continuation line */
 extern void InputParseError(FILE *f);
 extern int OpenParseFile(char *name, int fnum);

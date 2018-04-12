@@ -698,11 +698,11 @@ _netgen_readnet(ClientData clientData,
 {
    char *formats[] = {
       "automatic", "ext", "extflat", "sim", "ntk", "spice",
-      "netgen", "actel", "xilinx", NULL
+      "verilog", "netgen", "actel", "xilinx", NULL
    };
    enum FormatIdx {
       AUTO_IDX, EXT_IDX, EXTFLAT_IDX, SIM_IDX, NTK_IDX,
-      SPICE_IDX, NETGEN_IDX, ACTEL_IDX, XILINX_IDX
+      SPICE_IDX, VERILOG_IDX, NETGEN_IDX, ACTEL_IDX, XILINX_IDX
    };
    struct nlist *tc;
    int result, index, filenum = -1;
@@ -771,7 +771,7 @@ _netgen_readnet(ClientData clientData,
 
    if (retstr) savstr = STRDUP(retstr);
 
-   // Check if the file is already loaded
+   // Check if the file is already loaded.
 
    tc = LookupCell(savstr);
    if (tc != NULL) {
@@ -802,6 +802,9 @@ _netgen_readnet(ClientData clientData,
             break;
          case SPICE_IDX:
             retstr = ReadSpice(savstr, &filenum);
+            break;
+         case VERILOG_IDX:
+            retstr = ReadVerilog(savstr, &filenum);
             break;
          case NETGEN_IDX:
             retstr = ReadNetgenFile(savstr, &filenum);
@@ -918,11 +921,13 @@ _netgen_writenet(ClientData clientData,
 {
    char *formats[] = {
       "ext", "sim", "ntk", "actel",
-      "spice", "wombat", "esacap", "netgen", "ccode", "xilinx", NULL
+      "spice", "verilog", "wombat", "esacap", "netgen",
+      "ccode", "xilinx", NULL
    };
    enum FormatIdx {
       EXT_IDX, SIM_IDX, NTK_IDX, ACTEL_IDX,
-      SPICE_IDX, WOMBAT_IDX, ESACAP_IDX, NETGEN_IDX, CCODE_IDX, XILINX_IDX
+      SPICE_IDX, VERILOG_IDX, WOMBAT_IDX, ESACAP_IDX, NETGEN_IDX,
+      CCODE_IDX, XILINX_IDX
    };
    int result, index, filenum;
    char *repstr;
@@ -962,6 +967,9 @@ _netgen_writenet(ClientData clientData,
          break;
       case SPICE_IDX:
          SpiceCell(repstr, filenum, "");
+         break;
+      case VERILOG_IDX:
+         VerilogModule(repstr, filenum, "");
          break;
       case WOMBAT_IDX:
          Wombat(repstr,NULL);
