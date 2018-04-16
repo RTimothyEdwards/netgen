@@ -4915,7 +4915,7 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	 case PROP_STRING:
 	    islop = (int)(MAX(kl1->slop.dval, kl2->slop.dval) + 0.5);
 	    if (islop == 0) {
-	       if (strcasecmp(vl1->value.string, vl2->value.string)) {
+	       if (!(*matchfunc)(vl1->value.string, vl2->value.string)) {
 		  if (do_print) {
 		     if (mismatches == 0)
 		        Fprintf(stdout, "%s vs. %s:\n", inst1, inst2);
@@ -5172,7 +5172,7 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	    kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
 	    if (kl2 != NULL) {
 		// Allowed for one instance to be missing "M" or "S".
-		if (strcasecmp(vl2->key, "M") && strcasecmp(vl2->key, "S"))
+		if (!(*matchfunc)(vl2->key, "M") && !(*matchfunc)(vl2->key, "S"))
 		    break;	// Property is required
 	    }
 	 }
@@ -5223,7 +5223,7 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
 	    kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
 	    if (kl1 != NULL) {
 		// Allowed for one instance to be missing "M" or "S".
-		if (strcasecmp(vl1->key, "M") && strcasecmp(vl1->key, "S"))
+		if (!(*matchfunc)(vl1->key, "M") && !(*matchfunc)(vl1->key, "S"))
 		    break;	// Property is required
 	    }
 	 }
@@ -6508,7 +6508,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			      for (m = 0; m < 43; m++) *(ostr + m) = ' ';
 			      for (m = 44; m < 87; m++) *(ostr + m) = ' ';
 			      snprintf(ostr, 43, "%s", obn->name);
-			      if (!strcasecmp(obn->name, obp->name))
+			      if ((*matchfunc)(obn->name, obp->name))
 			         snprintf(ostr + 44, 43, "%s", obp->name);
 			      else
 			         snprintf(ostr + 44, 43, "%s **Mismatch**", obp->name);

@@ -371,7 +371,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   char devtype, in_module, in_comment, in_param;
   char *eqptr, *parptr, *matchptr;
   struct keyvalue *kvlist = NULL;
-  char inst[256], model[256], instname[256];
+  char inst[256], model[256], instname[256], portname[256];
   struct nlist *tp;
   struct objlist *parent, *sobj, *nobj, *lobj, *pobj;
 
@@ -477,6 +477,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
       inlined_decls = (char)0;
 
       if (tp != NULL) {
+	 struct bus wb;
 
 	 PushStack(tp->name, CellStackPtr);
 
@@ -507,6 +508,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	    }
 	 }
 
+	 wb.start = wb.end = -1;
          while ((nexttok != NULL) && (nexttok[0] != ';')) {
 	    if (in_param) {
 	        if (!strcmp(nexttok, ")")) {
@@ -536,7 +538,33 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		    if (!match(nexttok, "input") && !match(nexttok, "output") &&
 				!match(nexttok, "inout") && !match(nexttok, "real") &&
 				!match(nexttok, "logic") && !match(nexttok, "integer")) {
-		        Port(nexttok);
+			if (nexttok[0] == '[') {
+			   if (GetBus(nexttok, &wb) != 0) {
+			      // Didn't parse as a bus, so wing it
+			      wb.start = wb.end = -1;
+			      Port(nexttok);
+			   }
+			}
+			else {
+			   if (wb.start != -1) {
+			      if (wb.start > wb.end) {
+				 for (i = wb.start; i >= wb.end; i--) {
+				    sprintf(portname, "%s[%d]", nexttok, i);
+				    Port(portname);
+				 }
+			      }
+			      else {
+				 for (i = wb.start; i <= wb.end; i++) {
+				    sprintf(portname, "%s[%d]", nexttok, i);
+				    Port(portname);
+				 }
+			      }
+			      wb.start = wb.end = -1;
+			   }
+			   else {
+			      Port(nexttok);
+			   }
+			}
 		        hasports = 1;
 		    }
 		}
@@ -652,9 +680,9 @@ skip_endmodule:
       // Eliminate any single or double quotes around the filename
       iptr = iname;
       quotptr = iptr;
-      while (*quotptr != '\'' && *quotptr != '\"' && *quotptr != '`' &&
+      while (*quotptr != '\'' && *quotptr != '\"' && 
 		*quotptr != '\0' && *quotptr != '\n') quotptr++;
-      if (*quotptr == '\'' || *quotptr == '\"' || *quotptr == '`') *quotptr = '\0';
+      if (*quotptr == '\'' || *quotptr == '\"') *quotptr = '\0';
 	
       IncludeVerilog(iptr, filenum, CellStackPtr, blackbox);
       FREE(iname);
@@ -845,7 +873,8 @@ skip_endmodule:
          while (nexttok != NULL) {
 	    if (savetok == (char)0) SkipTok(VLOG_DELIMITERS2);
 	    savetok = (char)0;
-	    while (match(nexttok, "//")) {
+	    // NOTE: Deal with `ifdef et al. properly.  Ignoring for now.
+	    while (match(nexttok, "//") || (nexttok[0] == '`')) {
 		SkipNewLine(VLOG_DELIMITERS);
 		SkipTok(VLOG_DELIMITERS2);
 	    }
@@ -920,7 +949,7 @@ skip_endmodule:
       }
 
       if (head == NULL) {
-	 Fprintf(stderr, "Warning:  Cell %s has no pins\n", scan->name);
+	 Fprintf(stderr, "Warning:  Cell %s has no pins\n", modulename);
       }
 
       /* Check that the module exists.  If not, generate an empty	*/
@@ -928,7 +957,7 @@ skip_endmodule:
 
       tp = LookupCellFile(modulename, filenum);
       if (tp == NULL) {
-         struct bus wb;
+         struct bus wb, pb;
 	 char defport[128];
 
 	 Fprintf(stdout, "Creating placeholder cell definition for "
@@ -987,10 +1016,46 @@ skip_endmodule:
 
          obptr = LookupInstance(locinst, CurrentCell);
          if (obptr != NULL) {
-            scan = head;
-	    if (scan != NULL)
             do {
 	       struct bus wb;
+	       char *obpinname;
+	       int obpinidx;
+
+	       // NOTE:  Verilog allows any order of pins, since both the
+	       // instance and cell pin names are given.  So for each pin
+	       // in obptr (which defines the pin order) , we have to find
+	       // the corresponding pin in the scan list.
+	
+	       obpinname = strrchr(obptr->name, '/');
+	       if (!obpinname) break;
+	       obpinname++;
+
+	       scan = head;
+	       obpinidx = -1;
+	       while (scan != NULL) {
+		  if (match(obpinname, scan->name)) {
+		     break;
+		  }
+		  else {
+		     // If pin is a bus element, then find the scan
+		     // entry representing the whole bus.
+		     char *brackptr;
+		     if ((brackptr = strchr(obpinname, '[')) != NULL) {
+			*brackptr = '\0';
+			if (match(obpinname, scan->name)) {
+			   if (sscanf(brackptr + 1, "%d", &obpinidx) != 1)
+			      obpinidx = -1;
+			   *brackptr = '[';
+			   break;
+			}
+			else
+			   *brackptr = '[';
+		     }
+		  }
+		  scan = scan->next;
+	       }
+	       if (scan == NULL) break;
+
 	       if (GetBus(scan->net, &wb) == 0) {
 		   char *scanroot;
 		   scanroot = strsave(scan->net);
@@ -1003,7 +1068,7 @@ skip_endmodule:
 		       char pinname[128];
 
 		       // Check if port is an array
-		       if (strchr(obptr->name, '[') == NULL) {
+		       if (obpinidx == -1) {
 			   if (wb.start != wb.end) {
 			       Printf("Error: Bus connected to single port\n");
 			   }
@@ -1014,67 +1079,13 @@ skip_endmodule:
 	                   join(pinname, obptr->name);
 			   if (brackptr) *brackptr = '[';
 		       }
-		       else if (wb.start > wb.end) {
-			   range = wb.start - wb.end;
-		           for (j = range; j >= 0; j--) {
-			       sprintf(pinname, "%s[%d]", scanroot, j);
-	                       if (LookupObject(pinname, CurrentCell) == NULL)
-				   Node(pinname);
-	                       join(pinname, obptr->name);
-			       if (j == 0) break;
-			       if (obptr->next && (brackptr =
-					strchr(obptr->next->name, '[')) != NULL) {
-				   if (strncmp(obptr->next->name, obptr->name,
-						(int)(brackptr - obptr->next->name))) {
-				       Printf("Error: More bits in net than in port!\n");
-				       break;
-				   }
-			           obptr = obptr->next;
-			       }
-			       else {
-				   Printf("Error: More bits in net than in port!\n");
-				   break;
-			       }
-			   }
-			   // Are there port bits left over?
-			   while (obptr->next && ((brackptr =
-				strchr(obptr->next->name, '[')) != NULL) &&
-				(!strncmp(obptr->next->name, obptr->name,
-					(int)(brackptr - obptr->next->name)))) {
-			       Printf("Error: More bits in port than in net!\n");
-			       obptr = obptr->next;
-			   }
-		       }
 		       else {
-			   range = wb.end - wb.start;
-		           for (j = 0; j <= range; j++) {
-			       sprintf(pinname, "%s[%d]", scanroot, j);
-	                       if (LookupObject(pinname, CurrentCell) == NULL)
-				   Node(pinname);
-	                       join(pinname, obptr->name);
-			       if (j == range) break;
-			       if (obptr->next && (brackptr =
-					strchr(obptr->next->name, '[')) != NULL) {
-				   if (strncmp(obptr->next->name, obptr->name,
-						(int)(brackptr - obptr->next->name))) {
-				       Printf("Error: More bits in net than in port!\n");
-				       break;
-				   }
-			           obptr = obptr->next;
-			       }
-			       else {
-				   Printf("Error: More bits in net than in port!\n");
-				   break;
-			       }
-			   }
-			   // Are there port bits left over?
-			   while (obptr->next && ((brackptr =
-				strchr(obptr->next->name, '[')) != NULL) &&
-				(!strncmp(obptr->next->name, obptr->name,
-					(int)(brackptr - obptr->next->name)))) {
-			       Printf("Error: More bits in port than in net!\n");
-			       obptr = obptr->next;
-			   }
+			  // NOTE:  Making unsupportable assumption that
+			  // pin and port indexes match---need to fix this!
+			  sprintf(pinname, "%s[%d]", scanroot, obpinidx);
+	                  if (LookupObject(pinname, CurrentCell) == NULL)
+			     Node(pinname);
+	                  join(pinname, obptr->name);
 		       }
 		   }
 		   else {
@@ -1100,27 +1111,9 @@ skip_endmodule:
 	           join(scan->net, obptr->name);
 	       }
 	       obptr = obptr->next;
-	       scan = scan->next;
-            } while (obptr != NULL && obptr->type > FIRSTPIN && scan != NULL);
-
-            if ((obptr == NULL && scan != NULL) ||
-			(obptr != NULL && scan == NULL && obptr->type > FIRSTPIN)) {
-	        if (warnings <= 100) {
-	           Fprintf(stderr,"Parameter list mismatch in %s: ", instancename);
-
-	           if (obptr == NULL)
-		      Fprintf(stderr, "Too many parameters in call!\n");
-	           else if (scan == NULL)
-		      Fprintf(stderr, "Not enough parameters in call!\n");
-	           InputParseError(stderr);
-	           if (warnings == 100)
-	              Fprintf(stderr, "Too many warnings. . . will not "
-				"report any more.\n");
-                }
-	        warnings++;
-	     }
-	  }
-	  if (i == -1) break;	/* No array */
+            } while (obptr != NULL && obptr->type > FIRSTPIN);
+	 }
+	 if (i == -1) break;	/* No array */
       }
       DeleteProperties(&kvlist);
 
