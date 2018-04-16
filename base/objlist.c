@@ -290,6 +290,7 @@ void InitCellHashTable(void)
 {
     hashfunc = hash;
     matchfunc = match;
+    matchintfunc = matchfile;
     InitializeHashTable(&cell_dict, CELLHASHSIZE);
 }
 

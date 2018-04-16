@@ -726,13 +726,15 @@ skip_endmodule:
 	     if (wb.start > wb.end) {
 		for (i = wb.end; i <= wb.start; i++) {
 		    sprintf(nodename, "%s[%d]", nexttok, i);
-		    Node(nodename);
+	            if (LookupObject(nodename, CurrentCell) == NULL)
+		        Node(nodename);
 		}
 	     }
 	     else {
 		for (i = wb.start; i <= wb.end; i++) {
 		    sprintf(nodename, "%s[%d]", nexttok, i);
-		    Node(nodename);
+	            if (LookupObject(nodename, CurrentCell) == NULL)
+		        Node(nodename);
 		}
 	     }
 	     nb = NewBus();
@@ -741,7 +743,8 @@ skip_endmodule:
 	     HashPtrInstall(nexttok, nb, &buses);
 	 }
 	 else {
-	     Node(nexttok);
+	     if (LookupObject(nexttok, CurrentCell) == NULL)
+	         Node(nexttok);
 	 }
          SkipTokNoNewline(VLOG_DELIMITERS);
       }
@@ -776,7 +779,7 @@ skip_endmodule:
 	struct portelement *next;
       };
 
-      struct portelement *head, *tail, *scan, *scannext;
+      struct portelement *head, *tail, *scan, *last, *scannext;
       struct objlist *obptr;
 
       strncpy(modulename, nexttok, 99);
@@ -995,8 +998,89 @@ skip_endmodule:
 	    Port((char *)NULL);	// Must have something for pin 1
 	 }
 	 SetClass(CLASS_MODULE);
+	 tp = CurrentCell;
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);		/* Reopen */
+      }
+
+      /* Work through scan list and expand ports/nets that are arrays */
+
+      last = (struct portelement *)NULL;
+      scan = head;
+      while (scan != NULL) {
+	 int portstart, portend, portnum;
+
+	 scannext = scan->next;
+	 portstart = -1;
+
+	 for (obptr = tp->cell; obptr && obptr->type == PORT; obptr = obptr->next) {
+	    char *delimiter;
+	    if ((delimiter = strrchr(obptr->name, '[')) != NULL) {
+	       *delimiter = '\0';
+	       if ((*matchfunc)(obptr->name, scan->name)) {
+		  if (sscanf(delimiter + 1, "%d", &portnum) == 1) {
+		     if (portstart == -1)
+			portstart = portnum;
+		     else
+		        portend = portnum;
+		  }
+	       }
+	       *delimiter = '[';
+	    }
+	 }
+	 if (portstart != -1) {
+	    struct bus wb;
+	    struct portelement *new_port;
+	    char vname[256];
+	    int j;
+
+	    if (GetBus(scan->net, &wb) == 0) {
+	       if (((wb.start - wb.end) != (portstart - portend)) &&
+		   	((wb.start - wb.end) != (portend - portstart))) {
+		  if (((wb.start - wb.end) != (arraystart - arrayend)) &&
+			((wb.start - wb.end) != (arrayend - arraystart))) {
+		     Fprintf(stderr, "Error:  Net %s bus width does not match "
+				"port %s bus width.\n", scan->net, scan->name);
+		  }
+		  // Otherwise, net is bit-sliced across array of instances.
+	       }
+	       else if (wb.start > wb.end) {
+		  i = wb.start;
+		  j = portstart;
+		  while (1) {
+	             new_port = (struct portelement *)CALLOC(1,
+				sizeof(struct portelement));
+	             sprintf(vname, "%s[%d]", scan->name, j);
+	             new_port->name = strsave(vname);
+	             sprintf(vname, "%s[%d]", scan->net, i); 
+	             new_port->net = strsave(vname);
+
+		     if (last == NULL)
+			head = new_port;
+		     else
+			last->next = new_port;
+
+		     new_port->next = scannext;
+		     last = new_port;
+
+		     if (j == portend) break;
+
+		     if (portstart > portend) j--;
+		     else j++;
+		     if (wb.start > wb.end) i--;
+		     else i++;
+		  }
+		  FREE(scan);
+		  scan = last;
+	       }
+	    }
+	    else if (portstart != portend) {
+	       Fprintf(stderr, "Error:  Single net %s is connected to bus port %s\n",
+			scan->net, scan->name);
+	    }
+	 }
+         last = scan;
+	 scan = scannext;
       }
 
       arraymax = (arraystart > arrayend) ? arraystart : arrayend;
@@ -1036,25 +1120,12 @@ skip_endmodule:
 		  if (match(obpinname, scan->name)) {
 		     break;
 		  }
-		  else {
-		     // If pin is a bus element, then find the scan
-		     // entry representing the whole bus.
-		     char *brackptr;
-		     if ((brackptr = strchr(obpinname, '[')) != NULL) {
-			*brackptr = '\0';
-			if (match(obpinname, scan->name)) {
-			   if (sscanf(brackptr + 1, "%d", &obpinidx) != 1)
-			      obpinidx = -1;
-			   *brackptr = '[';
-			   break;
-			}
-			else
-			   *brackptr = '[';
-		     }
-		  }
 		  scan = scan->next;
 	       }
-	       if (scan == NULL) break;
+	       if (scan == NULL) {
+		  Fprintf(stderr, "Error:  No match in call for pin %s\n", obpinname);
+		  break;
+	       }
 
 	       if (GetBus(scan->net, &wb) == 0) {
 		   char *scanroot;
