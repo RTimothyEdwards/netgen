@@ -62,6 +62,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 // Global storage for verilog parameters
 struct hashdict verilogparams;
+// Global storage for verilog definitions
+struct hashdict verilogdefs;
 
 // Global storage for wire buses
 struct hashdict buses;
@@ -339,8 +341,10 @@ void CleanupModule() {
    }
    if (has_submodules == FALSE) SetClass(CLASS_MODULE);
 
-   RecurseHashTable(&verilogparams, freebus);
-   HashKill(&buses);
+   if (buses.hashtab != NULL) {
+      RecurseHashTable(&buses, freebus);
+      HashKill(&buses);
+   }
 }
 
 /*------------------------------------------------------*/
@@ -400,6 +404,19 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
     /* Handle comment lines */
     if (match(nexttok, "//"))
 	SkipNewLine(VLOG_DELIMITERS);
+
+    /* Ignore primitive definitions */
+    else if (match(nexttok, "primitive")) {
+	while (1) {
+	    SkipNewLine(VLOG_DELIMITERS);
+	    SkipTok(VLOG_DELIMITERS);
+	    if (EndParseFile()) break;
+	    if (match(nexttok, "endprimitive")) {
+	       in_module = 0;
+	       break;
+	    }
+	}
+    }
 
     else if (match(nexttok, "module")) {
       InitializeHashTable(&buses, OBJHASHSIZE);
@@ -500,8 +517,11 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	    }
 	    in_param = (char)1;
 	 }
-	 else if (match(nexttok, "(")) {
-	    SkipTok(VLOG_DELIMITERS);
+	 else if (nexttok[0] == '(') {
+	    if (match(nexttok, "("))
+	        SkipTok(VLOG_DELIMITERS);
+	    else
+		nexttok++;
 	    while (match(nexttok, "//")) {
 		SkipNewLine(VLOG_DELIMITERS);
 		SkipTok(VLOG_DELIMITERS);
@@ -562,7 +582,12 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 			      wb.start = wb.end = -1;
 			   }
 			   else {
+			      char *pptr;
+
+			      if ((pptr = strrchr(nexttok, ')')) != NULL)
+				 *pptr = '\0';
 			      Port(nexttok);
+			      if (pptr != NULL) break;
 			   }
 			}
 		        hasports = 1;
@@ -570,6 +595,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		}
 	    }
 	    SkipTok(VLOG_DELIMITERS);
+	    if (nexttok == NULL) break;
 	    while (match(nexttok, "//")) { SkipNewLine(VLOG_DELIMITERS); SkipTok(VLOG_DELIMITERS); }
          }
 	 SetClass((blackbox) ? CLASS_MODULE : CLASS_SUBCKT);
@@ -688,20 +714,43 @@ skip_endmodule:
       FREE(iname);
       SkipNewLine(VLOG_DELIMITERS);
     }
-    else if (match(nexttok, "`define") || match(nexttok, "localparam")) {
+    else if (match(nexttok, "`define")) {
+      struct property *kl = NULL;
 
+      // Pick up key-value pair and store in current cell
+
+      /* Parse for definitions used in expressions.  Save */
+      /* definitions in the "verilogdefs" hash table.	 */
+
+      SkipTokNoNewline(VLOG_DELIMITERS);
+      if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
+
+      kl = NewProperty();
+      kl->key = strsave(nexttok);
+      kl->idx = 0;
+      kl->type = PROP_STRING;
+      kl->slop.dval = 0.0;
+
+      SkipTokNoNewline(VLOG_DELIMITERS);
+      if ((nexttok == NULL) || (nexttok[0] == '\0'))
+	 // Let "`define X" be equivalent to "`define X 1"
+	 kl->pdefault.string = strsave("1");
+      else
+	 kl->pdefault.string = strsave(nexttok);
+      HashPtrInstall(kl->key, kl, &verilogdefs);
+    }
+    else if (match(nexttok, "localparam")) {
       // Pick up key = value pairs and store in current cell
       while (nexttok != NULL)
       {
+	 struct property *kl = NULL;
+
 	 /* Parse for parameters used in expressions.  Save	*/
 	 /* parameters in the "verilogparams" hash table.	*/
 
 	 SkipTokNoNewline(VLOG_DELIMITERS);
 	 if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
-	 if ((eqptr = strchr(nexttok, '=')) != NULL)
-	 {
-	    struct property *kl = NULL;
-
+	 if ((eqptr = strchr(nexttok, '=')) != NULL) {
 	    *eqptr = '\0';
 	    kl = NewProperty();
 	    kl->key = strsave(nexttok);
@@ -712,6 +761,41 @@ skip_endmodule:
 	    HashPtrInstall(nexttok, kl, &verilogparams);
 	 }
       }
+    }
+
+    /* Note:  This is just the most basic processing of conditionals,	*/
+    /* although it does handle nested conditionals.			*/
+    
+    else if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef")) {
+	struct property *kl;
+	int nested = 0;
+        int invert = (nexttok[3] == 'n') ? 1 : 0;
+
+	SkipTokNoNewline(VLOG_DELIMITERS);
+
+	/* To be done:  Handle boolean arithmetic on conditionals */
+
+	kl = (struct property *)HashLookup(nexttok, &verilogdefs);
+	if (((invert == 0) && (kl == NULL))
+		|| ((invert == 1) && (kl != NULL))) {
+	   /* Skip to matching `endif */
+	   while (1) {
+	      SkipNewLine(VLOG_DELIMITERS);
+	      SkipTok(VLOG_DELIMITERS);
+	      if (EndParseFile()) break;
+	      if (match(nexttok, "//"))
+		  continue;
+	      else if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef")) {
+		  nested++;
+	      }
+	      else if (match(nexttok, "`endif")) {
+		  if (nested == 0)
+		     break;
+		  else
+		     nested--;
+	      }
+	   }
+	}
     }
 
     else if (match(nexttok, "wire")) {	/* wire = node */
@@ -1229,6 +1313,7 @@ baddevice:
 
 char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
 {
+  struct property *kl = NULL;
   struct cellstack *CellStack = NULL;
   struct nlist *tp;
   int filenum;
@@ -1257,6 +1342,17 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   }
 
   InitializeHashTable(&verilogparams, OBJHASHSIZE);
+  InitializeHashTable(&verilogdefs, OBJHASHSIZE);
+
+  /* Add the pre-defined key "LVS" to verilogdefs */
+
+  kl = NewProperty();
+  kl->key = strsave("LVS");
+  kl->idx = 0;
+  kl->type = PROP_STRING;
+  kl->slop.dval = 0.0;
+  kl->pdefault.string = strsave("1");
+  HashPtrInstall(kl->key, kl, &verilogdefs);
 
   /* All verilog files should start with a comment line,  */
   /* but we won't depend upon it.  Any comment line	  */
@@ -1270,6 +1366,8 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
 
   RecurseHashTable(&verilogparams, freeprop);
   HashKill(&verilogparams);
+  RecurseHashTable(&verilogdefs, freeprop);
+  HashKill(&verilogdefs);
 
   // Record the top level file.
   if (LookupCellFile(fname, filenum) == NULL) CellDef(fname, filenum);
