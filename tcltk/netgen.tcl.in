@@ -536,10 +536,10 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	    # Match pins
             netgen::log echo off
 	    if {$dolist == 1} {
-		set result [equate pins "$fnum1 [lindex $endval 0]" \
+		set result [equate -list pins "$fnum1 [lindex $endval 0]" \
 				"$fnum2 [lindex $endval 1]"]
 	    } else {
-		set result [equate -list pins "$fnum1 [lindex $endval 0]" \
+		set result [equate pins "$fnum1 [lindex $endval 0]" \
 				"$fnum2 [lindex $endval 1]"]
 	    }
 	    if {$result != 0} {
