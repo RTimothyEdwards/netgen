@@ -33,6 +33,7 @@ MANDIR                 = ${mandir}
 LIBDIR                 = ${libdir}
 DOCDIR                 = ${libdir}/netgen/doc
 TCLDIR                 = ${libdir}/netgen/tcl
+PYDIR		       = ${libdir}/netgen/python
 
 MAIN_EXTRA_LIBS        = @extra_libs@
 LD_EXTRA_LIBS          = @ld_extra_libs@

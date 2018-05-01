@@ -163,6 +163,9 @@ AC_CHECK_HEADERS(limits.h)
 dnl Check for <param.h>
 AC_CHECK_HEADERS(param.h)
 
+dnl Check for Python3
+AC_CHECK_PROG(HAVE_PYTHON3, python3, yes, no)
+
 dnl Check for va_copy
 AC_CACHE_CHECK([for va_copy], ac_cv_c_va_copy,
  AC_TRY_LINK(
@@ -1274,6 +1277,7 @@ AC_SUBST(gr_cflags)
 AC_SUBST(gr_dflags)
 AC_SUBST(gr_libs)
 AC_SUBST(gr_srcs)
+AC_SUBST(HAVE_PYTHON3)
 
 AC_SUBST(X_LIBS)
 AC_SUBST(X_CFLAGS)
@@ -1312,6 +1316,20 @@ else
    echo "   and/or libraries installed, or they are not in a standard path."
    echo "   Try using configure options --with-tcl=<DIR> and --with-tk=<DIR>."
    echo
+fi
+
+${ECHO_N} "Python3:    "
+if test "x${HAVE_PYTHON3}" == "x"; then
+   echo "no"
+   echo
+   echo "   Without Python3, you cannot run the GUI interface to netgen."
+   echo "   This is purely optional, as it contains no features not"
+   echo "   available in the command-line (Tcl/Tk) version.  If you want"
+   echo "   python3 support, make sure that you have installed python3"
+   echo "   on your system."
+   echo
+else
+   echo "yes"
 fi
 
 echo "-----------------------------------------------------------"

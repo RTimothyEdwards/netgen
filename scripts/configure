@@ -664,6 +664,7 @@ X_LIBS
 X_PRE_LIBS
 X_CFLAGS
 XMKMF
+HAVE_PYTHON3
 EGREP
 GREP
 M4
@@ -4638,6 +4639,45 @@ fi
 done
 
 
+# Extract the first word of "python3", so it can be a program name with args.
+set dummy python3; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_HAVE_PYTHON3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$HAVE_PYTHON3"; then
+  ac_cv_prog_HAVE_PYTHON3="$HAVE_PYTHON3" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_HAVE_PYTHON3="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_prog_HAVE_PYTHON3" && ac_cv_prog_HAVE_PYTHON3="no"
+fi
+fi
+HAVE_PYTHON3=$ac_cv_prog_HAVE_PYTHON3
+if test -n "$HAVE_PYTHON3"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $HAVE_PYTHON3" >&5
+$as_echo "$HAVE_PYTHON3" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for va_copy" >&5
 $as_echo_n "checking for va_copy... " >&6; }
 if ${ac_cv_c_va_copy+:} false; then :
@@ -6548,6 +6588,7 @@ fi
 
 
 
+
 ac_config_files="$ac_config_files defs.mak"
 
 cat >confcache <<\_ACEOF
@@ -7735,6 +7776,20 @@ else
    echo "   and/or libraries installed, or they are not in a standard path."
    echo "   Try using configure options --with-tcl=<DIR> and --with-tk=<DIR>."
    echo
+fi
+
+${ECHO_N} "Python3:    "
+if test "x${HAVE_PYTHON3}" == "x"; then
+   echo "no"
+   echo
+   echo "   Without Python3, you cannot run the GUI interface to netgen."
+   echo "   This is purely optional, as it contains no features not"
+   echo "   available in the command-line (Tcl/Tk) version.  If you want"
+   echo "   python3 support, make sure that you have installed python3"
+   echo "   on your system."
+   echo
+else
+   echo "yes"
 fi
 
 echo "-----------------------------------------------------------"

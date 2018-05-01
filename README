@@ -78,7 +78,7 @@ of CVS check-in notes on http://opencircuitdesign.com/netgen/.
 
 BUILDING NETGEN:
 ----------------
-NETGEN version 1.4 uses the same "make" procedure as Magic version 7.5
+NETGEN version 1.5 uses the same "make" procedure as Magic version 8.1
 and IRSIM version 9.7:
 
    ./configure

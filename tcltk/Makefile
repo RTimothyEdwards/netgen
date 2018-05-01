@@ -34,6 +34,7 @@ netgen.tcl: netgen.tcl.in
 
 netgen.sh: netgen.sh.in
 	sed -e 's%TCL_DIR%${TCLDIR}%g' \
+	    -e 's%PY_DIR%${PYDIR}%g' \
 	    -e 's%TCLLIB_DIR%${TCL_LIB_DIR}%g' \
 	    -e 's%WISH_EXE%${WISH_EXE}%g' \
 	    netgen.sh.in > netgen.sh

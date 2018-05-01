@@ -3,7 +3,7 @@
 #
 
 NETGENDIR = .
-PROGRAMS = netgen
+PROGRAMS = netgen python
 MODULES = base
 
 MAKEFLAGS =
@@ -61,7 +61,7 @@ install-real: install-dirs
 
 install-tcl-dirs:
 	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${BINDIR} $(DESTDIR)${MANDIR} \
-		$(DESTDIR)${TCLDIR}
+		$(DESTDIR)${TCLDIR} $(DESTDIR)${PYDIR}
 
 install-dirs:
 	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${BINDIR} $(DESTDIR)${MANDIR}

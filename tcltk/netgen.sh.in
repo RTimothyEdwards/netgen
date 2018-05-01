@@ -14,6 +14,7 @@
 
 TKCON=true
 BATCH=
+GUI=
 NETGEN_WISH=WISH_EXE
 export NETGEN_WISH
 
@@ -29,6 +30,7 @@ for i in "$@" ; do
    case $i in
       -noc*) TKCON=;;
       -bat*) BATCH=true; TKCON=;;
+      -gui) GUI=true; TKCON=;;
       *) arglist="$arglist${arglist:+ }\"${i//\"/\\\"}\"";;
    esac
 done 
@@ -40,7 +42,10 @@ if [ $TKCON ]; then
 	-slave "package require Tk; set argc $#; set argv [list $arglist]; \
 	source TCL_DIR/netgen.tcl"
 
-else
+# Run the Python LVS manager GUI
+
+elif [ $GUI ]; then
+    exec PY_DIR/lvs_manager.py $@
 
 #
 # Run the stand-in for wish (netgenexec), which acts exactly like "wish"
@@ -49,6 +54,7 @@ else
 # capable of sourcing the startup script.
 #
 
+else
    exec TCL_DIR/netgenexec -- "$@"
 
 fi
