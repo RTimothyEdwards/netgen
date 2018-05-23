@@ -884,6 +884,7 @@ skip_endmodule:
 
          while (nexttok != NULL) {
 	    char *paramname;
+
 	    SkipTok(VLOG_DELIMITERS2);
 	    while (match(nexttok, "//")) {
 		SkipNewLine(VLOG_DELIMITERS);
@@ -896,14 +897,7 @@ skip_endmodule:
 
 	    // We need to look for parameters of the type ".name(value)"
 
-	    SkipTok(VLOG_DELIMITERS2);
-	    while (match(nexttok, "//")) {
-		SkipNewLine(VLOG_DELIMITERS);
-		SkipTok(VLOG_DELIMITERS2);
-	    }
-	    if (nexttok[0] != '.') {
-	        Printf("Badly formed subcircuit parameter line at \"%s\"\n", nexttok);
-	    }
+	    if (nexttok[0] != '.') break;
 	    else {
 		paramname = strsave(nexttok + 1);
 	        SkipTok(VLOG_DELIMITERS2);
