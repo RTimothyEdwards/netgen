@@ -1,7 +1,6 @@
 netgen
 netgenexec
 defs.mak
-Depend
 config.cache
 config.log
 config.status
