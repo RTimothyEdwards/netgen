@@ -78,6 +78,7 @@ install-tcl-real: install-tcl-dirs
 clean:
 	for dir in ${MODULES} ${PROGRAMS} ${UNUSED_MODULES}; do \
 		(cd $$dir && ${MAKE} clean); done
+	${RM} *.tmp */*.tmp *.sav */*.sav *.log TAGS tags
 
 distclean:
 	touch defs.mak
