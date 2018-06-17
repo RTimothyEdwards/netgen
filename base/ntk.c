@@ -27,6 +27,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdio.h>
 #include <stdarg.h>
 
+#ifdef TCL_NETGEN
+#include <tcl.h>
+#endif
+
 #include "netgen.h"
 #include "hash.h"
 #include "objlist.h"
