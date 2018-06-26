@@ -1573,7 +1573,7 @@ skip_ends:
 
     else if (toupper(nexttok[0]) == 'X') {	/* subcircuit instances */
       char instancename[100], subcktname[100];
-      int itype;
+      int itype, in_props;
 
       instancename[99] = '\0';
       subcktname[99] = '\0';
@@ -1596,6 +1596,7 @@ skip_ends:
       head = NULL;
       tail = NULL;
       SpiceTokNoNewline();
+      in_props = FALSE;
       while (nexttok != NULL) {
 	/* must still be a node or a parameter */
 	struct portelement *new_port;
@@ -1622,10 +1623,11 @@ skip_ends:
 	if (((eqptr = strchr(nexttok, '=')) != NULL) &&
 	    	((tp = LookupCellFile(nexttok, filenum)) == NULL))
 	{
+	    in_props = TRUE;
 	    *eqptr = '\0';
 	    AddProperty(&kvlist, nexttok, eqptr + 1);
 	}
-	else
+	else if (in_props == FALSE)
 	{
 	    new_port = (struct portelement *)CALLOC(1, sizeof(struct portelement));
 	    new_port->name = strsave(nexttok);
@@ -1633,6 +1635,11 @@ skip_ends:
 	    else tail->next = new_port;
 	    new_port->next = NULL;
 	    tail = new_port;
+	}
+	else
+	{
+	    Fprintf(stderr, "Token \"%s\" is not a parameter!\n", nexttok);
+            InputParseError(stderr);
 	}
 	SpiceTokNoNewline();
       }
