@@ -4625,7 +4625,7 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 {
    int mismatches = 0;
    int len2, *check2;
-   struct property *kl1, *kl2;
+   struct property *kl1, *kl2, *klt;
    struct valuelist *vl1, *vl2;
    int i, j;
    int islop;
@@ -4797,8 +4797,27 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
       /* Promote properties as necessary to make sure they all match */
       if (kl1->type != vl1->type) PromoteProperty(kl1, vl1);
       if (kl2->type != vl2->type) PromoteProperty(kl2, vl2);
-      if (kl1->type != vl2->type) PromoteProperty(kl1, vl2);
-      if (vl1->type != kl2->type) PromoteProperty(kl2, vl1);
+
+      /* If kl1 and kl2 types differ, choose one type to target. Prefer	*/
+      /* double if either type is double, otherwise string.		*/
+
+      if (kl1->type == PROP_DOUBLE)
+	 klt = kl1;
+      else if (kl2->type == PROP_DOUBLE)
+	 klt = kl2;
+      else if (kl1->type == PROP_INTEGER)
+	 klt = kl1;
+      else if (kl2->type == PROP_INTEGER)
+	 klt = kl2;
+      else if (kl1->type == PROP_STRING)
+	 klt = kl1;
+      else if (kl2->type == PROP_STRING)
+         klt = kl2;
+      else
+	 klt = kl1;
+
+      if (vl2->type != klt->type) PromoteProperty(klt, vl2);
+      if (vl1->type != klt->type) PromoteProperty(klt, vl1);
 
       if (vl1->type != vl2->type) {
 	 if (do_print && (vl1->type != vl2->type)) {
@@ -4849,13 +4868,13 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	 if (rval != NULL) mismatches++;
       }
 
-      else switch (kl1->type) {
+      else switch (klt->type) {
 	 case PROP_DOUBLE:
 	 case PROP_VALUE:
 	    dval1 = vl1->value.dval;
 	    dval2 = vl2->value.dval;
 
-	    dslop = MAX(kl1->slop.dval, kl2->slop.dval);
+	    dslop = klt->slop.dval;
 	    pd = 2 * fabs(dval1 - dval2) / (dval1 + dval2);
 	    if (pd > dslop) {
 	       if (do_print) {
@@ -4883,7 +4902,7 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	    ival1 = vl1->value.ival;
 	    ival2 = vl2->value.ival;
 
-	    islop = MAX(kl1->slop.ival, kl2->slop.ival);
+	    islop = klt->slop.ival;
 	    if (abs(ival1 - ival2) > islop) {
 	       if (do_print) {
 		  if (mismatches == 0)
@@ -4913,7 +4932,7 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	    }
 	    break;
 	 case PROP_STRING:
-	    islop = (int)(MAX(kl1->slop.dval, kl2->slop.dval) + 0.5);
+	    islop = (int)(klt->slop.dval + 0.5);
 	    if (islop == 0) {
 	       if (!(*matchfunc)(vl1->value.string, vl2->value.string)) {
 		  if (do_print) {

@@ -375,7 +375,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   char devtype, in_module, in_comment, in_param;
   char *eqptr, *parptr, *matchptr;
   struct keyvalue *kvlist = NULL;
-  char inst[256], model[256], instname[256], portname[256];
+  char inst[256], model[256], instname[256], portname[256], pkey[256];
   struct nlist *tp;
   struct objlist *parent, *sobj, *nobj, *lobj, *pobj;
 
@@ -540,9 +540,30 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		    }
 		}
 		else if ((eqptr = strchr(nexttok, '=')) != NULL) {
+		    double dval;
+
 		    *eqptr = '\0';
-		    // Only String properties allowed
-		    PropertyString(tp->name, filenum, nexttok, 0, eqptr + 1);
+		    /* In case the variable name is not followed by whitespace */
+		    if (eqptr > nexttok) strcpy(pkey, nexttok);
+		    eqptr++;
+
+		    // Equal sign may be followed by whitespace, in which case
+		    // the parameter value is the next token.
+		    if (strlen(eqptr) == 0) {
+			SkipTok(VLOG_DELIMITERS); /* get the next token */
+			eqptr = nexttok;
+		    }
+
+		    // Try first as a double, otherwise it's a string
+		    // Double value's slop defaults to 1%.
+		    if (ConvertStringToFloat(eqptr, &dval) == 1)
+		        PropertyDouble(tp->name, filenum, pkey, 0.01, dval);
+		    else
+			PropertyString(tp->name, filenum, pkey, 0, eqptr);
+		}
+		else {
+		    /* Assume this is a keyword and save it */
+		    strcpy(pkey, nexttok);
 		}
 	    }
 	    else {
