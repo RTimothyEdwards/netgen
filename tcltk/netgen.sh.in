@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # For installation, put this file (netgen.sh) in a standard executable path.
 # Put startup script "netgen.tcl" and shared library "tclnetgen.so"
