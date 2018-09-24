@@ -57,8 +57,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "netfile.h"
 #include "print.h"
 
-#define VLOG_DELIMITERS " \t\r\n,;"
-#define VLOG_DELIMITERS2 " \t\r\n,()"
+// See netfile.c for explanation of delimiters.  'X'
+// separates single-character delimiters from two-character delimiters.
+#define VLOG_DELIMITERS ",;:(){}[]=\"X///**/#("
+#define VLOG_PIN_NAME_DELIMITERS "()X///**/"
 
 // Global storage for verilog parameters
 struct hashdict verilogparams;
@@ -95,21 +97,159 @@ struct bus *NewBus()
     return (wb);
 }
 
+//-------------------------------------------------------------------------
 // Get bus indexes from the notation name[a:b].  If there is only "name"
 // then look up the name in the bus hash list and return the index bounds.
 // Return 0 on success, 1 on syntax error, and -1 if signal is not a bus.
+//
+// Note that this routine relies on the delimiter characters including
+// "[", ":", and "]" when calling NextTok.
+//-------------------------------------------------------------------------
+
+int GetBusTok(struct bus *wb)
+{
+    int result, start, end;
+    struct property *kl = NULL;
+
+    if (wb == NULL) return 0;
+    else {
+        wb->start = -1;
+        wb->end = -1;
+    }
+
+    if (match(nexttok, "[")) {
+	SkipTokComments(VLOG_DELIMITERS);
+
+	// Check for parameter names and substitute values if found.
+	if (nexttok[0] == '`') {
+	    kl = (struct property *)HashLookup(nexttok + 1, &verilogdefs);
+	    if (kl == NULL) {
+		Printf("Unknown definition %s found in array notation.\n", nexttok);
+	    }
+	    else {
+		/* Note:  all verilog definitions have been saved as PROP_STRING */
+		result = sscanf(kl->pdefault.string, "%d", &start);
+		if (result != 1) {
+		    Printf("Cannot parse first digit from parameter %s value %s\n",
+				nexttok, kl->pdefault.string);
+		    return 1;
+		}
+	    }
+	}
+	else {
+	    result = sscanf(nexttok, "%d", &start);
+	    if (result != 1) {
+		// Is name in the parameter list?
+	        kl = (struct property *)HashLookup(nexttok, &verilogparams);
+		if (kl == NULL) {
+		    Printf("Array value %s is not a number or a parameter.\n",
+				nexttok);
+		    return 1;
+		}
+		else {
+		    result = sscanf(kl->pdefault.string, "%d", &start);
+		    if (result != 1) {
+		        Printf("Parameter %s has value %s that cannot be parsed"
+				" as an integer.\n", nexttok, kl->pdefault.string);
+			return 1;
+		    }
+		}
+	    }
+	}
+	SkipTokComments(VLOG_DELIMITERS);
+	if (match(nexttok, "]")) {
+	    result = 1;
+	    end = start;	// Single bit
+	}
+	else if (!match(nexttok, ":")) {
+	    Printf("Badly formed array notation:  Expected colon, found %s\n", nexttok);
+	    return 1;
+	}
+	else {
+	    SkipTokComments(VLOG_DELIMITERS);
+
+	    // Check for parameter names and substitute values if found.
+	    if (nexttok[0] == '`') {
+		kl = (struct property *)HashLookup(nexttok + 1, &verilogdefs);
+		if (kl == NULL) {
+		    Printf("Unknown definition %s found in array notation.\n", nexttok);
+		}
+		else {
+		    /* Note:  all verilog definitions have been saved as PROP_STRING */
+		    result = sscanf(kl->pdefault.string, "%d", &end);
+		    if (result != 1) {
+			Printf("Cannot parse second digit from parameter %s value %s\n",
+					nexttok, kl->pdefault.string);
+			return 1;
+		    }
+		}
+	    }
+	    else {
+		result = sscanf(nexttok, "%d", &end);
+		if (result != 1) {
+		    // Is name in the parameter list?
+	            kl = (struct property *)HashLookup(nexttok, &verilogparams);
+		    if (kl == NULL) {
+			Printf("Array value %s is not a number or a parameter.\n",
+					nexttok);
+			return 1;
+		    }
+		    else {
+			result = sscanf(kl->pdefault.string, "%d", &end);
+			if (result != 1) {
+		            Printf("Parameter %s has value %s that cannot be parsed"
+					" as an integer.\n", nexttok,
+					kl->pdefault.string);
+			    return 1;
+			}
+		    }
+		}
+	    }
+	}
+	wb->start = start;
+	wb->end = end;
+
+	while (!match(nexttok, "]")) {
+	    SkipTokComments(VLOG_DELIMITERS);
+	    if (nexttok == NULL) {
+		Printf("End of file reached while reading array bounds.\n");
+		return 1;
+	    }
+	    else if (match(nexttok, ";")) {
+		// Better than reading to end-of-file, give up on end-of-statement
+		Printf("End of statement reached while reading array bounds.\n");
+		return 1;
+	    }
+	}
+    }
+    else {
+	struct bus *hbus;
+	hbus = (struct bus *)HashLookup(nexttok, &buses);
+	if (hbus != NULL) {
+	    wb->start = hbus->start;
+	    wb->end = hbus->end;
+	}
+	else
+	    return -1;
+    }
+    return 0;
+}
+
+//--------------------------------------------------------------------
+// GetBus() is similar to GetBusTok() (see above), but it parses from
+// a string instead of the input tokenizer.
+//--------------------------------------------------------------------
 
 int GetBus(char *astr, struct bus *wb)
 {
     char *colonptr, *brackstart, *brackend;
     int result, start, end;
 
-    if (wb == NULL) return;
+    if (wb == NULL) return 0;
     else {
         wb->start = -1;
         wb->end = -1;
     }
-    
     brackstart = strchr(astr, '[');
     if (brackstart != NULL) {
 	brackend = strchr(astr, ']');
@@ -129,10 +269,10 @@ int GetBus(char *astr, struct bus *wb)
 	}
 	if (colonptr)
 	    result = sscanf(colonptr + 1, "%d", &end);
-        else {
+	else {
 	    result = 1;
-	    end = start;	// Single bit
-        }
+	    end = start;        // Single bit
+	}
 	*brackend = ']';
 	if (result != 1) {
 	    Printf("Badly formed array notation \"%s\"\n", astr);
@@ -372,8 +512,8 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 {
   int cdnum = 1, rdnum = 1, i;
   int warnings = 0, hasports, inlined_decls = 0, localcount = 1;
-  char devtype, in_module, in_comment, in_param;
-  char *eqptr, *parptr, *matchptr;
+  char devtype, in_module, in_param;
+  char *eqptr, *matchptr;
   struct keyvalue *kvlist = NULL;
   char inst[256], model[256], instname[256], portname[256], pkey[256];
   struct nlist *tp;
@@ -383,33 +523,24 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   model[255] = '\0';
   instname[255] = '\0';
   in_module = (char)0;
-  in_comment = (char)0;
   in_param = (char)0;
   
   while (!EndParseFile()) {
 
-    SkipTok(VLOG_DELIMITERS); /* get the next token */
+    SkipTokComments(VLOG_DELIMITERS); /* get the next token */
     if ((EndParseFile()) && (nexttok == NULL)) break;
+    else if (nexttok == NULL)
+      break;
 
-    /* Handle comment blocks */
-    if (nexttok[0] == '/' && nexttok[1] == '*') {
-        in_comment = (char)1;
-    }
-    else if (nexttok[0] == '*' && nexttok[1] == '/') {
-        in_comment = (char)0;
-	continue;
-    }
-    if (in_comment == (char)1) continue;
-
-    /* Handle comment lines */
-    if (match(nexttok, "//"))
-	SkipNewLine(VLOG_DELIMITERS);
+    /* Ignore end-of-statement markers */
+    else if (match(nexttok, ";"))
+      continue;
 
     /* Ignore primitive definitions */
     else if (match(nexttok, "primitive")) {
 	while (1) {
 	    SkipNewLine(VLOG_DELIMITERS);
-	    SkipTok(VLOG_DELIMITERS);
+	    SkipTokComments(VLOG_DELIMITERS);
 	    if (EndParseFile()) break;
 	    if (match(nexttok, "endprimitive")) {
 	       in_module = 0;
@@ -505,54 +636,35 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	 /* definition, and those which declare everything	*/
 	 /* inside the pin list.				*/
 
-         SkipTok(VLOG_DELIMITERS);
+         SkipTokComments(VLOG_DELIMITERS);
 
 	 // Check for parameters within #( ... ) 
 
 	 if (match(nexttok, "#(")) {
-	    SkipTok(VLOG_DELIMITERS);
-	    while (match(nexttok, "//")) {
-		SkipNewLine(VLOG_DELIMITERS);
-		SkipTok(VLOG_DELIMITERS);
-	    }
+	    SkipTokComments(VLOG_DELIMITERS);
 	    in_param = (char)1;
 	 }
-	 else if (nexttok[0] == '(') {
-	    if (match(nexttok, "("))
-	        SkipTok(VLOG_DELIMITERS);
-	    else
-		nexttok++;
-	    while (match(nexttok, "//")) {
-		SkipNewLine(VLOG_DELIMITERS);
-		SkipTok(VLOG_DELIMITERS);
-	    }
+	 else if (match(nexttok, "(")) {
+	    SkipTokComments(VLOG_DELIMITERS);
 	 }
 
 	 wb.start = wb.end = -1;
-         while ((nexttok != NULL) && (nexttok[0] != ';')) {
+         while ((nexttok != NULL) && !match(nexttok, ";")) {
 	    if (in_param) {
-	        if (!strcmp(nexttok, ")")) {
+		if (match(nexttok, ")")) {
 		    in_param = (char)0;
-		    SkipTok(VLOG_DELIMITERS);
-		    if (strcmp(nexttok, "(")) {
+		    SkipTokComments(VLOG_DELIMITERS);
+		    if (!match(nexttok, "(")) {
 		        Fprintf(stderr, "Badly formed module block parameter list.\n");
 		        goto skip_endmodule;
 		    }
 		}
-		else if ((eqptr = strchr(nexttok, '=')) != NULL) {
+		else if (match(nexttok, "=")) {
 		    double dval;
 
-		    *eqptr = '\0';
-		    /* In case the variable name is not followed by whitespace */
-		    if (eqptr > nexttok) strcpy(pkey, nexttok);
-		    eqptr++;
-
-		    // Equal sign may be followed by whitespace, in which case
-		    // the parameter value is the next token.
-		    if (strlen(eqptr) == 0) {
-			SkipTok(VLOG_DELIMITERS); /* get the next token */
-			eqptr = nexttok;
-		    }
+		    // The parameter value is the next token.
+		    SkipTokComments(VLOG_DELIMITERS); /* get the next token */
+		    eqptr = nexttok;
 
 		    // Try first as a double, otherwise it's a string
 		    // Double value's slop defaults to 1%.
@@ -566,7 +678,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		    strcpy(pkey, nexttok);
 		}
 	    }
-	    else {
+	    else if (!match(nexttok, ",")) {
 	        if (match(nexttok, ")")) break;
 		// Ignore input, output, and inout keywords, and handle buses.
 
@@ -579,8 +691,8 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		    if (!match(nexttok, "input") && !match(nexttok, "output") &&
 				!match(nexttok, "inout") && !match(nexttok, "real") &&
 				!match(nexttok, "logic") && !match(nexttok, "integer")) {
-			if (nexttok[0] == '[') {
-			   if (GetBus(nexttok, &wb) != 0) {
+			if (match(nexttok, "[")) {
+			   if (GetBusTok(&wb) != 0) {
 			      // Didn't parse as a bus, so wing it
 			      wb.start = wb.end = -1;
 			      Port(nexttok);
@@ -603,21 +715,15 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 			      wb.start = wb.end = -1;
 			   }
 			   else {
-			      char *pptr;
-
-			      if ((pptr = strrchr(nexttok, ')')) != NULL)
-				 *pptr = '\0';
 			      Port(nexttok);
-			      if (pptr != NULL) break;
 			   }
 			}
 		        hasports = 1;
 		    }
 		}
 	    }
-	    SkipTok(VLOG_DELIMITERS);
+	    SkipTokComments(VLOG_DELIMITERS);
 	    if (nexttok == NULL) break;
-	    while (match(nexttok, "//")) { SkipNewLine(VLOG_DELIMITERS); SkipTok(VLOG_DELIMITERS); }
          }
 	 SetClass((blackbox) ? CLASS_MODULE : CLASS_SUBCKT);
 
@@ -638,7 +744,7 @@ skip_endmodule:
 
 	 while (1) {
 	    SkipNewLine(VLOG_DELIMITERS);
-	    SkipTok(VLOG_DELIMITERS);
+	    SkipTokComments(VLOG_DELIMITERS);
 	    if (EndParseFile()) break;
 	    if (match(nexttok, "endmodule")) {
 	       in_module = 0;
@@ -802,11 +908,9 @@ skip_endmodule:
 	   /* Skip to matching `endif */
 	   while (1) {
 	      SkipNewLine(VLOG_DELIMITERS);
-	      SkipTok(VLOG_DELIMITERS);
+	      SkipTokComments(VLOG_DELIMITERS);
 	      if (EndParseFile()) break;
-	      if (match(nexttok, "//"))
-		  continue;
-	      else if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef")) {
+	      if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef")) {
 		  nested++;
 	      }
 	      else if (match(nexttok, "`endif")) {
@@ -826,7 +930,7 @@ skip_endmodule:
       if (match(nexttok, "real")) SkipTokNoNewline(VLOG_DELIMITERS);
       while (nexttok != NULL) {
 	 /* Handle bus notation */
-	 if (GetBus(nexttok, &wb) == 0) {
+	 if (GetBusTok(&wb) == 0) {
 	     SkipTokNoNewline(VLOG_DELIMITERS);
 	     if (wb.start > wb.end) {
 		for (i = wb.end; i <= wb.start; i++) {
@@ -895,115 +999,118 @@ skip_endmodule:
       
       head = NULL;
       tail = NULL;
-      SkipTok(VLOG_DELIMITERS);
+      SkipTokComments(VLOG_DELIMITERS);
 
-      // Next token must be '#(' (parameters) or '(' (pin list)
+      // Next token must be '#(' (parameters) or an instance name
 
-      if (!strcmp(nexttok, "#(")) {
+      if (match(nexttok, "#(")) {
 
 	 // Read the parameter list
+	 SkipTokComments(VLOG_DELIMITERS);
 
          while (nexttok != NULL) {
 	    char *paramname;
 
-	    SkipTok(VLOG_DELIMITERS2);
-	    while (match(nexttok, "//")) {
-		SkipNewLine(VLOG_DELIMITERS);
-		SkipTok(VLOG_DELIMITERS2);
-	    }
-	    if (!strcasecmp(nexttok, ";")) {
-		SkipTok(VLOG_DELIMITERS);
+	    if (match(nexttok, ")")) {
+		SkipTokComments(VLOG_DELIMITERS);
 		break;
+	    }
+	    else if (match(nexttok, ",")) {
+		SkipTokComments(VLOG_DELIMITERS);
+		continue;
 	    }
 
 	    // We need to look for parameters of the type ".name(value)"
 
-	    if (nexttok[0] != '.') break;
-	    else {
+	    else if (nexttok[0] == '.') {
 		paramname = strsave(nexttok + 1);
-	        SkipTok(VLOG_DELIMITERS2);
-		while (match(nexttok, "//")) {
-		    SkipNewLine(VLOG_DELIMITERS);
-		    SkipTok(VLOG_DELIMITERS2);
+	        SkipTokComments(VLOG_DELIMITERS);
+		if (!match(nexttok, "(")) {
+		    Printf("Error: Expecting parameter value, got %s.\n", nexttok);
 		}
-	        AddProperty(&kvlist, paramname, nexttok);
+	        SkipTokComments(VLOG_DELIMITERS);
+		if (match(nexttok, ")")) {
+		    Printf("Error: Parameter with no value found.\n");
+		}
+		else {
+	            AddProperty(&kvlist, paramname, nexttok);
+	            SkipTokComments(VLOG_DELIMITERS);
+		    if (!match(nexttok, ")")) {
+		       Printf("Error: Expecting end of parameter value, "
+				"got %s.\n", nexttok);
+		    }
+		}
 		FREE(paramname);
 	    }
+	    SkipTokComments(VLOG_DELIMITERS);
+	 }
+	 if (!nexttok) {
+	    Printf("Error: Still reading module, but got end-of-file.\n");
+	    goto skip_endmodule;
 	 }
       }
 
-      // Catch instance name followed by open parenthesis with no space
-      if ((parptr = strchr(nexttok, '(')) != NULL) *parptr = '\0';
-
-      // Then comes the instance name
       strncpy(instancename, nexttok, 99);
-      if (!parptr)
-	 SkipTok(VLOG_DELIMITERS);
-      else {
-	 *parptr = '(';
-	 nexttok = parptr;
-      }
       /* Printf("Diagnostic:  new instance is %s\n", instancename); */
-      while (match(nexttok, "//")) {
-	  SkipNewLine(VLOG_DELIMITERS);
-	  SkipTok(VLOG_DELIMITERS);
-      }
+      SkipTokComments(VLOG_DELIMITERS);
 
       arraystart = arrayend = -1;
-      if (nexttok[0] == '[') {
+      if (match(nexttok, "[")) {
 	 // Handle instance array notation.
 	 struct bus wb;
-	 if (GetBus(nexttok, &wb) == 0) {
+	 if (GetBusTok(&wb) == 0) {
 	     arraystart = wb.start;
 	     arrayend = wb.end;
 	 }
-	 SkipTok(VLOG_DELIMITERS);
+	 SkipTokComments(VLOG_DELIMITERS);
       }
 
-      if (nexttok[0] == '(') {
+      if (match(nexttok, "(")) {
 	 char savetok = (char)0;
 	 struct portelement *new_port;
 
-	 // Note that the open parens does not necessarily have to be
-	 // followed by space.
-	 if (nexttok[1] != '\0') {
-	    nexttok++;
-	    savetok = (char)1;
-	 }
-
 	 // Read the pin list
          while (nexttok != NULL) {
-	    if (savetok == (char)0) SkipTok(VLOG_DELIMITERS2);
-	    savetok = (char)0;
+	    SkipTokComments(VLOG_DELIMITERS);
 	    // NOTE: Deal with `ifdef et al. properly.  Ignoring for now.
-	    while (match(nexttok, "//") || (nexttok[0] == '`')) {
+	    while (nexttok[0] == '`') {
 		SkipNewLine(VLOG_DELIMITERS);
-		SkipTok(VLOG_DELIMITERS2);
+		SkipTokComments(VLOG_DELIMITERS);
 	    }
-	    if (!strcasecmp(nexttok, ";")) break;
+	    if (match(nexttok, ")")) break;
+	    else if (match(nexttok, ",")) continue;
 
 	    // We need to look for pins of the type ".name(value)"
 
 	    if (nexttok[0] != '.') {
 	        Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
+	        SkipNewLine(VLOG_DELIMITERS);
 	    }
 	    else {
 	       new_port = (struct portelement *)CALLOC(1, sizeof(struct portelement));
 	       new_port->name = strsave(nexttok + 1);
-	       SkipTok(VLOG_DELIMITERS2);
-	       while (match(nexttok, "//")) {
-		    SkipNewLine(VLOG_DELIMITERS);
-		    SkipTok(VLOG_DELIMITERS2);
+	       SkipTokComments(VLOG_DELIMITERS);
+	       if (!match(nexttok, "(")) {
+	           Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
+	           SkipNewLine(VLOG_DELIMITERS);
 	       }
-	       if (match(nexttok, ";") || (nexttok[0] == '.')) {
+	       SkipTokComments(VLOG_PIN_NAME_DELIMITERS);
+	       if (match(nexttok, ")")) {
 		  char localnet[100];
 		  // Empty parens, so create a new local node
 		  savetok = (char)1;
 		  sprintf(localnet, "_noconnect_%d_", localcount++);
 		  new_port->net = strsave(localnet);
 	       }
-	       else
+	       else {
 	          new_port->net = strsave(nexttok);
+		  /* Read array information along with name;  will be parsed later */
+		  SkipTokComments(VLOG_DELIMITERS);
+	          if (!match(nexttok, ")")) {
+	              Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
+	              SkipNewLine(VLOG_DELIMITERS);
+		  }
+	       }
 
 	       if (head == NULL) head = new_port;
 	       else tail->next = new_port;
@@ -1013,13 +1120,12 @@ skip_endmodule:
 	 }
       }
       else {
-	 // There are too many statements in too many variants of verilog
-	 // to track them all, let alone dealing with macro substitutions
-	 // and such.  If it doesn't look like a circuit instance and isn't
-	 // otherwise handled above, treat as a non-structural statement
-	 // and recast the device class as a black-box module.
-         SetClass(CLASS_MODULE);
-	 goto skip_endmodule;
+         Printf("Expected to find instance pin block but got \"%s\"\n", nexttok);
+      }
+      /* Instance should end with a semicolon */
+      SkipTokComments(VLOG_DELIMITERS);
+      if (!match(nexttok, ";")) {
+	 Printf("Expected to find end of instance but got \"%s\"\n", nexttok);
       }
 
       /* Check for ignored class */

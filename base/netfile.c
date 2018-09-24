@@ -175,7 +175,7 @@ void CloseFile(char *filename)
 /* STUFF TO READ INPUT FILES */
 
 static char *line = NULL;	/* actual line read in */
-static char *linetok;   	/* line copied to this, then munged by strtok */
+static char *linetok;   	/* line copied to this, then munged by strdtok */
 static int  linesize = 0;	/* amount of memory allocated for line */
 static int  linenum;
 char	*nexttok;
@@ -191,7 +191,7 @@ struct filestack {
 
 static struct filestack *OpenFiles = NULL;
 
-#define TOKEN_DELIMITER " \t\n\r"
+#define WHITESPACE_DELIMITER " \t\n\r"
 
 /*----------------------------------------------------------------------*/
 /* TrimQuoted() ---							*/
@@ -296,7 +296,7 @@ int GetNextLineNoNewline(char *delimiter)
   strcpy(linetok, line);
   TrimQuoted(linetok);
 
-  nexttok = strtok(linetok, delimiter);
+  nexttok = strdtok(linetok, WHITESPACE_DELIMITER, delimiter);
   return 0;
 }
 
@@ -319,10 +319,9 @@ void GetNextLine(char *delimiter)
 void SkipTok(char *delimiter)
 {
     if (nexttok != NULL && 
-		(nexttok = strtok(NULL, (delimiter) ? delimiter : TOKEN_DELIMITER))
-		!= NULL)
+		(nexttok = strdtok(NULL, WHITESPACE_DELIMITER, delimiter)))
 	return;
-    GetNextLine((delimiter) ? delimiter : TOKEN_DELIMITER);
+    GetNextLine(delimiter);
 }
 
 /*----------------------------------------------------------------------*/
@@ -332,7 +331,7 @@ void SkipTok(char *delimiter)
 
 void SkipTokNoNewline(char *delimiter)
 {
-  nexttok = strtok(NULL, (delimiter) ? delimiter : TOKEN_DELIMITER);
+    nexttok = strdtok(NULL, WHITESPACE_DELIMITER, delimiter);
 }
 
 /*----------------------------------------------------------------------*/
@@ -354,12 +353,12 @@ void SpiceTokNoNewline(void)
 {
     int contline;
 
-    if ((nexttok = strtok(NULL, TOKEN_DELIMITER)) != NULL) return;
+    if ((nexttok = strdtok(NULL, WHITESPACE_DELIMITER, NULL)) != NULL) return;
 
     while (nexttok == NULL) {
 	contline = getc(infile);
 	if (contline == '*') {
-	   GetNextLine(TOKEN_DELIMITER);
+	   GetNextLine(WHITESPACE_DELIMITER);
 	   SkipNewLine(NULL);
 	   continue;
 	}
@@ -367,7 +366,28 @@ void SpiceTokNoNewline(void)
 	    ungetc(contline, infile);
 	    return;
 	}
-	if (GetNextLineNoNewline(TOKEN_DELIMITER) == -1) break;
+	if (GetNextLineNoNewline(WHITESPACE_DELIMITER) == -1) break;
+    }
+}
+
+/*----------------------------------------------------------------------*/
+/* Skip to the next token, ignoring any C-style comments.		*/
+/*----------------------------------------------------------------------*/
+
+void SkipTokComments(char *delimiter)
+{
+    SkipTok(delimiter);
+    while (nexttok) {
+	if (match(nexttok, "//")) {
+	    SkipNewLine(delimiter);
+	    SkipTok(delimiter);
+	}
+	else if (match(nexttok, "/*")) {
+	    while (nexttok && !match(nexttok, "*/"))
+		SkipTok(delimiter);
+	    if (nexttok) SkipTok(delimiter);
+	}
+	else break;
     }
 }
 
@@ -378,7 +398,7 @@ void SpiceTokNoNewline(void)
 void SkipNewLine(char *delimiter)
 {
     while (nexttok != NULL)
-	nexttok = strtok(NULL, (delimiter) ? delimiter : TOKEN_DELIMITER);
+	nexttok = strdtok(NULL, WHITESPACE_DELIMITER, delimiter);
 }
 
 /*----------------------------------------------------------------------*/
@@ -395,11 +415,117 @@ void SpiceSkipNewLine(void)
 
   while (contline == '+') {
      ungetc(contline, infile);
-     GetNextLine(TOKEN_DELIMITER);
+     GetNextLine(WHITESPACE_DELIMITER);
      SkipNewLine(NULL);
      contline = getc(infile);
   }
   ungetc(contline, infile);
+}
+
+/*----------------------------------------------------------------------*/
+/* Function similar to strtok() for token parsing.  The difference is	*/
+/* that it takes two sets of delimiters.  The first is whitespace	*/
+/* delimiters, which separate tokens.  The second is functional 	*/
+/* delimiters, which separate tokens and have additional meaning, such	*/
+/* as parentheses, commas, semicolons, etc.  The parser needs to know	*/
+/* when such tokens occur in the string, so they are returned as	*/
+/* individual tokens.							*/
+/*									*/
+/* Definition of delim2:  String of single delimiter characters.  The	*/
+/* special character "X" (which is never a delimiter in practice) is	*/
+/* used to separate single-character delimiters from two-character	*/
+/* delimiters (this presumably could be further extended as needed).	*/
+/* so ",;()" would be a valid delimiter set, but to include C-style	*/
+/* comments and verilog-style parameter lists, one would need		*/
+/* ",;()X/**///#(".							*/
+/*----------------------------------------------------------------------*/
+
+char *strdtok(char *pstring, char *delim1, char *delim2)
+{
+    static char *stoken = NULL;
+    static char *sstring = NULL;
+    char *s, *s2;
+    char first = FALSE;
+    int twofer;
+
+    if (pstring != NULL) {
+	/* Allocate enough memory to hold the string;  tokens will be put here */
+	if (sstring != NULL) FREE(sstring);
+	sstring = (char *)MALLOC(strlen(pstring) + 1);
+	stoken = pstring;
+	first = TRUE;
+    }
+
+    /* Skip over "delim1" delimiters at the string beginning */
+    for (; *stoken; stoken++) {
+	for (s2 = delim1; *s2; s2++)
+	    if (*stoken == *s2)
+		break;
+	if (*s2 == '\0') break;
+    }
+
+    if (*stoken == '\0') return NULL;	/* Finished parsing */
+
+    /* "stoken" is now set.  Now find the end of the current token */
+
+    /* Check string from position stoken.  If a character in "delim2" is found,	*/
+    /* save the character in "lastdelim", null the byte at that position, and	*/
+    /* return the token.  If a character in "delim1" is found, do the same but	*/
+    /* continue checking characters as long as there are contiguous "delim1"	*/
+    /* characters.  If the series ends in a character from "delim2", then treat	*/
+    /* as for "delim2" above.  If not, then set "lastdelim" to a null byte and	*/
+    /* return the token.							*/	
+
+    for (s = stoken; *s; s++) {
+	twofer = FALSE;
+	for (s2 = delim2; s2 && *s2; s2++) {
+	    if (*s2 == 'X') {
+		twofer = TRUE;
+		continue;
+	    }
+	    if (twofer) {
+		if ((*s == *s2) && (*(s + 1) == *(s2 + 1))) {
+		    if (s == stoken) {
+			strncpy(sstring, stoken, 2);
+			*(sstring + 2) = '\0';
+			stoken = s + 2;
+		    }
+		    else {
+			strncpy(sstring, stoken, (int)(s - stoken));
+			*(sstring + (s - stoken)) = '\0';
+			stoken = s;
+		    }
+		    return sstring;
+		}
+		s2++;
+		if (*s2 == '\0') break;
+	    }
+	    else if (*s == *s2) {
+		if (s == stoken) {
+		    strncpy(sstring, stoken, 1);
+		    *(sstring + 1) = '\0';
+		    stoken = s + 1;
+		}
+		else {
+		    strncpy(sstring, stoken, (int)(s - stoken));
+		    *(sstring + (s - stoken)) = '\0';
+		    stoken = s;
+		}
+		return sstring;
+	    }
+	}
+	for (s2 = delim1; *s2; s2++) {
+	    if (*s == *s2) {
+		strncpy(sstring, stoken, (int)(s - stoken));
+		*(sstring + (s - stoken)) = '\0';
+		stoken = s;
+		return sstring;
+	    }
+	}
+    }
+    strcpy(sstring, stoken);	/* Just copy to the end */
+    stoken = s;
+    return sstring;
 }
 
 /*----------------------------------------------------------------------*/
