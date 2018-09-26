@@ -59,7 +59,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 // See netfile.c for explanation of delimiters.  'X'
 // separates single-character delimiters from two-character delimiters.
-#define VLOG_DELIMITERS ",;:(){}[]=\"X///**/#("
+#define VLOG_DELIMITERS ",;:(){}[]=X///**/#("
 #define VLOG_PIN_NAME_DELIMITERS "()X///**/"
 
 // Global storage for verilog parameters
@@ -127,11 +127,28 @@ int GetBusTok(struct bus *wb)
 		Printf("Unknown definition %s found in array notation.\n", nexttok);
 	    }
 	    else {
-		/* Note:  all verilog definitions have been saved as PROP_STRING */
-		result = sscanf(kl->pdefault.string, "%d", &start);
-		if (result != 1) {
-		    Printf("Cannot parse first digit from parameter %s value %s\n",
+		if (kl->type == PROP_STRING) {
+		    result = sscanf(kl->pdefault.string, "%d", &start);
+		    if (result != 1) {
+		        Printf("Cannot parse first digit from parameter %s value %s\n",
 				nexttok, kl->pdefault.string);
+		        return 1;
+		    }
+		}
+		else if (kl->type == PROP_INTEGER) {
+		    start = kl->pdefault.ival;
+		}
+		else if (kl->type == PROP_DOUBLE) {
+		    start = (int)kl->pdefault.dval;
+		    if ((double)start != kl->pdefault.dval) {
+		        Printf("Cannot parse first digit from parameter %s value %g\n",
+				nexttok, kl->pdefault.dval);
+		        return 1;
+		    }
+		}
+		else {
+		    Printf("Parameter %s has unknown type; don't know how to parse.\n",
+				nexttok);
 		    return 1;
 		}
 	    }
@@ -147,11 +164,29 @@ int GetBusTok(struct bus *wb)
 		    return 1;
 		}
 		else {
-		    result = sscanf(kl->pdefault.string, "%d", &start);
-		    if (result != 1) {
-		        Printf("Parameter %s has value %s that cannot be parsed"
+		    if (kl->type == PROP_STRING) {
+		        result = sscanf(kl->pdefault.string, "%d", &start);
+		        if (result != 1) {
+		            Printf("Parameter %s has value %s that cannot be parsed"
 				" as an integer.\n", nexttok, kl->pdefault.string);
-			return 1;
+			    return 1;
+		        }
+		    }
+		    else if (kl->type == PROP_INTEGER) {
+			start = kl->pdefault.ival;
+		    }
+		    else if (kl->type == PROP_DOUBLE) {
+		        start = (int)kl->pdefault.dval;
+		        if ((double)start != kl->pdefault.dval) {
+		            Printf("Parameter %s has value %g that cannot be parsed"
+				" as an integer.\n", nexttok, kl->pdefault.dval);
+			    return 1;
+			}
+		    }
+		    else {
+		        Printf("Parameter %s has unknown type; don't know how"
+				" to parse.\n", nexttok);
+		        return 1;
 		    }
 		}
 	    }
@@ -175,12 +210,29 @@ int GetBusTok(struct bus *wb)
 		    Printf("Unknown definition %s found in array notation.\n", nexttok);
 		}
 		else {
-		    /* Note:  all verilog definitions have been saved as PROP_STRING */
-		    result = sscanf(kl->pdefault.string, "%d", &end);
-		    if (result != 1) {
-			Printf("Cannot parse second digit from parameter %s value %s\n",
-					nexttok, kl->pdefault.string);
-			return 1;
+		    if (kl->type == PROP_STRING) {
+			result = sscanf(kl->pdefault.string, "%d", &end);
+		        if (result != 1) {
+			    Printf("Cannot parse second digit from parameter "
+					"%s value %s\n", nexttok, kl->pdefault.string);
+			    return 1;
+			}
+		    }
+		    else if (kl->type == PROP_INTEGER) {
+			end = kl->pdefault.ival;
+		    }
+		    else if (kl->type == PROP_DOUBLE) {
+		        end = (int)kl->pdefault.dval;
+		        if ((double)end != kl->pdefault.dval) {
+			    Printf("Cannot parse second digit from parameter "
+					"%s value %g\n", nexttok, kl->pdefault.dval);
+			    return 1;
+			}
+		    }
+		    else {
+		        Printf("Parameter %s has unknown type; don't know how"
+				" to parse.\n", nexttok);
+		        return 1;
 		    }
 		}
 	    }
@@ -195,12 +247,30 @@ int GetBusTok(struct bus *wb)
 			return 1;
 		    }
 		    else {
-			result = sscanf(kl->pdefault.string, "%d", &end);
-			if (result != 1) {
-		            Printf("Parameter %s has value %s that cannot be parsed"
+			if (kl->type == PROP_STRING) {
+			    result = sscanf(kl->pdefault.string, "%d", &end);
+			    if (result != 1) {
+		                Printf("Parameter %s has value %s that cannot be parsed"
 					" as an integer.\n", nexttok,
 					kl->pdefault.string);
-			    return 1;
+			        return 1;
+			    }
+			}
+			else if (kl->type == PROP_INTEGER) {
+			    end = kl->pdefault.ival;
+			}
+		        else if (kl->type == PROP_DOUBLE) {
+		            end = (int)kl->pdefault.dval;
+		            if ((double)end != kl->pdefault.dval) {
+			        Printf("Cannot parse second digit from parameter "
+					"%s value %g\n", nexttok, kl->pdefault.dval);
+			        return 1;
+			    }
+			}
+			else {
+		            Printf("Parameter %s has unknown type; don't know how"
+					" to parse.\n", nexttok);
+		            return 1;
 			}
 		    }
 		}
@@ -510,8 +580,9 @@ extern void PopStack(struct cellstack **top);
 void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		int blackbox)
 {
-  int cdnum = 1, rdnum = 1, i;
+  int cdnum = 1, rdnum = 1, i, ival;
   int warnings = 0, hasports, inlined_decls = 0, localcount = 1;
+  double dval;
   char devtype, in_module, in_param;
   char *eqptr, *matchptr;
   struct keyvalue *kvlist = NULL;
@@ -660,7 +731,6 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		    }
 		}
 		else if (match(nexttok, "=")) {
-		    double dval;
 
 		    // The parameter value is the next token.
 		    SkipTokComments(VLOG_DELIMITERS); /* get the next token */
@@ -855,15 +925,33 @@ skip_endmodule:
       kl = NewProperty();
       kl->key = strsave(nexttok);
       kl->idx = 0;
-      kl->type = PROP_STRING;
-      kl->slop.dval = 0.0;
+      kl->merge = MERGE_NONE;
 
       SkipTokNoNewline(VLOG_DELIMITERS);
-      if ((nexttok == NULL) || (nexttok[0] == '\0'))
-	 // Let "`define X" be equivalent to "`define X 1"
-	 kl->pdefault.string = strsave("1");
-      else
+      if ((nexttok == NULL) || (nexttok[0] == '\0')) {
+	 // Let "`define X" be equivalent to "`define X 1".  Use integer value.
+	 kl->type = PROP_INTEGER;
+	 kl->pdefault.ival = 1;
+         kl->slop.ival = 0;
+      }
+      else if (ConvertStringToInteger(nexttok, &ival) == 1) {
+	 /* Parameter parses as an integer */
+      	 kl->type = PROP_INTEGER;
+	 kl->pdefault.ival = ival;
+         kl->slop.ival = 0;		// Exact match default
+      }
+      else if (ConvertStringToFloat(nexttok, &dval) == 1) {
+	 /* Parameter parses as a floating-point number */
+      	 kl->type = PROP_DOUBLE;
+	 kl->pdefault.dval = dval;
+         kl->slop.dval = 0.01;		// One percent default
+      }
+      else {
+	 /* Treat the parameter as a string */
+      	 kl->type = PROP_STRING;
 	 kl->pdefault.string = strsave(nexttok);
+         kl->slop.dval = 0.0;
+      }
       HashPtrInstall(kl->key, kl, &verilogdefs);
     }
     else if (match(nexttok, "localparam")) {
@@ -882,9 +970,23 @@ skip_endmodule:
 	    kl = NewProperty();
 	    kl->key = strsave(nexttok);
 	    kl->idx = 0;
-	    kl->type = PROP_STRING;
-	    kl->slop.dval = 0.0;
-	    kl->pdefault.string = strsave(eqptr + 1);
+	    kl->merge = MERGE_NONE;
+
+	    if (ConvertStringToInteger(eqptr + 1, &ival) == 1) {
+	       kl->type = PROP_INTEGER;
+	       kl->slop.ival = 0;
+	       kl->pdefault.ival = ival;
+	    }
+	    else if (ConvertStringToFloat(eqptr + 1, &dval) == 1) {
+	       kl->type = PROP_DOUBLE;
+	       kl->slop.dval = 0.01;
+	       kl->pdefault.dval = dval;
+	    }
+	    else {
+	       kl->type = PROP_STRING;
+	       kl->slop.dval = 0.0;
+	       kl->pdefault.string = strsave(eqptr + 1);
+	    }
 	    HashPtrInstall(nexttok, kl, &verilogparams);
 	 }
       }
@@ -1468,11 +1570,12 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   /* Add the pre-defined key "LVS" to verilogdefs */
 
   kl = NewProperty();
+  kl->merge = MERGE_NONE;
   kl->key = strsave("LVS");
   kl->idx = 0;
-  kl->type = PROP_STRING;
-  kl->slop.dval = 0.0;
-  kl->pdefault.string = strsave("1");
+  kl->type = PROP_INTEGER;
+  kl->slop.ival = 0;
+  kl->pdefault.ival = 1;
   HashPtrInstall(kl->key, kl, &verilogdefs);
 
   /* All verilog files should start with a comment line,  */

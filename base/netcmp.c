@@ -3865,7 +3865,8 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    propsort *proplist;
    struct property *kl;
    struct valuelist *vl;
-   int i, p, sval;
+   int i, p, sval, has_crit = FALSE;
+   char *subs_crit = NULL;
    double cval;
 
    obn = ob1->next;
@@ -3874,6 +3875,14 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    // Create a structure of length (run) to hold critical property
    // value and index.  Then sort that list, then use the sorted
    // indexes to sort the actual property linked list.
+
+   // If there is no critical property listed, then it is still better
+   // to sort on any random property than on no properties.  Note that
+   // this can (and should!) be made better by sorting on *all*
+   // properties, not just the first.  Otherwise, circuit 1 can have, e.g.,
+   // parallel transistors with W=1, L=1 and W=1, L=2 while circuit two
+   // has W=1, L=2 and W=1, L=1 and property matching will fail because
+   // sorting was done on W only.
 
    proplist = (propsort *)MALLOC(run * sizeof(propsort));
 
@@ -3889,17 +3898,62 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	    sval = vl->value.ival;
          kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
 	 if (kl == NULL) continue;		/* Ignored property */
-         if (kl->merge == MERGE_ADD_CRIT)
+         if (kl->merge == MERGE_ADD_CRIT) {
+	    has_crit = TRUE;
+	    if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
+		  	(kl->type != vl->type))
+		PromoteProperty(kl, vl);
 	    if (vl->type == PROP_INTEGER)
 	        cval = (double)vl->value.ival;
+	    else if (vl->type == PROP_STRING)
+		/* This is unlikely---no method to merge string properties! */
+		cval = (double)vl->value.string[0]
+			+ (double)vl->value.string[1] / 10.0;
 	    else
 	        cval = vl->value.dval;
+	 }
       }
       proplist[i].value = (double)sval * cval;
       proplist[i].idx = i;
       proplist[i].ob = obp;
       obp = obp->next;
    }
+
+   if (has_crit == FALSE) {
+      /* If no critical property was specified, then choose the first one found */
+      /* and recalculate all the proplist values.				*/
+      sval = 1;
+      obp = obn;
+      for (i = 0; i < run; i++) {
+         for (p = 0;; p++) {
+	    vl = &(obp->instance.props[p]);
+	    if (vl->type == PROP_ENDLIST) break;
+	    if (vl->key == NULL) continue;
+            if (!strcmp(vl->key, "S"))
+	        sval = vl->value.ival;
+            kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
+	    if (kl == NULL) continue;		/* Ignored property */
+	    if (subs_crit == NULL)
+		subs_crit = vl->key;
+	    if ((subs_crit != NULL) && !strcmp(vl->key, subs_crit)) {
+	       if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
+		  	(kl->type != vl->type))
+		  PromoteProperty(kl, vl);
+	       if (vl->type == PROP_INTEGER)
+	           cval = (double)vl->value.ival;
+	       else if (vl->type == PROP_STRING)
+		   /* In case property is non-numeric, sort by dictionary order */
+		   cval = (double)vl->value.string[0]
+			+ (double)vl->value.string[1] / 10.0;
+	       else
+	           cval = vl->value.dval;
+	    }
+         }
+         proplist[i].value = (double)sval * cval;
+         obp = obp->next;
+      }
+   }
+
    obn = obp;	/* Link from last property */
 
    qsort(&proplist[0], run, sizeof(propsort), compsort);
