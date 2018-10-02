@@ -60,11 +60,11 @@ install-real: install-dirs
 		(cd $$dir && ${MAKE} install); done
 
 install-tcl-dirs:
-	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${BINDIR} $(DESTDIR)${MANDIR} \
+	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${BINDIR} \
 		$(DESTDIR)${TCLDIR} $(DESTDIR)${PYDIR}
 
 install-dirs:
-	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${BINDIR} $(DESTDIR)${MANDIR}
+	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${BINDIR}
 
 install-tcl: install-dirs
 	@echo --- installing executable to $(DESTDIR)${BINDIR}

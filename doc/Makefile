@@ -8,9 +8,9 @@ DOCDIRS = $(DESTDIR)${DOCDIR}
 MANFILES = 
 DOCFILES = $(DESTDIR)${DOCDIR}/netgen.doc
 
-install-tcl: ${MANDIRS} ${MANFILES} ${DOCDIRS} ${DOCFILES}
+install-tcl: ${DOCDIRS} ${DOCFILES}
 
-install: ${MANDIRS} ${MANFILES} ${DOCDIRS} ${DOCFILES}
+install: ${DOCDIRS} ${DOCFILES}
 
 ${MANDIRS}: make-man-dirs
 
