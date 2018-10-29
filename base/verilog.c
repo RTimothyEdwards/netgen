@@ -1208,6 +1208,19 @@ skip_endmodule:
 	          new_port->net = strsave(nexttok);
 		  /* Read array information along with name;  will be parsed later */
 		  SkipTokComments(VLOG_DELIMITERS);
+	          if (match(nexttok, "[")) {
+		      /* Check for space between name and array identifier */
+	              SkipTokComments(VLOG_PIN_NAME_DELIMITERS);
+	              if (!match(nexttok, ")")) {
+		          char *expnet;
+		          expnet = (char *)MALLOC(strlen(new_port->net)
+					+ strlen(nexttok) + 2);
+		          sprintf(expnet, "%s[%s", new_port->net, nexttok);
+		          FREE(new_port->net);
+		          new_port->net = expnet;
+		      }
+		      SkipTokComments(VLOG_DELIMITERS);
+	          }
 	          if (!match(nexttok, ")")) {
 	              Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
 	              SkipNewLine(VLOG_DELIMITERS);
