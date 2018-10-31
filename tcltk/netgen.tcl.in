@@ -138,7 +138,7 @@ proc netgen::convert_to_json {filename lvs_final} {
 		     foreach net $cktval {
 			incr nidx
 	                puts $fjson "          \["
-			set netname [lindex $net 0]
+			set netname [string map {"\\" ""} [lindex $net 0]]
 		        puts $fjson "            \"$netname\","
 		        puts $fjson "            \["
 			set netconn [lindex $net 1]
@@ -169,7 +169,7 @@ proc netgen::convert_to_json {filename lvs_final} {
 		     foreach net $cktval {
 			incr nidx
 	                puts $fjson "          \["
-			set netname [lindex $net 0]
+			set netname [string map {"\\" ""} [lindex $net 0]]
 		        puts $fjson "            \"$netname\","
 		        puts $fjson "            \["
 			set netconn [lindex $net 1]
