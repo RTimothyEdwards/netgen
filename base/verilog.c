@@ -825,10 +825,47 @@ skip_endmodule:
     }
     else if (match(nexttok, "input") || match(nexttok, "output")
 		|| match(nexttok, "inout")) {
+	struct bus wb;
  
-	// To be completed:  Duplicate parsing of ports, except as statements
-	// and not in the module pin list.
-	SkipNewLine(VLOG_DELIMITERS);
+	// Parsing of ports as statements not in the module pin list.
+	wb.start = wb.end = -1;
+	while (1) {
+	    SkipTokComments(VLOG_DELIMITERS);
+	    if (EndParseFile()) break;
+
+	    if (match(nexttok, ";")) {
+		// End of statement
+		break;
+	    }
+	    else if (match(nexttok, "[")) {
+		if (GetBusTok(&wb) != 0) {
+		    // Didn't parse as a bus, so wing it
+		    wb.start = wb.end = -1;
+		    Port(nexttok);
+		}
+	    }
+	    else if (!match(nexttok, ",")) {
+		if (wb.start != -1) {
+		    if (wb.start > wb.end) {
+			for (i = wb.start; i >= wb.end; i--) {
+			    sprintf(portname, "%s[%d]", nexttok, i);
+			    Port(portname);
+			}
+		    }
+		    else {
+			for (i = wb.start; i <= wb.end; i++) {
+			    sprintf(portname, "%s[%d]", nexttok, i);
+			    Port(portname);
+			}
+		    }
+		    wb.start = wb.end = -1;
+		}
+		else {
+		    Port(nexttok);
+		}
+	    }
+	    hasports = 1;
+	}
     }
     else if (match(nexttok, "endmodule")) {
 
