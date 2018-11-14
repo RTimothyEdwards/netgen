@@ -1389,9 +1389,60 @@ skip_endmodule:
 	    struct bus wb;
 	    struct portelement *new_port;
 	    char vname[256];
-	    int j;
+	    int j, result;
+	    struct objlist *bobj;
+	    char *bptr;
+	    int minnet, maxnet, testidx;
 
-	    if (GetBus(scan->net, &wb) == 0) {
+	    result = GetBus(scan->net, &wb);
+	    if (result == -1) {
+		/* Not bus notation, but check if signal was defined as a bus */
+		wb.start = wb.end = -1;
+		minnet = maxnet = -1;
+
+		/* Pins should be in index order start->end.  Other nodes */
+		/* should be in order start->end by node number.	  */
+
+		for (bobj = CurrentCell->cell; bobj; bobj = bobj->next) {
+		    if (bobj->type == PORT) {
+			if ((bptr = strchr(bobj->name, '[')) != NULL) {
+			    *bptr = '\0';
+			    if (!strcmp(bobj->name, scan->net)) {
+				*bptr = '[';
+				if (wb.start == -1)
+				    sscanf(bptr + 1, "%d", &wb.start);
+				else
+				    sscanf(bptr + 1, "%d", &wb.end);
+			    }
+			}
+		    }
+		    else if (bobj->type == NODE) {
+			if ((bptr = strchr(bobj->name, '[')) != NULL) {
+			    *bptr = '\0';
+			    if (!strcmp(bobj->name, scan->net)) {
+				*bptr = '[';
+				if (sscanf(bptr + 1, "%d", &testidx) == 1) {
+				    if (minnet == -1) {
+					minnet = maxnet = bobj->node;
+					wb.start = wb.end = testidx;
+				    }
+				    else if (bobj->node < minnet) {
+					minnet = bobj->node;
+					wb.start = testidx;
+				    }
+				    else if (bobj->node > maxnet) {
+					maxnet = bobj->node;
+					wb.end = testidx;
+				    }
+				}
+			    }
+			}
+		    }
+		}
+		if (wb.start != -1) result = 0;
+	    }
+
+	    if (result == 0) {
 	       if (((wb.start - wb.end) != (portstart - portend)) &&
 		   	((wb.start - wb.end) != (portend - portstart))) {
 		  if (((wb.start - wb.end) != (arraystart - arrayend)) &&

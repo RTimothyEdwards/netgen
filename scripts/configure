@@ -7779,7 +7779,9 @@ else
 fi
 
 ${ECHO_N} "Python3:    "
-if test "x${HAVE_PYTHON3}" == "x"; then
+if test "${HAVE_PYTHON3}" == "yes"; then
+   echo "yes"
+else
    echo "no"
    echo
    echo "   Without Python3, you cannot run the GUI interface to netgen."
@@ -7788,8 +7790,6 @@ if test "x${HAVE_PYTHON3}" == "x"; then
    echo "   python3 support, make sure that you have installed python3"
    echo "   on your system."
    echo
-else
-   echo "yes"
 fi
 
 echo "-----------------------------------------------------------"
