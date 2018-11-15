@@ -1396,6 +1396,7 @@ skip_endmodule:
 
 	    result = GetBus(scan->net, &wb);
 	    if (result == -1) {
+		/* CHECK:  THIS CODE SHOULD BE DELETED, IT IS NOT THE ISSUE */
 		/* Not bus notation, but check if signal was defined as a bus */
 		wb.start = wb.end = -1;
 		minnet = maxnet = -1;
@@ -1420,7 +1421,6 @@ skip_endmodule:
 			if ((bptr = strchr(bobj->name, '[')) != NULL) {
 			    *bptr = '\0';
 			    if (!strcmp(bobj->name, scan->net)) {
-				*bptr = '[';
 				if (sscanf(bptr + 1, "%d", &testidx) == 1) {
 				    if (minnet == -1) {
 					minnet = maxnet = bobj->node;
@@ -1436,6 +1436,7 @@ skip_endmodule:
 				    }
 				}
 			    }
+			    *bptr = '[';
 			}
 		    }
 		}
