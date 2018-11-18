@@ -898,6 +898,32 @@ void SetParallelCombine(int value)
 }
 
 /*----------------------------------------------------------------------*/
+/* Same as above, for series (here for symmetry, although "property	*/
+/* series all" would be an odd command to issue, and "property series	*/
+/* none" is the default, so not needed).				*/
+/*----------------------------------------------------------------------*/
+
+struct nlist *SetSeriesCombineFlag(struct hashlist *p, void *clientdata)
+{
+  struct nlist *ptr;
+  int *value = (int *)clientdata;
+
+  ptr = (struct nlist *)(p->ptr);
+  if (*value == TRUE)
+     ptr->flags &= (~COMB_SERIES);
+  else
+     ptr->flags |= COMB_SERIES;
+
+  return NULL;	/* NULL keeps search alive */
+}
+
+void SetSeriesCombine(int value)
+{
+  ClearDumpedList();
+  RecurseCellHashTable2(SetSeriesCombineFlag, (void *)(&value));
+}
+
+/*----------------------------------------------------------------------*/
 /* Delete a property from the master cell record.			*/
 /*----------------------------------------------------------------------*/
 
@@ -992,15 +1018,15 @@ PropertyTolerance(char *name, int fnum, char *key, int ival, double dval)
 /*----------------------------------------------------------------------*/
 
 int
-PropertyMerge(char *name, int fnum, char *key, int merge_type)
+PropertyMerge(char *name, int fnum, char *key, int merge_type, int merge_mask)
 {
     struct property *kl = NULL;
     struct nlist *tc;
     int result;
 
     if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
-	result = PropertyMerge(name, Circuit1->file, key, merge_type);
-	result = PropertyMerge(name, Circuit2->file, key, merge_type);
+	result = PropertyMerge(name, Circuit1->file, key, merge_type, merge_mask);
+	result = PropertyMerge(name, Circuit2->file, key, merge_type, merge_mask);
 	return result;
     }
 
@@ -1016,7 +1042,8 @@ PropertyMerge(char *name, int fnum, char *key, int merge_type)
 	return -1;
     }
     else {
-	kl->merge = merge_type;
+	kl->merge &= ~merge_mask;
+	kl->merge |= merge_type;
     }
     return 0;
 }
@@ -2868,50 +2895,50 @@ void ConnectAllNodes(char *model, int file)
 }
 
 /*----------------------------------------------------------------------*/
-/* Serial and Parallel combination:					*/
-/* All devices of the same type that exist in serial and parallel	*/
+/* Series and Parallel combination:					*/
+/* All devices of the same type that exist in series and parallel	*/
 /* combinations will be treated as a single device in a network.	*/
-/* Serial connections are only allowed for resistors and inductors.	*/
-/* Any device may be connected in parallel.  For combinations of serial	*/
+/* Series connections are only allowed for resistors and inductors.	*/
+/* Any device may be connected in parallel.  For combinations of series	*/
 /* and parallel, as in a resistor network, there is a set of rules:	*/
 /*									*/
-/* Running parallel and serial checks:					*/
+/* Running parallel and series checks:					*/
 /* 1. Run parallel once.  If a repeat run and no devices are merged,	*/
 /*    then go to 4.							*/
-/* 2. Run serial until no devices are merged.				*/
-/* 3. If serial ran more than once, then go to 1.			*/
+/* 2. Run series until no devices are merged.				*/
+/* 3. If series ran more than once, then go to 1.			*/
 /* 4. End merge								*/
 /*									*/
 /* Each merge procedure, when it finds two devices that can be merged,	*/
 /* removes the second device from the netlist and adds its properties	*/
-/* to the first device.  If a serial merge, then the nodes are adjusted	*/
+/* to the first device.  If a series merge, then the nodes are adjusted	*/
 /* appropriately.  Where A is the property list of the first device and	*/
 /* B is the property list of the second device, the first and last	*/
 /* properties of A and the first property of B may require a marker to	*/
 /* indicate the topology of the network, as follows (in order):		*/
 /*									*/
 /* For a parallel merge:						*/
-/*    1) If A has serial components then tag first property of A with	*/
+/*    1) If A has series components then tag first property of A with	*/
 /*	 "open" and tag first property of B with "close".		*/
-/*    2) If B has serial components then tag first property of B with	*/
+/*    2) If B has series components then tag first property of B with	*/
 /*	 "open". 							*/
 /*									*/
-/* For a serial merge:							*/
+/* For a series merge:							*/
 /*    1) If A has unbalanced "opens", then add "close" to first		*/
 /*	 property of B to balance the "opens".				*/
-/*    2) Always tag B with "serial".					*/
+/*    2) Always tag B with "series".					*/
 /*									*/
 /* Tags are indicated by a property named "_tag" which has a string	*/
-/* value of ordered characters, "+" for serial, "(" for open, and ")"	*/
+/* value of ordered characters, "+" for series, "(" for open, and ")"	*/
 /* for close.  A device with only one property record has no "_tag"	*/
 /* record.  A device which is in parallel with the device(s) in front	*/
 /* of it is implicitly parallel by not having an "+" tag, and may not	*/
 /* have a tag at all.							*/
 /*									*/
 /* The property check routine is responsible for comparing device	*/
-/* serial/parallel networks against each other.  Otherwise, each	*/
-/* serial/parallel network is considered topologically as a single	*/
-/* device, and any differences in the serial/parallel networks between	*/
+/* series/parallel networks against each other.  Otherwise, each	*/
+/* series/parallel network is considered topologically as a single	*/
+/* device, and any differences in the series/parallel networks between	*/
 /* two circuits being matched will be treated as a property error.	*/
 /*----------------------------------------------------------------------*/
 
@@ -2927,7 +2954,8 @@ int add_prop_tag(struct objlist *obr, char tagc)
    char *tmpstr;
 
    hastag = FALSE;
-   for (nob = obr; nob->next && nob->next->type == PROPERTY; nob = nob->next) {
+   for (nob = obr; nob; nob = nob->next) {
+      if (nob->type != PROPERTY) break;
       for (i = 0; ; i++) {
          kv = &(nob->instance.props[i]);
 	 if (kv->type == PROP_ENDLIST) break;
@@ -3016,6 +3044,75 @@ void add_balancing_close(struct objlist *ob1, struct objlist *ob2)
 
    // This is slow but it's the easiest way to do it
    while (opentags-- > 0) add_prop_tag(nob, ')');
+}
+
+/* Remove unneeded group tags, when device merging has removed all but	*/
+/* one, or all but parallel devices inside a group.   For simplicity,	*/
+/* handle only one group at a time.  Return 1 if a group was removed	*/
+/* and 0 if not.  The caller should run repeatedly until the routine	*/
+/* returns 0.								*/
+
+int remove_group_tags(struct objlist *ob)
+{
+   struct objlist *nob, *sob;
+   int i, si, stags;
+   struct valuelist *kv;
+   char *tag;
+
+   /* Find the first property record in ob. */
+   for (nob = ob->next; nob && nob->type != FIRSTPIN; nob = nob->next)
+      if (nob->type == PROPERTY)
+	 break;
+   if (nob->type != PROPERTY) return;	// shouldn't happen
+
+   for (sob = NULL; nob && nob->type == PROPERTY; nob = nob->next) {
+      for (i = 0; ; i++) {
+         kv = &(nob->instance.props[i]);
+	 if (kv->type == PROP_ENDLIST) break;
+         if (kv->type == PROP_STRING) {
+	    if (!strcmp(kv->key, "_tag")) {
+	       for (tag = kv->value.string; *tag != '\0'; tag++) {
+		  if (*tag == '(') {
+		     sob = nob;		/* Save position of open group */
+		     si = i;		/* Save index of open group */
+		     stags = 0;		/* Check for series tags */
+		  }
+		  else if (*tag == '+')
+		     stags++;
+		  else if (*tag == ')') {
+		     if (stags == 0) {
+			/* Remove close tag */
+			for (++i; ; i++) {
+			   nob->instance.props[i - 1] = nob->instance.props[i];
+			   if (nob->instance.props[i].type == PROP_ENDLIST) break;
+			}
+			/* Remove open tag */
+			for (i = si + 1; ; i++) {
+			   sob->instance.props[i - 1] = sob->instance.props[i];
+			   if (sob->instance.props[i].type == PROP_ENDLIST) break;
+			}
+			return 1;
+		     }
+		     sob = NULL;
+		     stags = 0;
+		  }
+	       }
+	    }
+	 }
+      }
+   }
+   if (sob != NULL) {
+      /* Implicit close tag at end */
+      if (stags == 0) {
+	 /* Remove open tag */
+	 for (i = si + 1; ; i++) {
+	    sob->instance.props[i - 1] = sob->instance.props[i];
+	    if (sob->instance.props[i].type == PROP_ENDLIST) break;
+	 }
+	 return 1;
+      }
+   }
+   return 0;
 }
 
 /*----------------------------------------------------------------------*/
@@ -3229,7 +3326,7 @@ int CombineParallel(char *model, int file)
 		
 	    if (propfirst != NULL) {
 
-	       // Serial/Parallel logic:
+	       // Series/Parallel logic:
 	       // If propfirst has _tag in properties,
 	       // then add an "open" tag at propfirst
                add_prop_tag(propfirst, '(');
@@ -3272,9 +3369,9 @@ int CombineParallel(char *model, int file)
 }
 
 /*----------------------------------------------------------------------*/
-/* For the purposes of serial connection checking, find if all pins	*/
+/* For the purposes of series connection checking, find if all pins	*/
 /* of two instances after the first two pins are connected to the name	*/
-/* nodes.  This depends on the definition of a serial device as having	*/
+/* nodes.  This depends on the definition of a series device as having	*/
 /* two ports, but any additional ports (such as a substrate connection)	*/
 /* must be the same for all devices in series.				*/
 /*----------------------------------------------------------------------*/
@@ -3284,7 +3381,7 @@ int check_pin_nodes(struct objlist *ob1, struct objlist *ob2)
    struct objlist *nob, *pob;
 
    /* A dummy device may have both terminals connected to the same	*/
-   /* point, triggering a false check for a serial device.		*/
+   /* point, triggering a false check for a series device.		*/
    if (ob1 == ob2) return FALSE;
 
    for (nob = ob1->next; nob && nob->type != FIRSTPIN; nob = nob->next)
@@ -3313,12 +3410,12 @@ int check_pin_nodes(struct objlist *ob1, struct objlist *ob2)
 /* one. 								*/
 /*									*/
 /* This routine depends on CombineParallel() being run first so that no	*/
-/* parallel devices are reported as serial.				*/
+/* parallel devices are reported as series.				*/
 /*									*/
 /* Return the number of devices merged.					*/
 /*----------------------------------------------------------------------*/
 
-int CombineSerial(char *model, int file)
+int CombineSeries(char *model, int file)
 {
    struct nlist *tp, *tp2;
    struct objlist ***instlist;
@@ -3331,7 +3428,7 @@ int CombineSerial(char *model, int file)
       return -1;
    }
    /* Diagnostic */
-   /* Printf("CombineSerial start model = %s file = %d\n", model, file); */
+   /* Printf("CombineSeries start model = %s file = %d\n", model, file); */
 
    instlist = (struct objlist ***)CALLOC((tp->nodename_cache_maxnodenum + 1),
 		sizeof(struct objlist **));
@@ -3346,26 +3443,36 @@ int CombineSerial(char *model, int file)
 	     instlist[ob->node] = (struct objlist **)CALLOC(2,
 			sizeof(struct objlist *));
 
-	     /* Device must be marked as able to be combined in	serial.	*/
+	     /* Device must be marked as able to be combined in	series.	*/
 	     /* Note that devices with more than two pins are expected	*/
-	     /* to serial connect along the first two pins, and the 	*/
+	     /* to series connect along the first two pins, and the 	*/
 	     /* remaining pins must all connect to the same nodes.  By	*/
 	     /* default, CLASS_RES, CLASS_RES3, and CLASS_INDUCTOR are	*/
-	     /* all allowed to combine in serial.  All other devices	*/
-	     /* must have serial combination explicitly enabled.	*/
+	     /* all allowed to combine in series.  All other devices	*/
+	     /* must have series combination explicitly enabled.	*/
 	     /* NOTE:  Arbitrarily, the first two pins of a device are	*/
-	     /* assumed to be the ones that make serial connections.	*/
+	     /* assumed to be the ones that make series connections.	*/
 	     /* Additional pins, if any, do not.			*/
 	
              tp2 = LookupCellFile(ob->model.class, file);
-             if ((tp2->flags & COMB_SERIAL) && (ob->type <= 2))
+             if ((tp2->flags & COMB_SERIES) && (ob->type <= 2)) {
 	         instlist[ob->node][0] = obp;
+
+		 /* Node may not be a port of the subcircuit */
+		 for (obn = tp->cell; obn && obn->type == PORT; obn = obn->next) {
+		     if (obn->node == ob->node) {
+			/* invalidate node */
+			instlist[ob->node][0] = NULL;
+			break;
+		     }
+		 }
+	     }
 	     else
 	         /* invalidate node */
 	         instlist[ob->node][0] = NULL;
           }
           else if (instlist[ob->node][0] == NULL) {
-             /* Node is not valid for serial connection */
+             /* Node is not valid for series connection */
           }
           else if (instlist[ob->node][1] == NULL) {
              /* Check if first instance is the same type */
@@ -3393,7 +3500,7 @@ int CombineSerial(char *model, int file)
 	    struct valuelist *kv2;
 
             /* Diagnostic */
-	    /* Fprintf(stdout, "Found serial instances %s and %s\n",
+	    /* Fprintf(stdout, "Found series instances %s and %s\n",
 			instlist[i][0]->instance.name,
 			instlist[i][1]->instance.name); */
             scnt++;
@@ -3504,7 +3611,7 @@ int CombineSerial(char *model, int file)
 	       obs = obn;
 	    }
 
-	    /* If 2nd device appears anywhere else in the serial device	*/
+	    /* If 2nd device appears anywhere else in the series device	*/
 	    /* list, replace it with the 1st device.			*/
 	    for (j = i + 1; j <= tp->nodename_cache_maxnodenum; j++) {
                if (instlist[j] == NULL) continue;

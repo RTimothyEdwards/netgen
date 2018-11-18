@@ -103,18 +103,28 @@ struct valuelist {
 
 /* Part 3:  Keys & Defaults (kept in the cell record as a hash table) */
 
-#define MERGE_NONE	0	/* Property does not change when devices merge */
-#define MERGE_ADD	1	/* Properties sum with device parallel merge */
-#define MERGE_ADD_CRIT	2	/* Properties sum with device parallel merge */
-#define MERGE_PAR	3	/* Properties add in parallel with device merge */
-#define MERGE_PAR_CRIT	4	/* Properties add in parallel with device merge */
-#define MERGE_SER	5	/* Properties sum with device parallel merge */
-#define MERGE_SER_CRIT	6	/* Properties sum with device parallel merge */
+#define MERGE_NONE	 0x00	/* Property does not change when devices merge */
+
+#define MERGE_P_ADD	 0x01	/* Properties sum with device parallel merge */
+#define MERGE_P_PAR	 0x02	/* Properties add in parallel with parallel merge */
+#define MERGE_P_CRIT 	 0x04	/* This property enables parallel merging */
+
+#define MERGE_S_ADD	 0x08	/* Properties sum with device series merge */
+#define MERGE_S_PAR	 0x10	/* Properties add in parallel with series merge */
+#define MERGE_S_CRIT 	 0x20	/* This property enables series merging */
+
+#define MERGE_P_MASK	(MERGE_P_ADD | MERGE_P_PAR | MERGE_P_CRIT)
+#define MERGE_S_MASK	(MERGE_S_ADD | MERGE_S_PAR | MERGE_S_CRIT)
+#define MERGE_ALL_MASK	(MERGE_P_MASK | MERGE_S_MASK)
+
+/* Although the above are flags, "ADD" and "PAR" are mutually exclusive.	*/
 
 /* Note:  A "critical" merge means that the property causes the number of	*/
 /* devices to change.  e.g., transistor width is critical;  transistor drain	*/
 /* area sums when devices are merged, but does not change the number of devices.*/
 /* More than one property can be critical.  e.g., width and number of fingers.	*/
+/* Also it is possible for a property (e.g., "value") to be critical for both	*/
+/* series and parallel merging.							*/
 
 struct property {
   char *key;			/* name of the property */
@@ -217,7 +227,7 @@ struct nlist {
 
 /* Flags for combination allowances and prohibitions */
 
-#define COMB_SERIAL		0x40
+#define COMB_SERIES		0x40
 #define COMB_NO_PARALLEL	0x80
 
 extern struct nlist *CurrentCell;

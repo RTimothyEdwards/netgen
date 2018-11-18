@@ -36,9 +36,11 @@ extern struct property *PropertyString(char *name, int fnum, char *key,
 		double slop, char *pdefault);
 extern int  PropertyDelete(char *name, int fnum, char *key);
 extern void SetParallelCombine(int value);
+extern void SetSeriesCombine(int value);
 extern int  PropertyTolerance(char *name, int fnum, char *key, int ival,
 		double dval);
-extern int  PropertyMerge(char *name, int fnum, char *key, int merge_type);
+extern int  PropertyMerge(char *name, int fnum, char *key, int merge_type,
+		int merge_mask);
 extern void ResolveProperties(char *name1, int file1, char *name2, int file2);
 extern void CopyProperties(struct objlist *obj_to, struct objlist *obj_from);
 extern int PromoteProperty(struct property *, struct valuelist *);
@@ -120,7 +122,7 @@ extern void ConvertGlobals(char *name, int fnum);
 extern int  CleanupPins(char *name, int fnum);
 extern void ConnectAllNodes(char *model, int fnum);
 extern int  CombineParallel(char *model, int fnum);
-extern int  CombineSerial(char *model, int fnum);
+extern int  CombineSeries(char *model, int fnum);
 extern int  NoDisconnectedNodes;
 extern int  PropertyKeyMatch(char *, char *);
 extern int  PropertyValueMatch(char *, char *);

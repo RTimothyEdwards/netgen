@@ -36,7 +36,8 @@ extern int EquivalenceNodes(char *name1, int file1, char *name2, int file2);
 extern int EquivalenceClasses(char *name1, int file1, char *name2, int file2);
 extern int IgnoreClass(char *name, int file, unsigned char type);
 extern int MatchPins(struct nlist *tp1, struct nlist *tp2, int dolist);
-extern int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int serial);
+extern int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run,
+	int series, int comb);
 
 extern int  CreateCompareQueue(char *, int, char *, int);
 extern int  GetCompareQueueTop(char **, int *, char **, int *);
@@ -46,6 +47,9 @@ extern void RemoveCompareQueue();
 extern void PrintIllegalClasses();
 extern void PrintIllegalNodeClasses();
 extern void PrintIllegalElementClasses();
+
+extern void DumpNetwork(struct objlist *ob, int cidx);
+extern void DumpNetworkAll(char *name, int file);
 
 #ifdef TCL_NETGEN
 extern int EquivalentNode();

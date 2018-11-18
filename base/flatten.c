@@ -1391,7 +1391,7 @@ SurveyCell(struct nlist *tc, struct hashdict *compdict, int file1, int file2, in
 /*							*/
 /* If there is a mismatch between instances of low-	*/
 /* level devices, determine if the mismatches can be	*/
-/* resolved by parallel/serial combining, according to	*/
+/* resolved by parallel/series combining, according to	*/
 /* combination rules.					*/
 /* 							*/
 /* Return the number of modifications made.		*/

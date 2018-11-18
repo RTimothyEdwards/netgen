@@ -3157,19 +3157,25 @@ _netcmp_equate(ClientData clientData,
 /*	add	  --- add new property			*/
 /*	remove	  --- delete existing property		*/
 /*	tolerance --- set property tolerance		*/
-/*	merge	  --- set property merge behavior	*/
+/*	merge	  --- (deprecated)			*/
 /* or							*/
 /*	netgen::property default			*/
 /* or							*/
 /*	netgen::property <device>|<model> <option>	*/
 /*		yes|no					*/
 /* Where <option> is one of:				*/
-/*     serial	--- allow/prohibit serial combination	*/
+/*     series	--- allow/prohibit series combination	*/
 /*     parallel --- allow/prohibit parallel combination	*/
 /* or							*/
 /*	netgen::property parallel none			*/
 /*		--- prohibit parallel combinations by	*/
-/*		    default.				*/
+/*		    default (for all devices).		*/
+/*							*/
+/* series|parallel options are:				*/
+/*	enable|disable|none|{<key> <combine_option>}	*/
+/*							*/
+/* combine options are:					*/
+/*	par|add|par_critical|add_critical		*/
 /*							*/
 /* Formerly: (none)					*/
 /* Results:						*/
@@ -3189,11 +3195,11 @@ _netcmp_property(ClientData clientData,
 
     char *options[] = {
 	"add", "create", "remove", "delete", "tolerance", "merge", "serial",
-	"parallel", NULL
+	"series", "parallel", NULL
     };
     enum OptionIdx {
 	ADD_IDX, CREATE_IDX, REMOVE_IDX, DELETE_IDX, TOLERANCE_IDX, MERGE_IDX,
-	SERIAL_IDX, PARALLEL_IDX
+	SERIAL_IDX, SERIES_IDX, PARALLEL_IDX
     };
     int result, index, idx2;
 
@@ -3204,16 +3210,31 @@ _netcmp_property(ClientData clientData,
 	INTEGER_IDX, DOUBLE_IDX, VALUE_IDX, STRING_IDX
     };
 
+    /* Note: "merge" has been deprecated, but kept for backwards compatibility.	*/
+    /* It has been replaced by "combineoptions" below, used with "series" and	*/
+    /* "parallel".								*/
+
     char *mergeoptions[] = {
 	"none", "add", "add_critical", "par", "par_critical",
 	"parallel", "parallel_critical", "ser_critical", "ser",
-	"serial_critical", "serial", NULL
+	"serial_critical", "series_critical", "serial", "series", NULL
     };
+
     enum MergeOptionIdx {
 	NONE_IDX, ADD_ONLY_IDX, ADD_CRIT_IDX,
 	PAR_ONLY_IDX, PAR_CRIT_IDX, PAR2_ONLY_IDX, PAR2_CRIT_IDX,
-	SER_CRIT_IDX, SER_IDX, SER2_CRIT_IDX, SER2_IDX
+	SER_CRIT_IDX, SER_IDX, SER2_CRIT_IDX, SER3_CRIT_IDX, SER2_IDX, SER3_IDX
     };
+
+    char *combineoptions[] = {
+	"none", "par", "add", "par_critical", "add_critical", NULL
+    };
+
+    enum CombineOptionIdx {
+	COMB_NONE_IDX, COMB_PAR_IDX, COMB_ADD_IDX, COMB_PAR_CRITICAL_IDX,
+	COMB_ADD_CRITICAL_IDX
+    };
+
     char *yesno[] = {
 	"on", "yes", "true", "enable", "allow",
 	"off", "no", "false", "disable", "prohibit", NULL
@@ -3238,25 +3259,34 @@ _netcmp_property(ClientData clientData,
 		case CLASS_NMOS: case CLASS_PMOS: case CLASS_FET3:
 		case CLASS_NMOS4: case CLASS_PMOS4: case CLASS_FET4:
 		case CLASS_FET:
-		    PropertyMerge(tp->name, tp->file, "w", MERGE_ADD_CRIT);
+		    PropertyMerge(tp->name, tp->file, "w", MERGE_P_ADD | MERGE_P_CRIT,
+				MERGE_ALL_MASK);
 		    PropertyDelete(tp->name, tp->file, "as");
 		    PropertyDelete(tp->name, tp->file, "ad");
 		    PropertyDelete(tp->name, tp->file, "ps");
 		    PropertyDelete(tp->name, tp->file, "pd");
 		    break;
 		case CLASS_RES: case CLASS_RES3:
-		    PropertyMerge(tp->name, tp->file, "w", MERGE_ADD_CRIT);
-		    PropertyMerge(tp->name, tp->file, "l", MERGE_SER_CRIT);
-		    tp->flags |= COMB_SERIAL;
+		    PropertyMerge(tp->name, tp->file, "w",
+				MERGE_P_PAR | MERGE_P_CRIT, MERGE_ALL_MASK);
+		    PropertyMerge(tp->name, tp->file, "l",
+				MERGE_S_ADD | MERGE_S_CRIT, MERGE_ALL_MASK);
+		    PropertyMerge(tp->name, tp->file, "value",
+				MERGE_S_ADD | MERGE_P_PAR, MERGE_ALL_MASK);
+		    tp->flags |= COMB_SERIES;
 		    break;
 		case CLASS_CAP: case CLASS_ECAP: case CLASS_CAP3:
 		    // NOTE:  No attempt to combine area, width, or length;
 		    // only value.
-		    PropertyMerge(tp->name, tp->file, "value", MERGE_ADD_CRIT);
+		    PropertyMerge(tp->name, tp->file, "value",
+				MERGE_P_ADD | MERGE_P_CRIT |
+				MERGE_S_PAR | MERGE_S_CRIT, MERGE_ALL_MASK);
 		    break;
 		case CLASS_INDUCTOR:
-		    PropertyMerge(tp->name, tp->file, "value", MERGE_PAR_CRIT);
-		    tp->flags |= COMB_SERIAL;
+		    PropertyMerge(tp->name, tp->file, "value",
+				MERGE_P_PAR | MERGE_P_CRIT |
+				MERGE_S_PAR | MERGE_S_CRIT, MERGE_ALL_MASK);
+		    tp->flags |= COMB_SERIES;
 		    break;
 	    }
 	    tp = NextCell();
@@ -3274,7 +3304,22 @@ _netcmp_property(ClientData clientData,
 	}
 	else {
 	    Tcl_SetResult(interp, "Bad option, should be property parallel none|all",
-			NONE);
+			NULL);
+	    return TCL_ERROR;
+	}
+	return TCL_OK;
+    }
+    else if ((objc == 3) && ((!strcmp(Tcl_GetString(objv[1]), "series")) ||
+		(!strcmp(Tcl_GetString(objv[1]), "serial")))) {
+	if (!strcmp(Tcl_GetString(objv[2]), "none")) {
+	    SetSeriesCombine(FALSE);
+	}
+	else if (!strcmp(Tcl_GetString(objv[2]), "all")) {
+	    SetSeriesCombine(TRUE);
+	}
+	else {
+	    Tcl_SetResult(interp, "Bad option, should be property series none|all",
+			NULL);
 	    return TCL_ERROR;
 	}
 	return TCL_OK;
@@ -3329,10 +3374,11 @@ _netcmp_property(ClientData clientData,
 
 	switch (index) {
 	    case SERIAL_IDX:
+	    case SERIES_IDX:
 	    case PARALLEL_IDX:
                 if (objc == 3) {
-		    if (index == SERIAL_IDX) {
-			tobj1 = Tcl_NewBooleanObj((tp->flags & COMB_SERIAL) ? 1 : 0);
+		    if (index == SERIAL_IDX || index == SERIES_IDX) {
+			tobj1 = Tcl_NewBooleanObj((tp->flags & COMB_SERIES) ? 1 : 0);
 			Tcl_SetObjResult(interp, tobj1);
 			return TCL_OK;
 		    }
@@ -3342,29 +3388,106 @@ _netcmp_property(ClientData clientData,
 			return TCL_OK;
 		    }
 		}
-		else if (objc == 4) {
-		    if (Tcl_GetIndexFromObj(interp, objv[3],
-				(CONST84 char **)yesno,
-				"combine", 0, &idx2) != TCL_OK) {
-		        Tcl_WrongNumArgs(interp, 3, objv, "enable|disable");
-		        return TCL_ERROR;
-                    }
-                    if (idx2 <= 4) {	/* true, enable, etc. */
-			if (index == SERIAL_IDX)
-			    tp->flags |= COMB_SERIAL;
-			else
-			    tp->flags &= ~COMB_NO_PARALLEL;
-		    }
-		    else {	/* false, disable, etc. */
-			if (index == SERIAL_IDX)
-			    tp->flags &= ~COMB_SERIAL;
-			else
-			    tp->flags |= COMB_NO_PARALLEL;
-		    }
-		}
-		else {
-		    Tcl_WrongNumArgs(interp, 2, objv, "serial|parallel enable|disable");
+		else if (objc < 4) {
+		    Tcl_WrongNumArgs(interp, 2, objv, "series|parallel enable|disable");
 		    return TCL_ERROR;
+		}
+
+		for (i = 3; i < objc; i++) {
+		    // Each value must be a list of two, or a yes/no answer.
+
+		    if (Tcl_GetIndexFromObj(interp, objv[i],
+				(CONST84 char **)yesno,
+				"combine", 0, &idx2) == TCL_OK) {
+			if (idx2 <= 4) {	/* true, enable, etc. */
+			    if (index == SERIAL_IDX || index == SERIES_IDX)
+				tp->flags |= COMB_SERIES;
+			    else
+				tp->flags &= ~COMB_NO_PARALLEL;
+			}
+			else {	/* false, disable, etc. */
+			    if (index == SERIAL_IDX || index == SERIES_IDX)
+				tp->flags &= ~COMB_SERIES;
+			    else
+				tp->flags |= COMB_NO_PARALLEL;
+			}
+			continue;
+		    }
+
+		    result = Tcl_ListObjLength(interp, objv[i], &llen);
+		    if ((result != TCL_OK) || (llen != 2)) {
+			Tcl_SetResult(interp, "Not a {key merge_type} pair list.",
+					NULL);
+		    }
+		    else {
+			int mergeval = MERGE_NONE;
+			int mergemask = MERGE_NONE;
+
+			result = Tcl_ListObjIndex(interp, objv[i], 0, &tobj1);
+			if (result != TCL_OK) return result;
+			result = Tcl_ListObjIndex(interp, objv[i], 1, &tobj2);
+			if (result != TCL_OK) return result;
+
+			result = Tcl_GetIndexFromObj(interp, tobj2,
+				(CONST84 char **)combineoptions,
+				"combine_type", 0, &idx2);
+			if (result != TCL_OK) return result;
+
+			if (index == SERIAL_IDX || index == SERIES_IDX) {
+			    mergemask = MERGE_S_MASK;
+			    switch (idx2) {
+				case COMB_NONE_IDX:
+				    mergeval &= ~(MERGE_S_ADD | MERGE_S_PAR
+						| MERGE_S_CRIT);
+				    tp->flags &= ~COMB_SERIES;
+				    break;
+				case COMB_PAR_IDX:
+				    mergeval = MERGE_S_PAR;
+				    tp->flags |= COMB_SERIES;
+				    break;
+				case COMB_ADD_IDX:
+				    mergeval |= MERGE_S_ADD;
+				    tp->flags |= COMB_SERIES;
+				    break;
+				case COMB_PAR_CRITICAL_IDX:
+				    mergeval |= (MERGE_S_PAR | MERGE_S_CRIT);
+				    tp->flags |= COMB_SERIES;
+				    break;
+				case COMB_ADD_CRITICAL_IDX:
+				    mergeval |= (MERGE_S_ADD | MERGE_S_CRIT);
+				    tp->flags |= COMB_SERIES;
+				    break;
+			    }
+			}
+			else {	/* index == PARALLEL_IDX */
+			    mergemask = MERGE_P_MASK;
+			    switch (idx2) {
+				case COMB_NONE_IDX:
+				    mergeval &= ~(MERGE_P_ADD | MERGE_P_PAR
+						| MERGE_P_CRIT);
+				    tp->flags |= COMB_NO_PARALLEL;
+				    break;
+				case COMB_PAR_IDX:
+				    mergeval |= MERGE_P_PAR;
+				    tp->flags &= ~COMB_NO_PARALLEL;
+				    break;
+				case COMB_ADD_IDX:
+				    mergeval |= MERGE_P_ADD;
+				    tp->flags &= ~COMB_NO_PARALLEL;
+				    break;
+				case COMB_PAR_CRITICAL_IDX:
+				    mergeval |= (MERGE_P_PAR | MERGE_P_CRIT);
+				    tp->flags &= ~COMB_NO_PARALLEL;
+				    break;
+				case COMB_ADD_CRITICAL_IDX:
+				    mergeval |= (MERGE_P_ADD | MERGE_P_CRIT);
+				    tp->flags &= ~COMB_NO_PARALLEL;
+				    break;
+			    }
+			}
+			PropertyMerge(tp->name, fnum, Tcl_GetString(tobj1), mergeval,
+				mergemask);
+		    }
 		}
 		break;
 
@@ -3535,6 +3658,11 @@ _netcmp_property(ClientData clientData,
 		break;
 
 	    case MERGE_IDX:
+		// NOTE: This command option is deprecated, kept for backwards
+		// compatibility, with updated flag values.  This command format
+		// is unable to specify a property as being a critical property
+		// for merging both in series and in parallel.
+
 		if (objc == 3) {
 		    Tcl_WrongNumArgs(interp, 1, objv, "{property_key merge_type} ...");
 		    return TCL_ERROR;
@@ -3564,29 +3692,32 @@ _netcmp_property(ClientData clientData,
 				mergeval = MERGE_NONE;
 				break;
 			    case ADD_ONLY_IDX:
-				mergeval = MERGE_ADD;
+				mergeval = MERGE_P_ADD;
 				break;
 			    case ADD_CRIT_IDX:
-				mergeval = MERGE_ADD_CRIT;
+				mergeval = MERGE_P_ADD | MERGE_P_CRIT;
 				break;
 			    case PAR_ONLY_IDX:
 			    case PAR2_ONLY_IDX:
-				mergeval = MERGE_PAR;
+				mergeval = MERGE_P_PAR;
 				break;
 			    case PAR_CRIT_IDX:
 			    case PAR2_CRIT_IDX:
-				mergeval = MERGE_PAR_CRIT;
+				mergeval = MERGE_P_PAR | MERGE_P_CRIT;
 				break;
 			    case SER_CRIT_IDX:
 			    case SER2_CRIT_IDX:
-				mergeval = MERGE_SER_CRIT;
+			    case SER3_CRIT_IDX:
+				mergeval = MERGE_S_ADD | MERGE_S_CRIT;
 				break;
 			    case SER_IDX:
 			    case SER2_IDX:
-				mergeval = MERGE_SER;
+			    case SER3_IDX:
+				mergeval = MERGE_S_ADD;
 				break;
 			}
-			PropertyMerge(tp->name, fnum, Tcl_GetString(tobj1), mergeval);
+			PropertyMerge(tp->name, fnum, Tcl_GetString(tobj1), mergeval,
+				MERGE_ALL_MASK);
 		    }
 		}
 		break;
