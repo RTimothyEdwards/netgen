@@ -2489,8 +2489,7 @@ int ConvertStringToInteger(char *string, int *ival)
       *ival = (int)lval;
       return 1;
    }
-   else if (eptr == string)
-      return 0;		/* No conversion */
+   else return 0;		/* No conversion */
 }
 
 /*--------------------------------------------------------------*/
@@ -3063,7 +3062,7 @@ int remove_group_tags(struct objlist *ob)
    for (nob = ob->next; nob && nob->type != FIRSTPIN; nob = nob->next)
       if (nob->type == PROPERTY)
 	 break;
-   if (nob->type != PROPERTY) return;	// shouldn't happen
+   if (nob->type != PROPERTY) return 0;	// shouldn't happen
 
    for (sob = NULL; nob && nob->type == PROPERTY; nob = nob->next) {
       for (i = 0; ; i++) {
