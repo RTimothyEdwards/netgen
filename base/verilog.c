@@ -59,8 +59,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 // See netfile.c for explanation of delimiters.  'X'
 // separates single-character delimiters from two-character delimiters.
-#define VLOG_DELIMITERS ",;:(){}[]=X///**/#("
-#define VLOG_PIN_NAME_DELIMITERS "()X///**/"
+#define VLOG_DELIMITERS "X///**/#((**)X,::(){}[]="
+#define VLOG_PIN_NAME_DELIMITERS "X///**/(**)X()"
 
 // Global storage for verilog parameters
 struct hashdict verilogparams;
@@ -1094,7 +1094,9 @@ skip_endmodule:
 	     if (LookupObject(nexttok, CurrentCell) == NULL)
 	         Node(nexttok);
 	 }
-         SkipTokNoNewline(VLOG_DELIMITERS);
+	 do {
+	     SkipTokNoNewline(VLOG_DELIMITERS);
+	 } while (nexttok && match(nexttok, ";"));
       }
     }
     else if (match(nexttok, "endmodule")) {
@@ -1679,10 +1681,6 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   kl->slop.ival = 0;
   kl->pdefault.ival = 1;
   HashPtrInstall(kl->key, kl, &verilogdefs);
-
-  /* All verilog files should start with a comment line,  */
-  /* but we won't depend upon it.  Any comment line	  */
-  /* will be handled by the main Verilog file processing. */
 
   ReadVerilogFile(fname, filenum, &CellStack, blackbox);
   CloseParseFile();

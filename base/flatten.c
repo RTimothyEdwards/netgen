@@ -1659,7 +1659,8 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     ecomp = (ECompare *)HashFirst(&compdict);
     while (ecomp != NULL) {
 	if ((ecomp->num1 != ecomp->num2) && (ecomp->cell1 != NULL) &&
-			(ecomp->cell1->class == CLASS_RES)) {
+			((ecomp->cell1->class == CLASS_RES) ||
+			(ecomp->cell1->class == CLASS_VSOURCE))) {
 	    int node1 = -1, node2 = -1;
 	    lob = NULL;
 	    for (ob1 = tc1->cell; ob1; ) {
@@ -1703,7 +1704,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					if (found) break;
 				    }
 				    if (found) {
-					Fprintf(stdout, "Removing zero-valued device"
+					Fprintf(stdout, "Removing zero-valued device "
 						"%s from cell %s makes a better match\n",
 						tsub1->name,
 						tc1->name);
@@ -1763,7 +1764,8 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	// Repeat the last section for the other circuit
 
 	if ((ecomp->num1 != ecomp->num2) && (ecomp->cell2 != NULL) &&
-			(ecomp->cell2->class == CLASS_RES)) {
+			((ecomp->cell2->class == CLASS_RES) ||
+			(ecomp->cell2->class == CLASS_VSOURCE))) {
 	    int node1 = -1, node2 = -1;
 	    lob = NULL;
 	    for (ob2 = tc2->cell; ob2; ) {
@@ -1807,7 +1809,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					if (found) break;
 				    }
 				    if (found) {
-					Fprintf(stdout, "Removing zero-valued device"
+					Fprintf(stdout, "Removing zero-valued device "
 						"%s from cell %s makes a better match\n",
 						tsub2->name,
 						tc2->name);

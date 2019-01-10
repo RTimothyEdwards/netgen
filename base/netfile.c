@@ -437,7 +437,10 @@ void SpiceSkipNewLine(void)
 /* delimiters (this presumably could be further extended as needed).	*/
 /* so ",;()" would be a valid delimiter set, but to include C-style	*/
 /* comments and verilog-style parameter lists, one would need		*/
-/* ",;()X/**///#(".							*/
+/* "X/**///#(X,;()".  Two-character delimiters should go first so that	*/
+/* they have precedence over one-character delimiters.  'X' should be	*/
+/* the first character of the delimiter string in addition to marking	*/
+/* the boundary between two-character and one-character delimiters.	*/
 /*----------------------------------------------------------------------*/
 
 char *strdtok(char *pstring, char *delim1, char *delim2)
@@ -477,10 +480,10 @@ char *strdtok(char *pstring, char *delim1, char *delim2)
     /* return the token.							*/	
 
     for (s = stoken; *s; s++) {
-	twofer = FALSE;
-	for (s2 = delim2; s2 && *s2; s2++) {
+	twofer = (delim2 && (*delim2 == 'X')) ? TRUE : FALSE;
+	for (s2 = ((twofer == TRUE) ? delim2 + 1 : delim2); s2 && *s2; s2++) {
 	    if (*s2 == 'X') {
-		twofer = TRUE;
+		twofer = FALSE;
 		continue;
 	    }
 	    if (twofer) {

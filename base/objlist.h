@@ -108,13 +108,15 @@ struct valuelist {
 #define MERGE_P_ADD	 0x01	/* Properties sum with device parallel merge */
 #define MERGE_P_PAR	 0x02	/* Properties add in parallel with parallel merge */
 #define MERGE_P_CRIT 	 0x04	/* This property enables parallel merging */
+#define MERGE_P_XCRIT 	 0x08	/* Old "critical" behavior (deprecated) */
 
-#define MERGE_S_ADD	 0x08	/* Properties sum with device series merge */
-#define MERGE_S_PAR	 0x10	/* Properties add in parallel with series merge */
-#define MERGE_S_CRIT 	 0x20	/* This property enables series merging */
+#define MERGE_S_ADD	 0x10	/* Properties sum with device series merge */
+#define MERGE_S_PAR	 0x20	/* Properties add in parallel with series merge */
+#define MERGE_S_CRIT 	 0x40	/* This property enables series merging */
+#define MERGE_S_XCRIT 	 0x80	/* Old "critical" behavior (deprecated) */
 
-#define MERGE_P_MASK	(MERGE_P_ADD | MERGE_P_PAR | MERGE_P_CRIT)
-#define MERGE_S_MASK	(MERGE_S_ADD | MERGE_S_PAR | MERGE_S_CRIT)
+#define MERGE_P_MASK	(MERGE_P_ADD | MERGE_P_PAR | MERGE_P_CRIT | MERGE_P_XCRIT)
+#define MERGE_S_MASK	(MERGE_S_ADD | MERGE_S_PAR | MERGE_S_CRIT | MERGE_S_XCRIT)
 #define MERGE_ALL_MASK	(MERGE_P_MASK | MERGE_S_MASK)
 
 /* Although the above are flags, "ADD" and "PAR" are mutually exclusive.	*/

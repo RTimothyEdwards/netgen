@@ -87,8 +87,10 @@ extern int PrematchLists(char *, int, char *, int);
 #define CLASS_DIODE	16	/* standard SPICE diode */
 #define CLASS_INDUCTOR	17	/* standard SPICE inductor */
 #define CLASS_XLINE	18	/* transmission line model */
-#define CLASS_MODULE	19	/* sim "x"; black-box subcircuit */
-#define CLASS_UNDEF	20	/* not defined; error */
+#define CLASS_VSOURCE	19	/* independent voltage source */
+#define CLASS_ISOURCE	20	/* independent current source */
+#define CLASS_MODULE	21	/* sim "x"; black-box subcircuit */
+#define CLASS_UNDEF	22	/* not defined; error */
 
 extern char *P(char *fname, char *inststr, char *drain, char *gate, char *source);
 extern char *P4(char *fname, char *inststr, char *drain, char *gate, char *source,

@@ -3728,6 +3728,7 @@ int series_combine(struct objlist *ob1, struct nlist *tp1, int idx1, int run1,
 typedef struct _propsort {
     double value;
     int idx;
+    unsigned char flags;
     struct objlist *ob;
 } propsort;
 
@@ -3748,7 +3749,9 @@ static int compsort(const void *p1, const void *p2)
 /*--------------------------------------------------------------*/
 /* Sort properties of ob1 starting at property idx1 up to	*/
 /* property (idx1 + run).  Use series critical property for	*/
-/* sorting.  Multiply critical property by S before sort.	*/
+/* sorting.  Combine properties by S before sort.  Note that	*/
+/* use of "S" implies that the devices are the same in all	*/
+/* properties.							*/
 /* ob1 is the record before the first property.			*/
 /*--------------------------------------------------------------*/
 
@@ -3764,8 +3767,8 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    obn = ob1->next;
    for (i = 0; i < idx1; i++) obn = obn->next;
 
-   // Create a structure of length (run) to hold critical property
-   // value and index.  Then sort that list, then use the sorted
+   // Create a structure of length (run) to hold property value
+   // and index.  Then sort that list, then use the sorted
    // indexes to sort the actual property linked list.
 
    proplist = (propsort *)MALLOC(run * sizeof(propsort));
@@ -4376,16 +4379,16 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	 kl->idx = pcount++;
 
       // Set critical property index, if there is one.
-      // To do: deal with possibility of multiple critical properties
-      // per instance?
 
-      if ((series == FALSE) && (kl->merge & MERGE_P_CRIT)) {
-	 crit = kl->idx;
-	 ctype = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
+      if (series == FALSE) {
+	 if (kl->merge & MERGE_P_CRIT) crit = kl->idx;
+	 if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR))
+	    ctype = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
       }
-      else if ((series == TRUE) && (kl->merge & MERGE_S_CRIT)) {
-	 crit = kl->idx;
-	 ctype = kl->merge & (MERGE_S_ADD | MERGE_S_PAR);
+      else if (series == TRUE) {
+	 if (kl->merge & MERGE_S_CRIT) crit = kl->idx;
+	 if (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))
+	    ctype = kl->merge & (MERGE_S_ADD | MERGE_S_PAR);
       }
 
       kl = (struct property *)HashNext(&(tp->propdict));

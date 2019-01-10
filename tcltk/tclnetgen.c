@@ -3227,12 +3227,11 @@ _netcmp_property(ClientData clientData,
     };
 
     char *combineoptions[] = {
-	"none", "par", "add", "par_critical", "add_critical", NULL
+	"none", "par", "add", "critical", NULL
     };
 
     enum CombineOptionIdx {
-	COMB_NONE_IDX, COMB_PAR_IDX, COMB_ADD_IDX, COMB_PAR_CRITICAL_IDX,
-	COMB_ADD_CRITICAL_IDX
+	COMB_NONE_IDX, COMB_PAR_IDX, COMB_ADD_IDX, COMB_CRITICAL_IDX
     };
 
     char *yesno[] = {
@@ -3268,24 +3267,24 @@ _netcmp_property(ClientData clientData,
 		    break;
 		case CLASS_RES: case CLASS_RES3:
 		    PropertyMerge(tp->name, tp->file, "w",
-				MERGE_P_PAR | MERGE_P_CRIT, MERGE_ALL_MASK);
+				MERGE_P_PAR | MERGE_S_CRIT, MERGE_ALL_MASK);
 		    PropertyMerge(tp->name, tp->file, "l",
-				MERGE_S_ADD | MERGE_S_CRIT, MERGE_ALL_MASK);
+				MERGE_S_ADD | MERGE_P_CRIT, MERGE_ALL_MASK);
 		    PropertyMerge(tp->name, tp->file, "value",
 				MERGE_S_ADD | MERGE_P_PAR, MERGE_ALL_MASK);
 		    tp->flags |= COMB_SERIES;
 		    break;
 		case CLASS_CAP: case CLASS_ECAP: case CLASS_CAP3:
-		    // NOTE:  No attempt to combine area, width, or length;
-		    // only value.
+		    /* NOTE:  No attempt to modify perimeter, length, or width */
+		    PropertyMerge(tp->name, tp->file, "area",
+				MERGE_P_ADD | MERGE_S_PAR, MERGE_ALL_MASK);
 		    PropertyMerge(tp->name, tp->file, "value",
-				MERGE_P_ADD | MERGE_P_CRIT |
-				MERGE_S_PAR | MERGE_S_CRIT, MERGE_ALL_MASK);
+				MERGE_P_ADD | MERGE_S_PAR, MERGE_ALL_MASK);
+		    tp->flags |= COMB_SERIES;
 		    break;
 		case CLASS_INDUCTOR:
 		    PropertyMerge(tp->name, tp->file, "value",
-				MERGE_P_PAR | MERGE_P_CRIT |
-				MERGE_S_PAR | MERGE_S_CRIT, MERGE_ALL_MASK);
+				MERGE_S_ADD | MERGE_P_PAR, MERGE_ALL_MASK);
 		    tp->flags |= COMB_SERIES;
 		    break;
 	    }
@@ -3437,8 +3436,7 @@ _netcmp_property(ClientData clientData,
 			    mergemask = MERGE_S_MASK;
 			    switch (idx2) {
 				case COMB_NONE_IDX:
-				    mergeval &= ~(MERGE_S_ADD | MERGE_S_PAR
-						| MERGE_S_CRIT);
+				    mergeval &= ~(MERGE_S_MASK);
 				    tp->flags &= ~COMB_SERIES;
 				    break;
 				case COMB_PAR_IDX:
@@ -3449,12 +3447,8 @@ _netcmp_property(ClientData clientData,
 				    mergeval |= MERGE_S_ADD;
 				    tp->flags |= COMB_SERIES;
 				    break;
-				case COMB_PAR_CRITICAL_IDX:
-				    mergeval |= (MERGE_S_PAR | MERGE_S_CRIT);
-				    tp->flags |= COMB_SERIES;
-				    break;
-				case COMB_ADD_CRITICAL_IDX:
-				    mergeval |= (MERGE_S_ADD | MERGE_S_CRIT);
+				case COMB_CRITICAL_IDX:
+				    mergeval |= MERGE_S_CRIT;
 				    tp->flags |= COMB_SERIES;
 				    break;
 			    }
@@ -3463,8 +3457,7 @@ _netcmp_property(ClientData clientData,
 			    mergemask = MERGE_P_MASK;
 			    switch (idx2) {
 				case COMB_NONE_IDX:
-				    mergeval &= ~(MERGE_P_ADD | MERGE_P_PAR
-						| MERGE_P_CRIT);
+				    mergeval &= ~(MERGE_P_MASK);
 				    tp->flags |= COMB_NO_PARALLEL;
 				    break;
 				case COMB_PAR_IDX:
@@ -3475,12 +3468,8 @@ _netcmp_property(ClientData clientData,
 				    mergeval |= MERGE_P_ADD;
 				    tp->flags &= ~COMB_NO_PARALLEL;
 				    break;
-				case COMB_PAR_CRITICAL_IDX:
-				    mergeval |= (MERGE_P_PAR | MERGE_P_CRIT);
-				    tp->flags &= ~COMB_NO_PARALLEL;
-				    break;
-				case COMB_ADD_CRITICAL_IDX:
-				    mergeval |= (MERGE_P_ADD | MERGE_P_CRIT);
+				case COMB_CRITICAL_IDX:
+				    mergeval |= MERGE_P_CRIT;
 				    tp->flags &= ~COMB_NO_PARALLEL;
 				    break;
 			    }
@@ -3695,7 +3684,7 @@ _netcmp_property(ClientData clientData,
 				mergeval = MERGE_P_ADD;
 				break;
 			    case ADD_CRIT_IDX:
-				mergeval = MERGE_P_ADD | MERGE_P_CRIT;
+				mergeval = MERGE_P_ADD | MERGE_P_XCRIT;
 				break;
 			    case PAR_ONLY_IDX:
 			    case PAR2_ONLY_IDX:
@@ -3703,12 +3692,12 @@ _netcmp_property(ClientData clientData,
 				break;
 			    case PAR_CRIT_IDX:
 			    case PAR2_CRIT_IDX:
-				mergeval = MERGE_P_PAR | MERGE_P_CRIT;
+				mergeval = MERGE_P_PAR | MERGE_P_XCRIT;
 				break;
 			    case SER_CRIT_IDX:
 			    case SER2_CRIT_IDX:
 			    case SER3_CRIT_IDX:
-				mergeval = MERGE_S_ADD | MERGE_S_CRIT;
+				mergeval = MERGE_S_ADD | MERGE_S_XCRIT;
 				break;
 			    case SER_IDX:
 			    case SER2_IDX:

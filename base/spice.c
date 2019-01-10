@@ -117,6 +117,12 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 	   case CLASS_NPN: case CLASS_PNP: case CLASS_BJT:
 	      spice_class = 'Q';
 	      break;
+	   case CLASS_VSOURCE:
+	      spice_class = 'V';
+	      break;
+	   case CLASS_ISOURCE:
+	      spice_class = 'I';
+	      break;
 	   case CLASS_RES: case CLASS_RES3:
 	      spice_class = 'R';
 	      break;
@@ -172,7 +178,7 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 	      break;
 	}
 
-	/* caps and resistors, print out device value */
+	/* caps, resistors, voltage and current sources, print out device value */
 
 	/* print out device type (model/subcircuit name) */
 
@@ -215,6 +221,23 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 	      }
 	      else
 		 FlushString(" %s", model); 	/* semiconductor resistor */
+	      break;
+
+	   case CLASS_VSOURCE:
+	   case CLASS_ISOURCE:
+	      ob = ob->next;
+	      if (ob->type == PROPERTY) {
+		 struct valuelist *vl;
+		 int i;
+		 for (i == 0;; i++) {
+		    vl = &(ob->instance.props[i]);
+		    if (vl->type == PROP_ENDLIST) break;
+		    else if (vl->type == PROP_VALUE) {
+		       FlushString(" %g", vl->value.dval);
+		       break;
+		    }
+		 }
+	      }
 	      break;
 
 	   default:
@@ -710,6 +733,12 @@ skip_ends:
       }
       else if (!strcasecmp(nexttok, "R")) {
 	 class = CLASS_RES;
+      }
+      else if (!strcasecmp(nexttok, "V")) {
+	 class = CLASS_VSOURCE;
+      }
+      else if (!strcasecmp(nexttok, "I")) {
+	 class = CLASS_ISOURCE;
       }
       else if (!strcasecmp(nexttok, "C")) {
 	 class = CLASS_CAP;
@@ -1436,7 +1465,7 @@ skip_ends:
 	 Port("pos");
 	 Port("neg");
 	 PropertyInteger(model, filenum, "M", 0, 1);
-	 SetClass(CLASS_MODULE);
+	 SetClass(CLASS_VSOURCE);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
       }
@@ -1490,7 +1519,7 @@ skip_ends:
 	 Port("pos");
 	 Port("neg");
 	 PropertyInteger(model, filenum, "M", 0, 1);
-	 SetClass(CLASS_MODULE);
+	 SetClass(CLASS_ISOURCE);
          EndCell();
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);	/* Reopen */
       }
