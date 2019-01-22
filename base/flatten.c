@@ -1919,7 +1919,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 			    char *dstr = NULL;
 			    tc2 = LookupCellFile(ob2->model.class, ecomp0X->cell2->file);
 			    if (tc2->flags & CELL_DUPLICATE) {
-				dstr = strstr(ob1->model.class, "[[");
+				dstr = strstr(ob2->model.class, "[[");
 				if (dstr) *dstr = '\0';
 			    }
 		   	    ncomp = (ECompare *)HashInt2Lookup(ob2->model.class,

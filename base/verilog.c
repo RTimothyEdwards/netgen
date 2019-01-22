@@ -1062,14 +1062,25 @@ skip_endmodule:
 	}
     }
 
-    else if (match(nexttok, "wire")) {	/* wire = node */
+    else if (match(nexttok, "wire") || match(nexttok, "assign")) {	/* wire = node */
       struct bus wb, *nb;
       char nodename[128];
+      int is_assignment = FALSE;
+      struct objlist *lhs, *rhs;
+
+      // Several allowed uses of "assign":
+      // "assign a = b" joins two nets.
+      // "assign a = {b, c, ...}" creates a bus from components.
+      // "assign" using any boolean arithmetic is not structural verilog.
+
       SkipTokNoNewline(VLOG_DELIMITERS);
       if (match(nexttok, "real")) SkipTokNoNewline(VLOG_DELIMITERS);
       while (nexttok != NULL) {
-	 /* Handle bus notation */
-	 if (GetBusTok(&wb) == 0) {
+	 if (match(nexttok, "=")) {
+	     is_assignment = TRUE;
+	 }
+	 else if (GetBusTok(&wb) == 0) {
+	     /* Handle bus notation */
 	     SkipTokNoNewline(VLOG_DELIMITERS);
 	     if (wb.start > wb.end) {
 		for (i = wb.end; i <= wb.start; i++) {
@@ -1091,8 +1102,24 @@ skip_endmodule:
 	     HashPtrInstall(nexttok, nb, &buses);
 	 }
 	 else {
-	     if (LookupObject(nexttok, CurrentCell) == NULL)
+	     if (is_assignment) {
+		 /* Handle assignment statements */
+		 /* To be done:  Handle where both are bus names, and	*/
+		 /* where lhs is a bus name and rhs is a list of nets	*/
+		 if ((rhs = LookupObject(nexttok, CurrentCell)) != NULL) {
+		     join(lhs->name, rhs->name);
+		 }
+		 else {
+		     Printf("Module '%s' is not structural verilog, "
+				"making black-box.\n", model);
+		     SetClass(CLASS_MODULE);
+		     goto skip_endmodule;
+		 }
+		 is_assignment = FALSE;
+	     }
+	     else if (LookupObject(nexttok, CurrentCell) == NULL)
 	         Node(nexttok);
+		 lhs = LookupObject(nexttok, CurrentCell);
 	 }
 	 do {
 	     SkipTokNoNewline(VLOG_DELIMITERS);
@@ -1108,8 +1135,7 @@ skip_endmodule:
       // Ignore any other directive starting with a backtick
       SkipNewLine(VLOG_DELIMITERS);
     }
-    else if (match(nexttok, "reg") || match(nexttok, "assign")
-		|| match(nexttok, "always")) {
+    else if (match(nexttok, "reg") || match(nexttok, "always")) {
       Printf("Module '%s' is not structural verilog, making black-box.\n", model);
       // To be done:  Remove any contents (but may not be necessary)
       // Recast as module
