@@ -471,6 +471,23 @@ char *strdtok(char *pstring, char *delim1, char *delim2)
 
     /* "stoken" is now set.  Now find the end of the current token */
 
+    s = stoken;
+
+    /* Special verilog rule:  If a name begins with '\', then all characters    */
+    /* are a valid part of the name until a space character is reached.   The   */
+    /* space character becomes part of the verilog name.  The remainder of the  */
+    /* name is parsed according to the rules of "delim2".                       */
+
+    if (*s == '\\') {
+        while (*s != '\0') {
+	    if (*s == ' ') {
+		s++;
+		break;
+	    }
+	    s++;
+	}
+    }
+
     /* Check string from position stoken.  If a character in "delim2" is found,	*/
     /* save the character in "lastdelim", null the byte at that position, and	*/
     /* return the token.  If a character in "delim1" is found, do the same but	*/
@@ -479,7 +496,7 @@ char *strdtok(char *pstring, char *delim1, char *delim2)
     /* as for "delim2" above.  If not, then set "lastdelim" to a null byte and	*/
     /* return the token.							*/	
 
-    for (s = stoken; *s; s++) {
+    for (; *s; s++) {
 	twofer = (delim2 && (*delim2 == 'X')) ? TRUE : FALSE;
 	for (s2 = ((twofer == TRUE) ? delim2 + 1 : delim2); s2 && *s2; s2++) {
 	    if (*s2 == 'X') {
