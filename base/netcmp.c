@@ -3782,7 +3782,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 vl = &(obp->instance.props[p]);
 	 if (vl->type == PROP_ENDLIST) break;
 	 if (vl->key == NULL) continue;
-         if (!strcmp(vl->key, "S")) {
+         if ((*matchfunc)(vl->key, "S")) {
 	    sval = vl->value.ival;
 	    sl = vl;
 	 }
@@ -3906,7 +3906,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 vl = &(obp->instance.props[p]);
 	 if (vl->type == PROP_ENDLIST) break;
 	 if (vl->key == NULL) continue;
-         if (!strcmp(vl->key, "M")) {
+         if ((*matchfunc)(vl->key, "M")) {
 	    mval = vl->value.ival;
 	    ml = vl;
 	 }
@@ -3952,7 +3952,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	    vl = &(obp->instance.props[p]);
 	    if (vl->type == PROP_ENDLIST) break;
 	    if (vl->key == NULL) continue;
-            if (!strcmp(vl->key, "M")) {
+            if ((*matchfunc)(vl->key, "M")) {
 	        mval = vl->value.ival;
 		ml = vl;
 	    }
@@ -3960,7 +3960,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	    if (kl == NULL) continue;		/* Ignored property */
 	    if (subs_crit == NULL)
 		subs_crit = vl->key;
-	    if ((subs_crit != NULL) && !strcmp(vl->key, subs_crit)) {
+	    if ((subs_crit != NULL) && (*matchfunc)(vl->key, subs_crit)) {
 	       if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
 		  	(kl->type != vl->type))
 		  PromoteProperty(kl, vl);
@@ -4338,6 +4338,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 {
    struct objlist *ob2, *obt;
    struct property *kl, *m_rec, **plist;
+   unsigned char **clist;
    struct valuelist ***vlist, *vl, *vl2, *newvlist;
    proplinkptr plink, ptop;
    int pcount, p, i, j, k, pmatch, ival, crit, ctype;
@@ -4363,7 +4364,6 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    ptop = NULL;
    pcount = 1;
    crit = -1;
-   ctype = -1;
    kl = (struct property *)HashFirst(&(tp->propdict));
    while (kl != NULL) {
       // Make a linked list so we don't have to iterate through the hash again 
@@ -4382,13 +4382,9 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 
       if (series == FALSE) {
 	 if (kl->merge & MERGE_P_CRIT) crit = kl->idx;
-	 if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR))
-	    ctype = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
       }
       else if (series == TRUE) {
 	 if (kl->merge & MERGE_S_CRIT) crit = kl->idx;
-	 if (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))
-	    ctype = kl->merge & (MERGE_S_ADD | MERGE_S_PAR);
       }
 
       kl = (struct property *)HashNext(&(tp->propdict));
@@ -4396,13 +4392,17 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    // Recast the linked list as an array
    plist = (struct property **)CALLOC(pcount, sizeof(struct property *));
    vlist = (struct valuelist ***)CALLOC(pcount, sizeof(struct valuelist **));
-   if (m_rec == NULL)
+   clist = (unsigned char **)CALLOC(pcount, sizeof(unsigned char *));
+   if (m_rec == NULL) {
       vlist[0] = (struct valuelist **)CALLOC(run, sizeof(struct valuelist *));
+      clist[0] = (unsigned char *)CALLOC(run, sizeof(unsigned char));
+   }
 
    while (ptop != NULL) {
       plist[ptop->prop->idx] = ptop->prop;
       vlist[ptop->prop->idx] = (struct valuelist **)CALLOC(run,
 		sizeof(struct valuelist *));
+      clist[ptop->prop->idx] = (unsigned char *)CALLOC(run, sizeof(unsigned char));
       plink = ptop;
       FREE(ptop);
       ptop = plink->next;
@@ -4436,6 +4436,14 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	 }
  	 else if (kl != NULL) {
 	    vlist[kl->idx][i] = vl;
+	    if (series == FALSE) {
+		if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR))
+		    clist[kl->idx][i] = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
+	    }
+	    else if (series == TRUE) {
+		if (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))
+		    clist[kl->idx][i] = kl->merge & (MERGE_S_ADD | MERGE_S_PAR);
+	    }
 	 }
       }
       if (++i == run) break;
@@ -4600,32 +4608,40 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	 mult = vlist[0][i]->value.ival;
 	 if (mult > 1) {
 	    changed = 0;
-            vl = vlist[crit][i];
 
-            if ((ctype == MERGE_S_ADD) || (ctype == MERGE_P_ADD)) {
-	       if (vl->type == PROP_INTEGER)
-		  vl->value.ival *= mult;
-	       else if (vl->type == PROP_DOUBLE)
-		  vl->value.dval *= (double)mult;
-	       vlist[0][i]->value.ival = 1;
-	       changed += mult;
-	    }
-	    else if ((ctype == MERGE_S_PAR) || (ctype == MERGE_P_PAR)) {
-	       /* Technically one should check if divide-by-mult */	
-	       /* reduces the value to < 1 and promote to double */
-               /* if so, but that's a very unlikely case.	*/
-	       if (vl->type == PROP_INTEGER)
-		  vl->value.ival /= mult;
-	       else if (vl->type == PROP_DOUBLE)
-		  vl->value.dval /= (double)mult;
-	       vlist[0][i]->value.ival = 1;
-	       changed += mult;
-	    }
-	    if (changed > 0) {
-	       if (series)
-	          Printf("Combined %d series devices.\n", changed);
-	       else
-	          Printf("Combined %d parallel devices.\n", changed);
+	    /* For all properties that are not M, S, or crit,		*/
+	    /* combine as specified by the merge type of the property.	*/
+
+	    for (p = 1; p < pcount; p++) {
+		if (p == crit) continue;    /* critical properties never combine */
+		vl = vlist[p][i];
+		ctype = clist[p][i];
+
+		if ((ctype == MERGE_S_ADD) || (ctype == MERGE_P_ADD)) {
+		    if (vl->type == PROP_INTEGER)
+			vl->value.ival *= mult;
+		    else if (vl->type == PROP_DOUBLE)
+			vl->value.dval *= (double)mult;
+		    vlist[0][i]->value.ival = 1;
+		    changed += mult;
+		}
+		else if ((ctype == MERGE_S_PAR) || (ctype == MERGE_P_PAR)) {
+		    /* Technically one should check if divide-by-mult */	
+		    /* reduces the value to < 1 and promote to double */
+		    /* if so, but that's a very unlikely case.	*/
+		    if (vl->type == PROP_INTEGER)
+			vl->value.ival /= mult;
+		    else if (vl->type == PROP_DOUBLE)
+			vl->value.dval /= (double)mult;
+		    vlist[0][i]->value.ival = 1;
+		    changed += mult;
+		}
+		if (changed > 0) {
+		    if (series)
+			Printf("Combined %d series devices.\n", changed);
+		    else
+			Printf("Combined %d parallel devices.\n", changed);
+		}
 	    }
          }
       }
@@ -4652,9 +4668,11 @@ cleanup:
       kl = (struct property *)plist[p];
       if (kl) kl->idx = 0;
       FREE(vlist[p]);
+      FREE(clist[p]);
    }
    FREE(plist);
    FREE(vlist);
+   FREE(clist);
 
    return changed;
 }
