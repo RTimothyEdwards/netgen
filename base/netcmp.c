@@ -3704,27 +3704,6 @@ int series_optimize(struct objlist *ob1, struct nlist *tp1, int idx1,
    return PropertyOptimize(obn, tp1, run1, TRUE, comb);
 }
 
-/*--------------------------------------------------------------*/
-/* Combine properties of ob1 starting at property idx1 up to	*/
-/* property (idx1 + run1) to match the properties of ob2 at	*/
-/* idx2 to (idx2 + run2).  run1 is always larger than run2.	*/
-/*--------------------------------------------------------------*/
-
-int series_combine(struct objlist *ob1, struct nlist *tp1, int idx1, int run1,
-	struct objlist *ob2, struct nlist *tp2, int idx2, int run2)
-{
-   struct objlist *obn, *obp;
-   int i, j;
-   int changed = 0;
-
-   obn = ob1;
-   for (i = 0; i < idx1; i++) obn = obn->next;
-   obp = ob2;
-   for (i = 0; i < idx2; i++) obp = obp->next;
-   
-   return changed;
-}
-
 typedef struct _propsort {
     double value;
     int idx;
@@ -3782,7 +3761,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 vl = &(obp->instance.props[p]);
 	 if (vl->type == PROP_ENDLIST) break;
 	 if (vl->key == NULL) continue;
-         if (!strcmp(vl->key, "S")) {
+         if ((*matchfunc)(vl->key, "S")) {
 	    sval = vl->value.ival;
 	    sl = vl;
 	 }
@@ -3843,27 +3822,6 @@ int parallel_optimize(struct objlist *ob1, struct nlist *tp1, int idx1,
 }
 
 /*--------------------------------------------------------------*/
-/* Combine properties of ob1 starting at property idx1 up to	*/
-/* property (idx1 + run1) to match the properties of ob2 at	*/
-/* idx2 to (idx2 + run2).  run1 is always larger than run2.	*/
-/*--------------------------------------------------------------*/
-
-int parallel_combine(struct objlist *ob1, struct nlist *tp1, int idx1, int run1,
-	struct objlist *ob2, struct nlist *tp2, int idx2, int run2)
-{
-   struct objlist *obn, *obp;
-   int i, j;
-   int changed = 0;
-
-   obn = ob1;
-   for (i = 0; i < idx1; i++) obn = obn->next;
-   obp = ob2;
-   for (i = 0; i < idx2; i++) obp = obp->next;
-
-   return changed;
-}
-
-/*--------------------------------------------------------------*/
 /* Sort properties of ob1 starting at property idx1 up to	*/
 /* property (idx1 + run).  Use parallel critical property for	*/
 /* sorting.  Multiply critical property by M before sort.	*/
@@ -3906,7 +3864,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 vl = &(obp->instance.props[p]);
 	 if (vl->type == PROP_ENDLIST) break;
 	 if (vl->key == NULL) continue;
-         if (!strcmp(vl->key, "M")) {
+         if ((*matchfunc)(vl->key, "M")) {
 	    mval = vl->value.ival;
 	    ml = vl;
 	 }
@@ -3952,7 +3910,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	    vl = &(obp->instance.props[p]);
 	    if (vl->type == PROP_ENDLIST) break;
 	    if (vl->key == NULL) continue;
-            if (!strcmp(vl->key, "M")) {
+            if ((*matchfunc)(vl->key, "M")) {
 	        mval = vl->value.ival;
 		ml = vl;
 	    }
@@ -3960,7 +3918,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	    if (kl == NULL) continue;		/* Ignored property */
 	    if (subs_crit == NULL)
 		subs_crit = vl->key;
-	    if ((subs_crit != NULL) && !strcmp(vl->key, subs_crit)) {
+	    if ((subs_crit != NULL) && (*matchfunc)(vl->key, subs_crit)) {
 	       if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
 		  	(kl->type != vl->type))
 		  PromoteProperty(kl, vl);
@@ -4198,20 +4156,6 @@ void PropertySortAndCombine(struct objlist *pre1, struct nlist *tp1,
 	 ob2 = pre2->next;
       }
 
-      /* Do not run parallel_combine until all other changes have been resolved */
-      if (changed == 0) {
-         if (max2 > max1)
-            changed += parallel_combine(ob2, tp2, idx2, max2, ob1, tp1, idx1, max1);
-         else if (max1 > max2)
-            changed += parallel_combine(ob1, tp1, idx1, max1, ob2, tp2, idx2, max2);
-
-         if (changed > 0) {
-            FREE(netwk1);
-            FREE(netwk2);
-            continue;
-         }
-      }
-
       /* Case 2:  Series devices with more elements in one circuit */
 
       /* Find the largest group of series devices in circuit1 */
@@ -4297,14 +4241,6 @@ void PropertySortAndCombine(struct objlist *pre1, struct nlist *tp1,
          ob2 = pre2->next;
       }
 
-      /* Do not run series_combine until all other changes have been resolved */
-      if (changed == 0) {
-         if (max2 > max1)
-            changed += series_combine(ob2, tp2, idx2, max2, ob1, tp1, idx1, max1);
-         else if (max1 > max2)
-            changed += series_combine(ob1, tp1, idx1, max1, ob2, tp2, idx2, max2);
-      }
-
       FREE(netwk1);
       FREE(netwk2);
 
@@ -4338,9 +4274,10 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 {
    struct objlist *ob2, *obt;
    struct property *kl, *m_rec, **plist;
+   unsigned char **clist;
    struct valuelist ***vlist, *vl, *vl2, *newvlist;
    proplinkptr plink, ptop;
-   int pcount, p, i, j, k, pmatch, ival, crit, ctype;
+   int pcount, p, i, j, k, pmatch, ival, ctype;
    double dval;
    static struct valuelist nullvl, dfltvl;
    char multiple[2], other[2];
@@ -4362,8 +4299,6 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    m_rec = NULL;
    ptop = NULL;
    pcount = 1;
-   crit = -1;
-   ctype = -1;
    kl = (struct property *)HashFirst(&(tp->propdict));
    while (kl != NULL) {
       // Make a linked list so we don't have to iterate through the hash again 
@@ -4378,31 +4313,22 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
       else
 	 kl->idx = pcount++;
 
-      // Set critical property index, if there is one.
-
-      if (series == FALSE) {
-	 if (kl->merge & MERGE_P_CRIT) crit = kl->idx;
-	 if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR))
-	    ctype = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
-      }
-      else if (series == TRUE) {
-	 if (kl->merge & MERGE_S_CRIT) crit = kl->idx;
-	 if (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))
-	    ctype = kl->merge & (MERGE_S_ADD | MERGE_S_PAR);
-      }
-
       kl = (struct property *)HashNext(&(tp->propdict));
    }
    // Recast the linked list as an array
    plist = (struct property **)CALLOC(pcount, sizeof(struct property *));
    vlist = (struct valuelist ***)CALLOC(pcount, sizeof(struct valuelist **));
-   if (m_rec == NULL)
+   clist = (unsigned char **)CALLOC(pcount, sizeof(unsigned char *));
+   if (m_rec == NULL) {
       vlist[0] = (struct valuelist **)CALLOC(run, sizeof(struct valuelist *));
+      clist[0] = (unsigned char *)CALLOC(run, sizeof(unsigned char));
+   }
 
    while (ptop != NULL) {
       plist[ptop->prop->idx] = ptop->prop;
       vlist[ptop->prop->idx] = (struct valuelist **)CALLOC(run,
 		sizeof(struct valuelist *));
+      clist[ptop->prop->idx] = (unsigned char *)CALLOC(run, sizeof(unsigned char));
       plink = ptop;
       FREE(ptop);
       ptop = plink->next;
@@ -4436,6 +4362,16 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	 }
  	 else if (kl != NULL) {
 	    vlist[kl->idx][i] = vl;
+	    if (series == FALSE) {
+		if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR))
+		    clist[kl->idx][i] = kl->merge &
+			    (MERGE_P_ADD | MERGE_P_PAR | MERGE_P_CRIT);
+	    }
+	    else if (series == TRUE) {
+		if (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))
+		    clist[kl->idx][i] = kl->merge &
+			    (MERGE_S_ADD | MERGE_S_PAR | MERGE_S_CRIT);
+	    }
 	 }
       }
       if (++i == run) break;
@@ -4497,11 +4433,20 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		  }
 	       }
 
-	       // Critical properties can be multiplied up by M (S) and do not
-	       // need to match.  May want a more nuanced comparison, though.
-	       if (p == crit) {
-		  pmatch++;
-		  continue;
+	       // Additive properties do not need to be matched, since
+	       // they can be combined.  Critical paroperties must be
+	       // matched.  Properties with no merge behavior must match.
+
+	       ctype = clist[p][i];
+	       if (!(ctype & MERGE_S_CRIT)) {
+	          if ((series == TRUE) && (ctype & (MERGE_S_ADD | MERGE_S_PAR))) {
+		     pmatch++;
+		     continue;
+		  }
+	          if ((series == FALSE) && (ctype & (MERGE_P_ADD | MERGE_P_PAR))) {
+		     pmatch++;
+		     continue;
+	          }
 	       }
 
 	       switch(vl->type) {
@@ -4590,42 +4535,53 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
       }
    }
 
-   // If comb == TRUE, reduce M (or S) to 1 by merging the critical
-   // property (if any)
+   // If comb == TRUE, reduce M (or S) to 1 by merging additive properties
+   // (if any)
 
-   if ((comb == TRUE) && (crit != -1)) {
+   if (comb == TRUE) {
       int mult;
       for (i = 0; i < run; i++) {
 	 if (vlist[0][i] == NULL) continue;
 	 mult = vlist[0][i]->value.ival;
 	 if (mult > 1) {
 	    changed = 0;
-            vl = vlist[crit][i];
 
-            if ((ctype == MERGE_S_ADD) || (ctype == MERGE_P_ADD)) {
-	       if (vl->type == PROP_INTEGER)
-		  vl->value.ival *= mult;
-	       else if (vl->type == PROP_DOUBLE)
-		  vl->value.dval *= (double)mult;
-	       vlist[0][i]->value.ival = 1;
-	       changed += mult;
-	    }
-	    else if ((ctype == MERGE_S_PAR) || (ctype == MERGE_P_PAR)) {
-	       /* Technically one should check if divide-by-mult */	
-	       /* reduces the value to < 1 and promote to double */
-               /* if so, but that's a very unlikely case.	*/
-	       if (vl->type == PROP_INTEGER)
-		  vl->value.ival /= mult;
-	       else if (vl->type == PROP_DOUBLE)
-		  vl->value.dval /= (double)mult;
-	       vlist[0][i]->value.ival = 1;
-	       changed += mult;
-	    }
-	    if (changed > 0) {
-	       if (series)
-	          Printf("Combined %d series devices.\n", changed);
-	       else
-	          Printf("Combined %d parallel devices.\n", changed);
+	    /* For all properties that are not M, S, or crit,		*/
+	    /* combine as specified by the merge type of the property.	*/
+
+	    for (p = 1; p < pcount; p++) {
+		vl = vlist[p][i];
+		ctype = clist[p][i];
+
+		/* critical properties never combine */
+		if ((series == TRUE) && (ctype & MERGE_S_CRIT)) continue;
+		if ((series == FALSE) && (ctype & MERGE_P_CRIT)) continue;
+
+		if (ctype & (MERGE_S_ADD | MERGE_P_ADD)) {
+		    if (vl->type == PROP_INTEGER)
+			vl->value.ival *= mult;
+		    else if (vl->type == PROP_DOUBLE)
+			vl->value.dval *= (double)mult;
+		    vlist[0][i]->value.ival = 1;
+		    changed += mult;
+		}
+		else if (ctype & (MERGE_S_PAR | MERGE_P_PAR)) {
+		    /* Technically one should check if divide-by-mult */	
+		    /* reduces the value to < 1 and promote to double */
+		    /* if so, but that's a very unlikely case.	*/
+		    if (vl->type == PROP_INTEGER)
+			vl->value.ival /= mult;
+		    else if (vl->type == PROP_DOUBLE)
+			vl->value.dval /= (double)mult;
+		    vlist[0][i]->value.ival = 1;
+		    changed += mult;
+		}
+		if (changed > 0) {
+		    if (series)
+			Printf("Combined %d series devices.\n", changed);
+		    else
+			Printf("Combined %d parallel devices.\n", changed);
+		}
 	    }
          }
       }
@@ -4652,9 +4608,11 @@ cleanup:
       kl = (struct property *)plist[p];
       if (kl) kl->idx = 0;
       FREE(vlist[p]);
+      FREE(clist[p]);
    }
    FREE(plist);
    FREE(vlist);
+   FREE(clist);
 
    return changed;
 }
