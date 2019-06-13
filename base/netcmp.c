@@ -4871,9 +4871,9 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	    kl2 = &klm;
 	 else if (vl2 == &svl)
 	    kl2 = &kls;
-	 else if (vl1 == &mvl)
+	 else if ((*matchfunc)(vl2->key, mvl.key))
 	    kl2 = &klm;
-	 else if (vl1 == &svl)
+	 else if ((*matchfunc)(vl2->key, svl.key))
 	    kl2 = &kls;
 	 else
 	    continue;
