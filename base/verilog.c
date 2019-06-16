@@ -59,9 +59,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 // See netfile.c for explanation of delimiters.  'X'
 // separates single-character delimiters from two-character delimiters.
-#define VLOG_DELIMITERS "X///**/(**)#(X,;:(){}[]="
+#define VLOG_DELIMITERS "X///**/#((**)X,::(){}[]="
 #define VLOG_PIN_NAME_DELIMITERS "X///**/(**)X()"
-#define VLOG_PIN_CHECK_DELIMITERS "X///**/(**)X(),{}"
 
 // Global storage for verilog parameters
 struct hashdict verilogparams;
@@ -292,8 +291,6 @@ int GetBusTok(struct bus *wb)
 		return 1;
 	    }
 	}
-	/* Move token forward to bus name */
-	SkipTokComments(VLOG_DELIMITERS);
     }
     else {
 	struct bus *hbus;
@@ -315,7 +312,7 @@ int GetBusTok(struct bus *wb)
 
 int GetBus(char *astr, struct bus *wb)
 {
-    char *colonptr, *brackstart, *brackend, *sstr;
+    char *colonptr, *brackstart, *brackend;
     int result, start, end;
 
     if (wb == NULL) return 0;
@@ -323,21 +320,15 @@ int GetBus(char *astr, struct bus *wb)
         wb->start = -1;
         wb->end = -1;
     }
-    sstr = astr;
-
-    // Skip to the end of verilog names bounded by '\' and ' '
-    if (*sstr == '\\')
-	while (*sstr && *sstr != ' ') sstr++;
-
-    brackstart = strchr(sstr, '[');
+    brackstart = strchr(astr, '[');
     if (brackstart != NULL) {
-	brackend = strchr(sstr, ']');
+	brackend = strchr(astr, ']');
 	if (brackend == NULL) {
 	    Printf("Badly formed array notation \"%s\"\n", astr);
 	    return 1;
 	}
 	*brackend = '\0';
-	colonptr = strchr(sstr, ':');
+	colonptr = strchr(astr, ':');
 	if (colonptr) *colonptr = '\0';
 	result = sscanf(brackstart + 1, "%d", &start);
 	if (colonptr) *colonptr = ':';
@@ -1238,12 +1229,12 @@ skip_endmodule:
 	     arraystart = wb.start;
 	     arrayend = wb.end;
 	 }
+	 SkipTokComments(VLOG_DELIMITERS);
       }
 
       if (match(nexttok, "(")) {
 	 char savetok = (char)0;
 	 struct portelement *new_port;
-	 char *in_line_net = NULL;
 
 	 // Read the pin list
          while (nexttok != NULL) {
@@ -1270,7 +1261,7 @@ skip_endmodule:
 	           Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
 	           SkipNewLine(VLOG_DELIMITERS);
 	       }
-	       SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
+	       SkipTokComments(VLOG_PIN_NAME_DELIMITERS);
 	       if (match(nexttok, ")")) {
 		  char localnet[100];
 		  // Empty parens, so create a new local node
@@ -1279,29 +1270,7 @@ skip_endmodule:
 		  new_port->net = strsave(localnet);
 	       }
 	       else {
-		  if (!strcmp(nexttok, "{")) {
-		      char *in_line_net = (char *)MALLOC(1);
-		      *in_line_net = '\0';
-		      /* In-line array---Read to "}" */
-		      while (nexttok) {
-			 char *new_in_line_net = (char *)MALLOC(
-				strlen(in_line_net) +
-				strlen(nexttok) + 1);
-			 strcpy(new_in_line_net, in_line_net);
-			 strcat(new_in_line_net, nexttok);
-			 FREE(in_line_net);
-			 in_line_net = new_in_line_net;
-			 if (!strcmp(nexttok, "}")) break;
-			 SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
-		      }
-		      if (!nexttok) {
-			 Printf("Unterminated net in pin %s\n", in_line_net);
-		      }
-		      new_port->net = in_line_net;
-		  }
-		  else
-	              new_port->net = strsave(nexttok);
-
+	          new_port->net = strsave(nexttok);
 		  /* Read array information along with name;  will be parsed later */
 		  SkipTokComments(VLOG_DELIMITERS);
 	          if (match(nexttok, "[")) {
@@ -1310,8 +1279,8 @@ skip_endmodule:
 	              if (!match(nexttok, ")")) {
 		          char *expnet;
 		          expnet = (char *)MALLOC(strlen(new_port->net)
-					+ strlen(nexttok) + 3);
-		          sprintf(expnet, "%s [%s", new_port->net, nexttok);
+					+ strlen(nexttok) + 2);
+		          sprintf(expnet, "%s[%s", new_port->net, nexttok);
 		          FREE(new_port->net);
 		          new_port->net = expnet;
 		      }
@@ -1513,8 +1482,13 @@ skip_endmodule:
 		  // Otherwise, net is bit-sliced across array of instances.
 	       }
 	       else if (wb.start > wb.end) {
+		  char *bptr;
 		  i = wb.start;
 		  j = portstart;
+		  // Remove indexed part of scan->net
+		  if ((bptr = strchr(scan->net, '[')) != NULL)
+		     *bptr = '\0';
+		  
 		  while (1) {
 	             new_port = (struct portelement *)CALLOC(1,
 				sizeof(struct portelement));

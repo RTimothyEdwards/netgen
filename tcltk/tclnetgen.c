@@ -3811,8 +3811,8 @@ _netcmp_permute(ClientData clientData,
 	       if (PermuteForget(tp->name, fnum, NULL, NULL))
 	          Fprintf(stdout, "No permutations on circuit %s\n", tp->name);
 	       else
-	          Fprintf(stderr, "Unable to reset model %s pin permutation %s, %s.\n",
-			tp->name, pin1, pin2);
+	          Fprintf(stderr, "Unable to reset model %s pin permutations.\n",
+			tp->name);
 	    }
 	    return TCL_OK;
 	 }
