@@ -59,7 +59,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 // See netfile.c for explanation of delimiters.  'X'
 // separates single-character delimiters from two-character delimiters.
-#define VLOG_DELIMITERS "X///**/#((**)X,::(){}[]="
+#define VLOG_DELIMITERS "X///**/#((**)X,;:(){}[]="
 #define VLOG_PIN_NAME_DELIMITERS "X///**/(**)X()"
 
 // Global storage for verilog parameters
