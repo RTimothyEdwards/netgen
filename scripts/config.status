@@ -427,7 +427,7 @@ Copyright (C) 2012 Free Software Foundation, Inc.
 This config.status script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it."
 
-ac_pwd='/home/tim/gitsrc/netgen-1.5/scripts'
+ac_pwd='/home/tim/gitsrc/netgen/scripts'
 srcdir='..'
 INSTALL='/bin/install -c'
 test -n "$AWK" || AWK=awk
@@ -660,7 +660,7 @@ S["ECHO_T"]=""
 S["ECHO_N"]="-n"
 S["ECHO_C"]=""
 S["DEFS"]="-DPACKAGE_NAME=\\\"netgen\\\" -DPACKAGE_TARNAME=\\\"netgen\\\" -DPACKAGE_VERSION=\\\"1.3\\\" -DPACKAGE_STRING=\\\"netgen\\ 1.3\\\" -DPACKAGE_BUGREPORT=\\\"eda-dev@open"\
-"circuitdesign.com\\\" -DPACKAGE_URL=\\\"\\\" -DNETGEN_VERSION=\\\"1.5\\\" -DNETGEN_REVISION=\\\"112\\\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 "\
+"circuitdesign.com\\\" -DPACKAGE_URL=\\\"\\\" -DNETGEN_VERSION=\\\"1.5\\\" -DNETGEN_REVISION=\\\"117\\\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 "\
 "-DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DSIZEOF_VOID_P=8 -"\
 "DSIZEOF_UNSIGNED_INT=4 -DSIZEOF_UNSIGNED_LONG=8 -DSIZEOF_UNSIGNED_LONG_LONG=8 -DSTDC_HEADERS=1 -DHAVE_SETENV=1 -DHAVE_PUTENV=1 -DHAVE_DIRENT_H=1 -DH"\
 "AVE_LIMITS_H=1 -DHAVE_VA_COPY=1 -DHAVE___VA_COPY=1 -DDBUG_OFF=1 -DTCL_NETGEN=1 -Dlinux=1 -DSYSV=1 -DISC=1"
