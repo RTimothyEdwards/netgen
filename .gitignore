@@ -1,9 +1,12 @@
 netgen
 netgenexec
 defs.mak
+scripts/defs.mak
 config.cache
 config.log
+scripts/config.log
 config.status
+scripts/config.status
 *.o
 *.so
 *~
