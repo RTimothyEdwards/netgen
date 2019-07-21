@@ -85,6 +85,8 @@ and IRSIM version 9.7:
    make
    make install
 
+Note: For FreeBSD, use 'gmake' instead.
+
 IN CASE OF FAILURE
 -------------------
 Please contact me (tim@opencircuitdesign.com) to report compile-time and
