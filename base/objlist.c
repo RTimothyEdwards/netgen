@@ -598,7 +598,11 @@ static int PrintCellHashTableElement(struct hashlist *p)
     if (Debug == 1)  Printf("Cell: %s (instanced %d times); Primitive\n",
 		       ptr->name, ptr->number);
     else if (Debug == 3) {	/* list */
+#ifdef TCL_NETGEN
        Tcl_AppendElement(netgeninterp, ptr->name);
+#else
+       Printf("%s ", ptr->name);
+#endif
     }
   }
   else if ((Debug == 2) || (Debug == 3)) {	/* list only */
