@@ -61,6 +61,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 // separates single-character delimiters from two-character delimiters.
 #define VLOG_DELIMITERS "X///**/#((**)X,;:(){}[]="
 #define VLOG_PIN_NAME_DELIMITERS "X///**/(**)X()"
+#define VLOG_PIN_CHECK_DELIMITERS "X///**/(**)X,;(){}"
 
 // Global storage for verilog parameters
 struct hashdict verilogparams;
@@ -1063,68 +1064,170 @@ skip_endmodule:
     }
 
     else if (match(nexttok, "wire") || match(nexttok, "assign")) {	/* wire = node */
-      struct bus wb, *nb;
-      char nodename[128];
-      int is_assignment = FALSE;
-      struct objlist *lhs, *rhs;
+	struct bus wb, wb2, *nb;
+	char nodename[128], noderoot[100];
+	int is_wire = match(nexttok, "wire");
+	int j;
+	struct objlist *lhs, *rhs;
 
-      // Several allowed uses of "assign":
-      // "assign a = b" joins two nets.
-      // "assign a = {b, c, ...}" creates a bus from components.
-      // "assign" using any boolean arithmetic is not structural verilog.
+	/* Get left-hand side expression.  If this is a wire statement,	*/
+	/* then define the wire.  If is_wire is false, then the wire	*/
+	/* should already be defined.					*/
 
-      SkipTokNoNewline(VLOG_DELIMITERS);
-      if (match(nexttok, "real")) SkipTokNoNewline(VLOG_DELIMITERS);
-      while (nexttok != NULL) {
-	 if (match(nexttok, "=")) {
-	     is_assignment = TRUE;
-	 }
-	 else if (GetBusTok(&wb) == 0) {
-	     /* Handle bus notation */
-	     SkipTokNoNewline(VLOG_DELIMITERS);
-	     if (wb.start > wb.end) {
-		for (i = wb.end; i <= wb.start; i++) {
-		    sprintf(nodename, "%s[%d]", nexttok, i);
-	            if (LookupObject(nodename, CurrentCell) == NULL)
-		        Node(nodename);
+	if (is_wire) {
+	    SkipTokNoNewline(VLOG_DELIMITERS);
+	    if (match(nexttok, "real"))
+		SkipTokNoNewline(VLOG_DELIMITERS);
+	    else if (match(nexttok, "logic"))
+		SkipTokNoNewline(VLOG_DELIMITERS);
+
+	    if (GetBusTok(&wb) == 0) {
+		/* Handle bus notation */
+		SkipTokNoNewline(VLOG_DELIMITERS);
+		strcpy(noderoot, nexttok);
+		if (wb.start > wb.end) {
+		    for (i = wb.end; i <= wb.start; i++) {
+			sprintf(nodename, "%s[%d]", nexttok, i);
+			if (LookupObject(nodename, CurrentCell) == NULL)
+			    Node(nodename);
+			if (i == wb.start) lhs = LookupObject(nodename, CurrentCell);
+		    }
 		}
-	     }
-	     else {
-		for (i = wb.start; i <= wb.end; i++) {
-		    sprintf(nodename, "%s[%d]", nexttok, i);
-	            if (LookupObject(nodename, CurrentCell) == NULL)
-		        Node(nodename);
+		else {
+		    for (i = wb.start; i <= wb.end; i++) {
+			sprintf(nodename, "%s[%d]", nexttok, i);
+			if (LookupObject(nodename, CurrentCell) == NULL)
+			    Node(nodename);
+			if (i == wb.start) lhs = LookupObject(nodename, CurrentCell);
+		    }
 		}
-	     }
-	     nb = NewBus();
-	     nb->start = wb.start;
-	     nb->end = wb.end;
-	     HashPtrInstall(nexttok, nb, &buses);
-	 }
-	 else {
-	     if (is_assignment) {
-		 /* Handle assignment statements */
-		 /* To be done:  Handle where both are bus names, and	*/
-		 /* where lhs is a bus name and rhs is a list of nets	*/
-		 if ((rhs = LookupObject(nexttok, CurrentCell)) != NULL) {
-		     join(lhs->name, rhs->name);
-		 }
-		 else {
-		     Printf("Module '%s' is not structural verilog, "
+		nb = NewBus();
+		nb->start = wb.start;
+		nb->end = wb.end;
+		HashPtrInstall(nexttok, nb, &buses);
+	    }
+	    else {
+		if (LookupObject(nexttok, CurrentCell) == NULL) {
+		    Node(nexttok);
+		    lhs = LookupObject(nexttok, CurrentCell);
+		}
+	    }
+	    while (1) {
+		SkipTokNoNewline(VLOG_DELIMITERS);
+		if (match(nexttok, ",")) {
+		    SkipTokNoNewline(VLOG_DELIMITERS);
+		    if (LookupObject(nexttok, CurrentCell) == NULL) {
+			Node(nexttok);
+			lhs = LookupObject(nexttok, CurrentCell);
+		    }
+		}
+		else break;
+	    }
+	}
+	else {	    /* "assign" */
+	    SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
+	    if (GetBus(nexttok, &wb) == 0) {
+		char *aptr = strchr(nexttok, '[');
+		if (aptr != NULL) {
+		    *aptr = '\0';
+		    /* Find object of first net in bus */
+		    strcpy(noderoot, nexttok);
+		    sprintf(nodename, "%s[%d]", nexttok, wb.start);
+		    lhs = LookupObject(nodename, CurrentCell);
+		    *aptr = '[';
+		}
+	    }
+	    else {
+		lhs = LookupObject(nexttok, CurrentCell);
+	    }
+	    SkipTokNoNewline(VLOG_DELIMITERS);
+	    if (lhs && ((!nexttok) || (!match(nexttok, "=")))) {
+		fprintf(stderr, "Empty assignment for net %s\n", lhs->name);
+	    }
+	}
+
+	/* Check for assignment statement, and handle any allowed uses.	    */
+	/* Any uses other than those mentioned below will cause the entire  */
+	/* module to be treated as a black box.				    */
+
+	// Allowed uses of "assign" for netlists:
+	//    "assign a = b" joins two nets.
+	//    "assign a = {b, c, ...}" creates a bus from components.
+	//    "assign" using any boolean arithmetic is not structural verilog.
+
+	if (nexttok && match(nexttok, "=")) {
+	    char assignname[128], assignroot[100];
+
+	    i = wb.start;
+	    while (1) {
+		SkipTokNoNewline(VLOG_PIN_CHECK_DELIMITERS);
+		if (!nexttok) break;
+
+		if (match(nexttok, "{")) {
+		    /* RHS is a bundle */
+		    continue;
+		}
+		else if (match(nexttok, "}")) {
+		    /* End of bundle */
+		    continue;
+		}
+		else if (match(nexttok, ",")) {
+		    /* Additional signals in bundle */
+		    continue;
+		}
+		else if (match(nexttok, ";")) {
+		    /* End of assignment */
+		    break;
+		}
+		else {
+		    if (GetBus(nexttok, &wb2) == 0) {
+			char *aptr = strchr(nexttok, '[');
+			j = wb2.start;
+			if (aptr != NULL) {
+			    *aptr = '\0';
+			    strcpy(assignroot, nexttok);
+			    sprintf(assignname, "%s[%d]", nexttok, j);
+			    rhs = LookupObject(assignname, CurrentCell);
+			    *aptr = '[';
+			}
+		    }
+		    else {
+			rhs = LookupObject(nexttok, CurrentCell);
+		    }
+		    if ((lhs == NULL) || (rhs == NULL)) {
+			/* Not parsable, probably behavioral verilog? */
+			Printf("Module '%s' is not structural verilog, "
 				"making black-box.\n", model);
-		     SetClass(CLASS_MODULE);
-		     goto skip_endmodule;
-		 }
-		 is_assignment = FALSE;
-	     }
-	     else if (LookupObject(nexttok, CurrentCell) == NULL)
-	         Node(nexttok);
-		 lhs = LookupObject(nexttok, CurrentCell);
-	 }
-	 do {
-	     SkipTokNoNewline(VLOG_DELIMITERS);
-	 } while (nexttok && match(nexttok, ";"));
-      }
+			SetClass(CLASS_MODULE);
+			goto skip_endmodule;
+		    }
+		    while (1) {
+			/* Assign bits in turn from bundle in RHS to bits of LHS    */
+			/* until bits in signal are exhausted or LHS is full.	    */
+
+			if (i != -1)
+			    sprintf(nodename, "%s[%d]", noderoot, i);
+			else
+			    sprintf(nodename, lhs->name);
+			if (j != -1)
+			    sprintf(assignname, "%s[%d]", assignroot, j);
+			else
+			    sprintf(assignname, rhs->name);
+
+			join(nodename, assignname);
+
+			if (j == wb2.end) break;
+			if (i == wb.end) break;
+			j += (wb2.end > wb2.start) ? 1 : -1;
+		    }
+		}
+		i += (wb.end > wb.start) ? 1 : -1;
+	    }
+	}
+	do {
+	    SkipTokNoNewline(VLOG_DELIMITERS);
+	} while (nexttok && match(nexttok, ";"));
+
     }
     else if (match(nexttok, "endmodule")) {
       // No action---new module is started with next 'module' statement,
@@ -1261,7 +1364,7 @@ skip_endmodule:
 	           Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
 	           SkipNewLine(VLOG_DELIMITERS);
 	       }
-	       SkipTokComments(VLOG_PIN_NAME_DELIMITERS);
+	       SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 	       if (match(nexttok, ")")) {
 		  char localnet[100];
 		  // Empty parens, so create a new local node
@@ -1270,22 +1373,46 @@ skip_endmodule:
 		  new_port->net = strsave(localnet);
 	       }
 	       else {
-	          new_port->net = strsave(nexttok);
+		  if (!strcmp(nexttok, "{")) {
+		     char *in_line_net = (char *)MALLOC(1);
+		     char *new_in_line_net = NULL;
+		     *in_line_net = '\0';
+		     /* In-line array---read to "}" */
+		     while (nexttok) {
+			 new_in_line_net = (char *)MALLOC(strlen(in_line_net) +
+				    strlen(nexttok) + 1);
+			 /* Roundabout way to do realloc() becase there is no REALLOC() */
+			 strcpy(new_in_line_net, in_line_net);
+			 strcat(new_in_line_net, nexttok);
+			 FREE(in_line_net);
+			 in_line_net = new_in_line_net;
+			 if (!strcmp(nexttok, "}")) break;
+			 SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
+		     }
+		     if (!nexttok) {
+			 Printf("Unterminated net in pin %s\n", in_line_net);
+		     }
+		     new_port->net = in_line_net;
+		  }
+		  else
+		     new_port->net = strsave(nexttok);
+
 		  /* Read array information along with name;  will be parsed later */
-		  SkipTokComments(VLOG_DELIMITERS);
-	          if (match(nexttok, "[")) {
+		  SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
+		  if (match(nexttok, "[")) {
 		      /* Check for space between name and array identifier */
-	              SkipTokComments(VLOG_PIN_NAME_DELIMITERS);
-	              if (!match(nexttok, ")")) {
-		          char *expnet;
-		          expnet = (char *)MALLOC(strlen(new_port->net)
-					+ strlen(nexttok) + 2);
-		          sprintf(expnet, "%s[%s", new_port->net, nexttok);
-		          FREE(new_port->net);
-		          new_port->net = expnet;
+		      SkipTokComments(VLOG_PIN_NAME_DELIMITERS);
+		      if (!match(nexttok, ")")) {
+			 char *expnet;
+			 expnet = (char *)MALLOC(strlen(new_port->net)
+				    + strlen(nexttok) + 2);
+			 sprintf(expnet, "%s[%s", new_port->net, nexttok);
+			 FREE(new_port->net);
+			 new_port->net = expnet;
 		      }
 		      SkipTokComments(VLOG_DELIMITERS);
-	          }
+		  }
+
 	          if (!match(nexttok, ")")) {
 	              Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
 	              SkipNewLine(VLOG_DELIMITERS);
@@ -1783,10 +1910,10 @@ void IncludeVerilog(char *fname, int parent, struct cellstack **CellStackPtr,
 	if (strchr(fname, '.') == NULL) {
            SetExtension(name, fname, VERILOG_EXTENSION);
            filenum = OpenParseFile(name, parent);
-	}
-        if (filenum < 0) {
-           Fprintf(stderr,"Error in Verilog file include: No file %s\n",name);
-           return;
+        }
+	if (filenum < 0) {
+	   fprintf(stderr,"Error in Verilog file include: No file %s\n", fname);
+	   return;
         }    
      }
   }
