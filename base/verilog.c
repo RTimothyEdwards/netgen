@@ -313,7 +313,7 @@ int GetBusTok(struct bus *wb)
 
 int GetBus(char *astr, struct bus *wb)
 {
-    char *colonptr, *brackstart, *brackend;
+    char *colonptr, *brackstart, *brackend, *sigend, sdelim;
     int result, start, end;
 
     if (wb == NULL) return 0;
@@ -321,6 +321,40 @@ int GetBus(char *astr, struct bus *wb)
         wb->start = -1;
         wb->end = -1;
     }
+
+    /* Check for wire bundles.  If there are bundles, process each  */
+    /* section separately and concatenate the sizes.		    */
+    /* To be done:  Handle nested bundles, including N-times concatenation */
+
+    if (*astr == '{') {
+	struct bus wbb;
+
+	astr++;
+	wb->end = 0;
+	while((*astr != '\0') && (*astr != '}')) {
+	    sigend = strchr(astr, ',');
+	    if (sigend == NULL) sigend = strchr(astr, '}');
+	    if (sigend == NULL) {
+		Printf("Badly formed wire bundle \"%s\"\n", astr - 1);
+		return 1;
+	    }
+	    sdelim = *sigend;
+	    *sigend = '\0';
+	    if (GetBus(astr, &wbb) == 0) {
+		if (wbb.start > wbb.end)
+		    wb->start += (wbb.start - wbb.end + 1);
+		else
+		    wb->start += (wbb.end - wbb.start + 1);
+	    }
+	    else {
+		wb->start++;
+	    }
+	    *sigend = sdelim;
+	    astr = sigend + 1;
+	}
+	return 0;
+    }
+
     brackstart = strchr(astr, '[');
     if (brackstart != NULL) {
 	brackend = strchr(astr, ']');
@@ -1115,7 +1149,7 @@ skip_endmodule:
 	    while (1) {
 		SkipTokNoNewline(VLOG_DELIMITERS);
 		if (match(nexttok, ",")) {
-		    SkipTokNoNewline(VLOG_DELIMITERS);
+		    SkipTokComments(VLOG_DELIMITERS);
 		    if (LookupObject(nexttok, CurrentCell) == NULL) {
 			Node(nexttok);
 			lhs = LookupObject(nexttok, CurrentCell);
@@ -1140,7 +1174,7 @@ skip_endmodule:
 	    else {
 		lhs = LookupObject(nexttok, CurrentCell);
 	    }
-	    SkipTokNoNewline(VLOG_DELIMITERS);
+	    SkipTokComments(VLOG_DELIMITERS);
 	    if (lhs && ((!nexttok) || (!match(nexttok, "=")))) {
 		fprintf(stderr, "Empty assignment for net %s\n", lhs->name);
 	    }
@@ -1160,7 +1194,7 @@ skip_endmodule:
 
 	    i = wb.start;
 	    while (1) {
-		SkipTokNoNewline(VLOG_PIN_CHECK_DELIMITERS);
+		SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 		if (!nexttok) break;
 
 		if (match(nexttok, "{")) {
@@ -1216,18 +1250,17 @@ skip_endmodule:
 
 			join(nodename, assignname);
 
-			if (j == wb2.end) break;
 			if (i == wb.end) break;
+			i += (wb.end > wb.start) ? 1 : -1;
+
+			if (j == wb2.end) break;
 			j += (wb2.end > wb2.start) ? 1 : -1;
 		    }
 		}
-		i += (wb.end > wb.start) ? 1 : -1;
 	    }
 	}
-	do {
-	    SkipTokNoNewline(VLOG_DELIMITERS);
-	} while (nexttok && match(nexttok, ";"));
-
+	while (nexttok && !match(nexttok, ";"))
+	    SkipTokComments(VLOG_DELIMITERS);
     }
     else if (match(nexttok, "endmodule")) {
       // No action---new module is started with next 'module' statement,
@@ -1609,19 +1642,44 @@ skip_endmodule:
 		  // Otherwise, net is bit-sliced across array of instances.
 	       }
 	       else if (wb.start > wb.end) {
-		  char *bptr;
+		  char *bptr, *cptr, cchar, *netname;
+		  unsigned char is_bundle = 0;
+		  struct bus wbb;
+
 		  i = wb.start;
 		  j = portstart;
+
+		  netname = scan->net;
+		  if (*netname == '{') {
+		     is_bundle = 1;
+		     netname++;
+		     cptr = strchr(netname, ',');
+		     if (cptr == NULL) cptr = strchr(netname, '}');
+		     if (cptr == NULL) cptr = netname + strlen(netname) - 1;
+		     cchar = *cptr;
+		     *cptr = '\0';
+		  }
+
 		  // Remove indexed part of scan->net
-		  if ((bptr = strchr(scan->net, '[')) != NULL)
-		     *bptr = '\0';
+		  if (GetBus(netname, &wbb) == 0) {
+		     i = wbb.start;
+		     if ((bptr = strchr(netname, '[')) != NULL)
+			 *bptr = '\0';
+		  }
+		  else
+		     i = -1;
+
+		  if (is_bundle) *cptr = cchar;	 /* Restore bundle delimiter */
 		  
 		  while (1) {
 	             new_port = (struct portelement *)CALLOC(1,
 				sizeof(struct portelement));
 	             sprintf(vname, "%s[%d]", scan->name, j);
 	             new_port->name = strsave(vname);
-	             sprintf(vname, "%s[%d]", scan->net, i); 
+		     if (i == -1)
+			 sprintf(vname, "%s", netname); 
+		     else
+			 sprintf(vname, "%s[%d]", netname, i); 
 	             new_port->net = strsave(vname);
 
 		     if (last == NULL)
@@ -1636,8 +1694,31 @@ skip_endmodule:
 
 		     if (portstart > portend) j--;
 		     else j++;
-		     if (wb.start > wb.end) i--;
+		     if (wbb.start > wbb.end) i--;
 		     else i++;
+
+		     if (is_bundle &&
+			    ((i == -1) ||
+			    ((wbb.start > wbb.end) && (i < wbb.end)) ||
+			    ((wbb.start < wbb.end) && (i > wbb.end)))) {
+		         if (bptr) *bptr = '[';
+
+			 netname = cptr + 1;
+		         cptr = strchr(netname, ',');
+			 if (cptr == NULL) cptr = strchr(netname, '}');
+			 if (cptr == NULL) cptr = netname + strlen(netname) - 1;
+			 cchar = *cptr;
+			 *cptr = '\0';
+
+			 if (GetBus(netname, &wbb) == 0) {
+			    i = wbb.start;
+			    if ((bptr = strchr(netname, '[')) != NULL)
+				*bptr = '\0';
+			 }
+			 else i = -1;
+
+			 *cptr = cchar;	    /* Restore delimiter */
+		     }
 		  }
 		  FREE(scan);
 		  scan = last;
