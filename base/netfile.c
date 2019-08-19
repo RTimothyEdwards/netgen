@@ -478,9 +478,19 @@ char *strdtok(char *pstring, char *delim1, char *delim2)
     /* space character becomes part of the verilog name.  The remainder of the  */
     /* name is parsed according to the rules of "delim2".                       */
 
+    /* Special verilog rule exception:  To handle the problems caused by	*/
+    /* translating verilog backslash-escaped names into other netlist formats	*/
+    /* like SPICE where the convention is strictly prohibited, I have used the	*/
+    /* convention in qflow scripts to replace the trailing space with another	*/
+    /* backslash, so the name is effectively delimited by a pair of back-	*/
+    /* slashes.  Therefore check for a space or another backslash, whichever	*/
+    /* comes first.  That will satisfy both methods.  Technically this routine	*/
+    /* should know whether it is parsing SPICE or verilog and handle the syntax	*/
+    /* accordingly (needs to be done).						*/
+
     if (*s == '\\') {
         while (*s != '\0') {
-	    if (*s == ' ') {
+	    if ((*s == ' ') || (*s == '\\')) {
 		s++;
 		break;
 	    }
