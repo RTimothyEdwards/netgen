@@ -24,6 +24,7 @@ extern void FlushString (char *format, ...);
 extern char *SetExtension(char *buffer, char *path, char *extension);
 
 extern int File;
+extern struct hashdict *definitions;
 
 /* input routines */
 

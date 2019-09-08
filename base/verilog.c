@@ -121,19 +121,22 @@ int GetBusTok(struct bus *wb)
     if (match(nexttok, "[")) {
 	SkipTokComments(VLOG_DELIMITERS);
 
-	// Check for parameter names and substitute values if found.
-	if (nexttok[0] == '`') {
-	    kl = (struct property *)HashLookup(nexttok + 1, &verilogdefs);
+	result = sscanf(nexttok, "%d", &start);
+	if (result != 1) {
+	    // Is name in the parameter list?
+	    kl = (struct property *)HashLookup(nexttok, &verilogparams);
 	    if (kl == NULL) {
-		Printf("Unknown definition %s found in array notation.\n", nexttok);
+		Printf("Array value %s is not a number or a parameter.\n",
+				nexttok);
+		return 1;
 	    }
 	    else {
 		if (kl->type == PROP_STRING) {
 		    result = sscanf(kl->pdefault.string, "%d", &start);
 		    if (result != 1) {
-		        Printf("Cannot parse first digit from parameter %s value %s\n",
-				nexttok, kl->pdefault.string);
-		        return 1;
+		        Printf("Parameter %s has value %s that cannot be parsed"
+				" as an integer.\n", nexttok, kl->pdefault.string);
+			return 1;
 		    }
 		}
 		else if (kl->type == PROP_INTEGER) {
@@ -142,53 +145,15 @@ int GetBusTok(struct bus *wb)
 		else if (kl->type == PROP_DOUBLE) {
 		    start = (int)kl->pdefault.dval;
 		    if ((double)start != kl->pdefault.dval) {
-		        Printf("Cannot parse first digit from parameter %s value %g\n",
-				nexttok, kl->pdefault.dval);
-		        return 1;
-		    }
-		}
-		else {
-		    Printf("Parameter %s has unknown type; don't know how to parse.\n",
-				nexttok);
-		    return 1;
-		}
-	    }
-	}
-	else {
-	    result = sscanf(nexttok, "%d", &start);
-	    if (result != 1) {
-		// Is name in the parameter list?
-	        kl = (struct property *)HashLookup(nexttok, &verilogparams);
-		if (kl == NULL) {
-		    Printf("Array value %s is not a number or a parameter.\n",
-				nexttok);
-		    return 1;
-		}
-		else {
-		    if (kl->type == PROP_STRING) {
-		        result = sscanf(kl->pdefault.string, "%d", &start);
-		        if (result != 1) {
-		            Printf("Parameter %s has value %s that cannot be parsed"
-				" as an integer.\n", nexttok, kl->pdefault.string);
-			    return 1;
-		        }
-		    }
-		    else if (kl->type == PROP_INTEGER) {
-			start = kl->pdefault.ival;
-		    }
-		    else if (kl->type == PROP_DOUBLE) {
-		        start = (int)kl->pdefault.dval;
-		        if ((double)start != kl->pdefault.dval) {
-		            Printf("Parameter %s has value %g that cannot be parsed"
+		        Printf("Parameter %s has value %g that cannot be parsed"
 				" as an integer.\n", nexttok, kl->pdefault.dval);
-			    return 1;
-			}
+			return 1;
 		    }
-		    else {
-		        Printf("Parameter %s has unknown type; don't know how"
+		}
+		else {
+		    Printf("Parameter %s has unknown type; don't know how"
 				" to parse.\n", nexttok);
-		        return 1;
-		    }
+		    return 1;
 		}
 	    }
 	}
@@ -204,18 +169,22 @@ int GetBusTok(struct bus *wb)
 	else {
 	    SkipTokComments(VLOG_DELIMITERS);
 
-	    // Check for parameter names and substitute values if found.
-	    if (nexttok[0] == '`') {
-		kl = (struct property *)HashLookup(nexttok + 1, &verilogdefs);
+	    result = sscanf(nexttok, "%d", &end);
+	    if (result != 1) {
+		// Is name in the parameter list?
+	        kl = (struct property *)HashLookup(nexttok, &verilogparams);
 		if (kl == NULL) {
-		    Printf("Unknown definition %s found in array notation.\n", nexttok);
+		    Printf("Array value %s is not a number or a parameter.\n",
+					nexttok);
+		    return 1;
 		}
 		else {
 		    if (kl->type == PROP_STRING) {
 			result = sscanf(kl->pdefault.string, "%d", &end);
-		        if (result != 1) {
-			    Printf("Cannot parse second digit from parameter "
-					"%s value %s\n", nexttok, kl->pdefault.string);
+			if (result != 1) {
+		            Printf("Parameter %s has value %s that cannot be parsed"
+					" as an integer.\n", nexttok,
+					kl->pdefault.string);
 			    return 1;
 			}
 		    }
@@ -232,47 +201,8 @@ int GetBusTok(struct bus *wb)
 		    }
 		    else {
 		        Printf("Parameter %s has unknown type; don't know how"
-				" to parse.\n", nexttok);
-		        return 1;
-		    }
-		}
-	    }
-	    else {
-		result = sscanf(nexttok, "%d", &end);
-		if (result != 1) {
-		    // Is name in the parameter list?
-	            kl = (struct property *)HashLookup(nexttok, &verilogparams);
-		    if (kl == NULL) {
-			Printf("Array value %s is not a number or a parameter.\n",
-					nexttok);
-			return 1;
-		    }
-		    else {
-			if (kl->type == PROP_STRING) {
-			    result = sscanf(kl->pdefault.string, "%d", &end);
-			    if (result != 1) {
-		                Printf("Parameter %s has value %s that cannot be parsed"
-					" as an integer.\n", nexttok,
-					kl->pdefault.string);
-			        return 1;
-			    }
-			}
-			else if (kl->type == PROP_INTEGER) {
-			    end = kl->pdefault.ival;
-			}
-		        else if (kl->type == PROP_DOUBLE) {
-		            end = (int)kl->pdefault.dval;
-		            if ((double)end != kl->pdefault.dval) {
-			        Printf("Cannot parse second digit from parameter "
-					"%s value %g\n", nexttok, kl->pdefault.dval);
-			        return 1;
-			    }
-			}
-			else {
-		            Printf("Parameter %s has unknown type; don't know how"
 					" to parse.\n", nexttok);
-		            return 1;
-			}
+		        return 1;
 		    }
 		}
 	    }
@@ -1026,6 +956,22 @@ skip_endmodule:
       }
       HashPtrInstall(kl->key, kl, &verilogdefs);
     }
+    else if (match(nexttok, "`undef")) {
+      struct property *kl = NULL;
+
+      SkipTokNoNewline(VLOG_DELIMITERS);
+      if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
+
+      kl = HashLookup(nexttok, &verilogdefs);
+      if (kl != NULL) {
+	  HashDelete(nexttok, &verilogdefs);
+	  if (kl->type == PROP_STRING)
+             if (kl->pdefault.string != NULL)
+	         FREE(kl->pdefault.string);
+	  FREE(kl->key);
+      }
+      /* Presumably it is not an error to undefine an undefined keyword */
+    }
     else if (match(nexttok, "localparam")) {
       // Pick up key = value pairs and store in current cell
       while (nexttok != NULL)
@@ -1064,10 +1010,10 @@ skip_endmodule:
       }
     }
 
-    /* Note:  This is just the most basic processing of conditionals,	*/
-    /* although it does handle nested conditionals.			*/
+    /* Process conditions.  Note that conditionals may be nested.   */
     
-    else if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef")) {
+    else if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef") ||
+	    match(nexttok, "`elsif") || match(nexttok, "`else")) {
 	struct property *kl;
 	int nested = 0;
         int invert = (nexttok[3] == 'n') ? 1 : 0;
@@ -1077,9 +1023,9 @@ skip_endmodule:
 	/* To be done:  Handle boolean arithmetic on conditionals */
 
 	kl = (struct property *)HashLookup(nexttok, &verilogdefs);
-	if (((invert == 0) && (kl == NULL))
+	while (((invert == 0) && (kl == NULL))
 		|| ((invert == 1) && (kl != NULL))) {
-	   /* Skip to matching `endif */
+	   /* Skip to matching `endif, `elsif, or `else */
 	   while (1) {
 	      SkipNewLine(VLOG_DELIMITERS);
 	      SkipTokComments(VLOG_DELIMITERS);
@@ -1087,13 +1033,20 @@ skip_endmodule:
 	      if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef")) {
 		  nested++;
 	      }
-	      else if (match(nexttok, "`endif")) {
+	      else if (match(nexttok, "`endif") || match(nexttok, "`elsif") ||
+			match(nexttok, "`else")) {
 		  if (nested == 0)
 		     break;
 		  else
 		     nested--;
 	      }
 	   }
+	   if (match(nexttok, "`elsif")) {
+	      SkipTokComments(VLOG_DELIMITERS);
+	      invert = 0;
+	      kl = (struct property *)HashLookup(nexttok, &verilogdefs);
+	   }
+	   else break;
 	}
     }
 
@@ -1909,6 +1862,7 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
 
   InitializeHashTable(&verilogparams, OBJHASHSIZE);
   InitializeHashTable(&verilogdefs, OBJHASHSIZE);
+  definitions = &verilogdefs;
 
   /* Add the pre-defined key "LVS" to verilogdefs */
 
@@ -1931,6 +1885,7 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   HashKill(&verilogparams);
   RecurseHashTable(&verilogdefs, freeprop);
   HashKill(&verilogdefs);
+  definitions = (struct hashdict *)NULL;
 
   // Record the top level file.
   if (LookupCellFile(fname, filenum) == NULL) CellDef(fname, filenum);
