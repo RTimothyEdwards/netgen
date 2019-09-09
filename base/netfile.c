@@ -191,6 +191,8 @@ struct filestack {
 
 static struct filestack *OpenFiles = NULL;
 
+struct hashdict *definitions = (struct hashdict *)NULL;
+
 #define WHITESPACE_DELIMITER " \t\n\r"
 
 /*----------------------------------------------------------------------*/
@@ -292,9 +294,82 @@ int GetNextLineNoNewline(char *delimiter)
        FREE(linetok);
        linetok = (char *)MALLOC(linesize);
   }
-  linenum++;
-  strcpy(linetok, line);
+
+  /* Check for substitutions (verilog only).  Make sure linetok is  */
+  /* large enough to hold the entire line after substitutions.	    */
+
+  if (definitions != NULL) {
+       char *s, *w, e;
+       struct property *kl;
+       int len, dlen, vlen, addin = 0;
+       unsigned char found = FALSE;
+
+       for (s = line; *s != '\0'; s++) {
+	   if (*s == '`') {
+	       w = s + 1;
+	       while (isalnum(*w)) w++;
+	       e = *w;
+	       *w = '\0';
+	       kl = (struct property *)HashLookup(s + 1, definitions);
+	       if (kl != NULL) {
+		   dlen = strlen(s);
+		   if (kl->type == PROP_STRING) {
+		       vlen = strlen(kl->pdefault.string);
+		   }
+		   else vlen = 12;  /* Leave room for numeric conversion */
+		   addin += vlen - dlen + 1;
+		   found = TRUE;
+	       }
+	       *w = e;
+	   }
+       }
+       if (found) {
+	  len = strlen(line);
+	  if (len + addin > linesize) {
+	     while (len + addin > linesize) linesize += 500;
+	     FREE(linetok);
+	     linetok = (char *)MALLOC(linesize);
+	  }
+       }
+  }
+
+  /* Make definition substitutions (verilog only) */
+
+  if (definitions != NULL) {
+       char *s, *t, *w, e;
+       struct property *kl;
+       int len, dlen, vlen, addin = 0;
+
+       t = linetok;
+       for (s = line; *s != '\0'; s++) {
+	   if (*s == '`') {
+	       w = s + 1;
+	       while (isalnum(*w)) w++;
+	       e = *w;
+	       *w = '\0';
+	       kl = (struct property *)HashLookup(s + 1, definitions);
+	       if (kl != NULL) {
+		   if (kl->type == PROP_STRING)
+		      strcpy(t, kl->pdefault.string);
+		   else if (kl->type == PROP_INTEGER)
+		      sprintf(t, "%d", kl->pdefault.ival);
+		   else if (kl->type == PROP_DOUBLE)
+		      sprintf(t, "%g", kl->pdefault.dval);
+		   t += strlen(t);
+		   s = w - 1;
+	       }
+	       else *t++ = *s;
+	       *w = e;
+	   }
+	   else *t++ = *s;
+       }
+       *t = '\0';
+  }
+  else
+      strcpy(linetok, line);
+
   TrimQuoted(linetok);
+  linenum++;
 
   nexttok = strdtok(linetok, WHITESPACE_DELIMITER, delimiter);
   return 0;
