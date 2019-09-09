@@ -560,7 +560,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   instname[255] = '\0';
   in_module = (char)0;
   in_param = (char)0;
-  
+
   while (!EndParseFile()) {
 
     SkipTokComments(VLOG_DELIMITERS); /* get the next token */
@@ -1010,46 +1010,6 @@ skip_endmodule:
       }
     }
 
-    /* Process conditions.  Note that conditionals may be nested.   */
-    
-    else if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef") ||
-	    match(nexttok, "`elsif") || match(nexttok, "`else")) {
-	struct property *kl;
-	int nested = 0;
-        int invert = (nexttok[3] == 'n') ? 1 : 0;
-
-	SkipTokNoNewline(VLOG_DELIMITERS);
-
-	/* To be done:  Handle boolean arithmetic on conditionals */
-
-	kl = (struct property *)HashLookup(nexttok, &verilogdefs);
-	while (((invert == 0) && (kl == NULL))
-		|| ((invert == 1) && (kl != NULL))) {
-	   /* Skip to matching `endif, `elsif, or `else */
-	   while (1) {
-	      SkipNewLine(VLOG_DELIMITERS);
-	      SkipTokComments(VLOG_DELIMITERS);
-	      if (EndParseFile()) break;
-	      if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef")) {
-		  nested++;
-	      }
-	      else if (match(nexttok, "`endif") || match(nexttok, "`elsif") ||
-			match(nexttok, "`else")) {
-		  if (nested == 0)
-		     break;
-		  else
-		     nested--;
-	      }
-	   }
-	   if (match(nexttok, "`elsif")) {
-	      SkipTokComments(VLOG_DELIMITERS);
-	      invert = 0;
-	      kl = (struct property *)HashLookup(nexttok, &verilogdefs);
-	   }
-	   else break;
-	}
-    }
-
     else if (match(nexttok, "wire") || match(nexttok, "assign")) {	/* wire = node */
 	struct bus wb, wb2, *nb;
 	char nodename[128], noderoot[100];
@@ -1179,14 +1139,26 @@ skip_endmodule:
 			}
 		    }
 		    else {
+			j = -1;
 			rhs = LookupObject(nexttok, CurrentCell);
 		    }
 		    if ((lhs == NULL) || (rhs == NULL)) {
-			/* Not parsable, probably behavioral verilog? */
-			Printf("Module '%s' is not structural verilog, "
-				"making black-box.\n", model);
-			SetClass(CLASS_MODULE);
-			goto skip_endmodule;
+			if (rhs != NULL) {
+			    Printf("Improper assignment;  left-hand side cannot "
+					"be parsed.\n");
+			    Printf("Right-hand side is \"%s\".\n", rhs->name);
+			    break;
+			}
+			if (lhs != NULL) {
+			    Printf("Improper assignment;  right-hand side cannot "
+					"be parsed.\n");
+			    Printf("Left-hand side is \"%s\".\n", lhs->name);
+			    /* Not parsable, probably behavioral verilog? */
+			    Printf("Module '%s' is not structural verilog, "
+				    "making black-box.\n", model);
+			    SetClass(CLASS_MODULE);
+			    goto skip_endmodule;
+			}
 		    }
 		    while (1) {
 			/* Assign bits in turn from bundle in RHS to bits of LHS    */
@@ -1219,9 +1191,10 @@ skip_endmodule:
       // No action---new module is started with next 'module' statement,
       // if any.
       SkipNewLine(VLOG_DELIMITERS);
+      in_module = (char)0;	    /* Should have been done already */
     }
     else if (nexttok[0] == '`') {
-      // Ignore any other directive starting with a backtick
+      // Ignore any other directive starting with a backtick (e.g., `timescale)
       SkipNewLine(VLOG_DELIMITERS);
     }
     else if (match(nexttok, "reg") || match(nexttok, "always")) {

@@ -33,6 +33,7 @@ extern char *nexttok;
 extern char *strdtok(char *pstring, char *delim1, char *delim2);
 extern void SkipTok(char *delimiter);
 extern void SkipTokNoNewline(char *delimiter);
+extern void SkipTokComments(char *delimiter);
 extern void SkipNewLine(char *delimiter);
 extern void SpiceTokNoNewline(void);	/* handles SPICE "+" continuation line */
 extern void SpiceSkipNewLine(void);	/* handles SPICE "+" continuation line */
