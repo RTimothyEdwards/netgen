@@ -661,7 +661,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
       inlined_decls = (char)0;
 
       if (tp != NULL) {
-	 struct bus wb;
+	 struct bus wb, *nb;
 
 	 PushStack(tp->name, CellStackPtr);
 
@@ -725,7 +725,8 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		else {
 		    if (!match(nexttok, "input") && !match(nexttok, "output") &&
 				!match(nexttok, "inout") && !match(nexttok, "real") &&
-				!match(nexttok, "logic") && !match(nexttok, "integer")) {
+				!match(nexttok, "wire") && !match(nexttok, "logic") &&
+				!match(nexttok, "integer")) {
 			if (match(nexttok, "[")) {
 			   if (GetBusTok(&wb) != 0) {
 			      // Didn't parse as a bus, so wing it
@@ -747,6 +748,12 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 				    Port(portname);
 				 }
 			      }
+			      /* Also register this port as a bus */
+			      nb = NewBus();
+			      nb->start = wb.start;
+			      nb->end = wb.end;
+			      HashPtrInstall(nexttok, nb, &buses);
+
 			      wb.start = wb.end = -1;
 			   }
 			   else {
@@ -1328,7 +1335,13 @@ skip_endmodule:
 		  char localnet[100];
 		  // Empty parens, so create a new local node
 		  savetok = (char)1;
-		  sprintf(localnet, "_noconnect_%d_", localcount++);
+		  if (arraystart != -1) {
+		     /* No-connect on an instance array must also be an array */
+		     sprintf(localnet, "_noconnect_%d_[%d:%d]", localcount++,
+				arraystart, arrayend);
+		  }
+		  else
+		     sprintf(localnet, "_noconnect_%d_", localcount++);
 		  new_port->net = strsave(localnet);
 	       }
 	       else {
