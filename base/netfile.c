@@ -47,6 +47,18 @@ static FILE *outfile;
 static int Graph = 0;
 int File;
 
+/*------------------------------------------------------*/
+/* Structure for stacking nested `if[n]def in verilog	*/
+/*------------------------------------------------------*/
+
+struct ifstack {
+    int invert;
+    struct property *kl;
+    struct ifstack *next;
+};
+
+struct ifstack *condstack = NULL;
+
 extern char *SetExtension(char *buffer, char *path, char *extension)
 /* add 'extension' to 'path' (overwriting previous extension, if any),
    write it into buffer (if buffer is null, malloc a buffer).
@@ -253,7 +265,6 @@ void TrimQuoted(char *line)
 	    }
 	}
     }
-
 }
 
 /*----------------------------------------------------------------------*/
@@ -267,112 +278,202 @@ void TrimQuoted(char *line)
 
 int GetNextLineNoNewline(char *delimiter)
 {
-  char *newbuf;
-  int testc;
+    char *newbuf;
+    int testc;
+    int nested = 0;
 
-  if (feof(infile)) return -1;
+    if (feof(infile)) return -1;
 
-  // This is more reliable than feof() ...
-  testc = getc(infile);
-  if (testc == -1) return -1;
-  ungetc(testc, infile); 
+    while (1) {	    /* May loop indefinitely in an `if[n]def conditional */
 
-  if (linesize == 0) {
-	/* Allocate memory for line */
-	linesize = 500;
-	line = (char *)MALLOC(linesize);
-	linetok = (char *)MALLOC(linesize);
-  }
-  fgets(line, linesize, infile);
-  while (strlen(line) == linesize - 1) {
-       newbuf = (char *)MALLOC(linesize + 500);
-       strcpy(newbuf, line);
-       FREE(line);
-       line = newbuf;
-       fgets(line + linesize - 1, 501, infile);
-       linesize += 500;
-       FREE(linetok);
-       linetok = (char *)MALLOC(linesize);
-  }
+	// This is more reliable than feof() ...
+	testc = getc(infile);
+	if (testc == -1) return -1;
+	ungetc(testc, infile); 
 
-  /* Check for substitutions (verilog only).  Make sure linetok is  */
-  /* large enough to hold the entire line after substitutions.	    */
+	if (linesize == 0) {
+	    /* Allocate memory for line */
+	    linesize = 500;
+	    line = (char *)MALLOC(linesize);
+	    linetok = (char *)MALLOC(linesize);
+	}
+	fgets(line, linesize, infile);
+	while (strlen(line) == linesize - 1) {
+	    newbuf = (char *)MALLOC(linesize + 500);
+	    strcpy(newbuf, line);
+	    FREE(line);
+	    line = newbuf;
+	    fgets(line + linesize - 1, 501, infile);
+	    linesize += 500;
+	    FREE(linetok);
+	    linetok = (char *)MALLOC(linesize);
+	}
 
-  if (definitions != NULL) {
-       char *s, *w, e;
-       struct property *kl;
-       int len, dlen, vlen, addin = 0;
-       unsigned char found = FALSE;
+	/* Check for substitutions (verilog only).  Make sure linetok is    */
+	/* large enough to hold the entire line after substitutions.	    */
 
-       for (s = line; *s != '\0'; s++) {
-	   if (*s == '`') {
-	       w = s + 1;
-	       while (isalnum(*w)) w++;
-	       e = *w;
-	       *w = '\0';
-	       kl = (struct property *)HashLookup(s + 1, definitions);
-	       if (kl != NULL) {
-		   dlen = strlen(s);
-		   if (kl->type == PROP_STRING) {
-		       vlen = strlen(kl->pdefault.string);
-		   }
-		   else vlen = 12;  /* Leave room for numeric conversion */
-		   addin += vlen - dlen + 1;
-		   found = TRUE;
-	       }
-	       *w = e;
-	   }
-       }
-       if (found) {
-	  len = strlen(line);
-	  if (len + addin > linesize) {
-	     while (len + addin > linesize) linesize += 500;
-	     FREE(linetok);
-	     linetok = (char *)MALLOC(linesize);
-	  }
-       }
-  }
+	if (definitions != NULL) {
+	    char *s, *w, e;
+	    struct property *kl;
+	    int len, dlen, vlen, addin = 0;
+	    unsigned char found = FALSE;
 
-  /* Make definition substitutions (verilog only) */
+	    for (s = line; *s != '\0'; s++) {
+		if (*s == '`') {
+		    w = s + 1;
+		    while (isalnum(*w)) w++;
+		    e = *w;
+		    *w = '\0';
+		    kl = (struct property *)HashLookup(s + 1, definitions);
+		    if (kl != NULL) {
+			dlen = strlen(s);
+			if (kl->type == PROP_STRING) {
+			    vlen = strlen(kl->pdefault.string);
+			}
+			else vlen = 12;  /* Leave room for numeric conversion */
+			addin += vlen - dlen + 1;
+			found = TRUE;
+		    }
+		    *w = e;
+		}
+	    }
+	    if (found) {
+		len = strlen(line);
+		if (len + addin > linesize) {
+		    while (len + addin > linesize) linesize += 500;
+		    FREE(linetok);
+		    linetok = (char *)MALLOC(linesize);
+		}
+	    }
+	}
 
-  if (definitions != NULL) {
-       char *s, *t, *w, e;
-       struct property *kl;
-       int len, dlen, vlen, addin = 0;
+	/* Make definition substitutions (verilog only) */
 
-       t = linetok;
-       for (s = line; *s != '\0'; s++) {
-	   if (*s == '`') {
-	       w = s + 1;
-	       while (isalnum(*w)) w++;
-	       e = *w;
-	       *w = '\0';
-	       kl = (struct property *)HashLookup(s + 1, definitions);
-	       if (kl != NULL) {
-		   if (kl->type == PROP_STRING)
-		      strcpy(t, kl->pdefault.string);
-		   else if (kl->type == PROP_INTEGER)
-		      sprintf(t, "%d", kl->pdefault.ival);
-		   else if (kl->type == PROP_DOUBLE)
-		      sprintf(t, "%g", kl->pdefault.dval);
-		   t += strlen(t);
-		   s = w - 1;
-	       }
-	       else *t++ = *s;
-	       *w = e;
-	   }
-	   else *t++ = *s;
-       }
-       *t = '\0';
-  }
-  else
-      strcpy(linetok, line);
+	if (definitions != NULL) {
+	    char *s, *t, *w, e;
+	    struct property *kl;
 
-  TrimQuoted(linetok);
-  linenum++;
+	    t = linetok;
+	    for (s = line; *s != '\0'; s++) {
+		if (*s == '`') {
+		    w = s + 1;
+		    while (isalnum(*w)) w++;
+		    e = *w;
+		    *w = '\0';
+		    kl = (struct property *)HashLookup(s + 1, definitions);
+		    if (kl != NULL) {
+			if (kl->type == PROP_STRING)
+			    strcpy(t, kl->pdefault.string);
+			else if (kl->type == PROP_INTEGER)
+			    sprintf(t, "%d", kl->pdefault.ival);
+			else if (kl->type == PROP_DOUBLE)
+			    sprintf(t, "%g", kl->pdefault.dval);
+			t += strlen(t);
+			s = w - 1;
+		    }
+		    else *t++ = *s;
+		    *w = e;
+		}
+		else *t++ = *s;
+	    }
+	    *t = '\0';
+	}
+	else
+	    strcpy(linetok, line);
 
-  nexttok = strdtok(linetok, WHITESPACE_DELIMITER, delimiter);
-  return 0;
+	TrimQuoted(linetok);
+	linenum++;
+
+	nexttok = strdtok(linetok, WHITESPACE_DELIMITER, delimiter);
+	if (nexttok == NULL) return 0;
+
+	/* Handle `ifdef, `ifndef, `elsif, `else, and `endif (verilog	*/
+	/* only, where indicated by a non-NULL "definitions")		*/
+
+	if (definitions == NULL) return 0;
+
+	/* If currently skipping through a section, handle conditionals differently */
+
+	if (condstack) {
+	    if (((condstack->invert == 0) && (condstack->kl == NULL))
+			|| ((condstack->invert == 1) && (condstack->kl != NULL))) {
+		if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef")) {
+		    nested++;
+		    continue;
+		}
+		else if (nested > 0) {
+		    if (match(nexttok, "`endif")) nested--;
+		    continue;
+		}
+		else if (nexttok[0] != '`') continue; 
+	    }
+	}
+
+	/* Handle conditionals (that is not being skipped over) */
+
+	if (match(nexttok, "`endif")) {
+	    if (condstack == NULL) {
+		fprintf(stderr, "Error:  `endif without corresponding `if[n]def\n");
+	    }
+	    else {
+		struct ifstack *iftop = condstack;
+		condstack = condstack->next;
+		FREE(iftop);   
+	    }
+	}
+
+	/* Note that `if[n]def may be nested. */
+    
+	else if (match(nexttok, "`ifdef") || match(nexttok, "`ifndef") ||
+		    match(nexttok, "`elsif") || match(nexttok, "`else")) {
+
+	    /* Every `ifdef or `ifndef increases condstack by 1 */
+	    if (nexttok[1] == 'i') {
+		struct ifstack *newif = (struct ifstack *)MALLOC(sizeof(struct ifstack));
+		newif->next = condstack;
+		condstack = newif;
+	    }
+	    if (condstack == NULL) {
+		fprintf(stderr, "Error:  %s without `if[n]def\n", nexttok);
+		break;
+	    }
+	    else {
+		if (match(nexttok, "`else")) {
+		    /* Invert the sense of the if[n]def scope */
+		    condstack->invert = (condstack->invert == 1) ? 0 : 1;
+		}
+		else if (match(nexttok, "`elsif")) {
+		    nexttok = strdtok(NULL, WHITESPACE_DELIMITER, delimiter);
+		    if (nexttok == NULL) {
+			fprintf(stderr, "Error:  `elsif with no conditional.\n");
+			return 0;
+		    }
+		    /* Keep the same scope but redefine the parameter */
+		    condstack->invert = 0;
+		    condstack->kl = (struct property *)HashLookup(nexttok, definitions);
+		}
+		else {
+		    condstack->invert = (nexttok[3] == 'n') ? 1 : 0;
+		    nexttok = strdtok(NULL, WHITESPACE_DELIMITER, delimiter);
+		    if (nexttok == NULL) {
+			fprintf(stderr, "Error:  %s with no conditional.\n", nexttok);
+			return 0;
+		    }
+		    condstack->kl = (struct property *)HashLookup(nexttok, definitions);
+		}
+	    }
+	}
+	else if (condstack) {
+	    if (((condstack->invert == 0) && (condstack->kl == NULL))
+			|| ((condstack->invert == 1) && (condstack->kl != NULL)))
+		continue;
+	    else
+		break;
+	}
+	else
+	    break;
+    }
+    return 0;
 }
 
 /*----------------------------------------------------------------------*/
