@@ -1752,7 +1752,7 @@ skip_endmodule:
 		       // Instance must be an array
 		       char netname[128];
 		       int slice;
-		       if (wb.start > wb.end && arraystart > arrayend)
+		       if (wb.start >= wb.end && arraystart >= arrayend)
 			   slice = wb.start - (arraystart - i);
 		       else if (wb.start < wb.end && arraystart > arrayend)
 			   slice = wb.start + (arraystart - i);
@@ -1760,6 +1760,7 @@ skip_endmodule:
 			   slice = wb.start - (arraystart + i);
 		       else // (wb.start < wb.end && arraystart < arrayend)
 			   slice = wb.start + (arraystart + i);
+			   
 		       sprintf(netname, "%s[%d]", scanroot, slice);
 	               if (LookupObject(netname, CurrentCell) == NULL) Node(netname);
 	               join(netname, obptr->name);
