@@ -123,6 +123,17 @@ int GetBusTok(struct bus *wb)
 
 	result = sscanf(nexttok, "%d", &start);
 	if (result != 1) {
+	    char *aptr = NULL;
+	    char addin;
+
+	    // Check for "+/-(n)" at end of a parameter name
+	    aptr = strrchr(nexttok, '+');
+	    if (aptr == NULL) aptr = strrchr(nexttok, '-');
+	    if (aptr != NULL) {
+		addin = *aptr;
+		*aptr = '\0';
+	    }
+
 	    // Is name in the parameter list?
 	    kl = (struct property *)HashLookup(nexttok, &verilogparams);
 	    if (kl == NULL) {
@@ -156,6 +167,15 @@ int GetBusTok(struct bus *wb)
 		    return 1;
 		}
 	    }
+	    if (aptr != NULL) {
+		int addval;
+		*aptr = addin;
+		if (sscanf(aptr + 1, "%d", &addval) != 1) {
+		    Printf("Unable to parse parameter increment '%s'\n", aptr);
+		    return 1;
+		}
+		start += (addin == '+') ? addval : -addval;
+	    }
 	}
 	SkipTokComments(VLOG_DELIMITERS);
 	if (match(nexttok, "]")) {
@@ -171,6 +191,17 @@ int GetBusTok(struct bus *wb)
 
 	    result = sscanf(nexttok, "%d", &end);
 	    if (result != 1) {
+		char *aptr = NULL;
+		char addin;
+
+		// Check for "+/-(n)" at end of a parameter name
+		aptr = strrchr(nexttok, '+');
+		if (aptr == NULL) aptr = strrchr(nexttok, '-');
+		if (aptr != NULL) {
+		    addin = *aptr;
+		    *aptr = '\0';
+		}
+
 		// Is name in the parameter list?
 	        kl = (struct property *)HashLookup(nexttok, &verilogparams);
 		if (kl == NULL) {
@@ -204,6 +235,15 @@ int GetBusTok(struct bus *wb)
 					" to parse.\n", nexttok);
 		        return 1;
 		    }
+		}
+		if (aptr != NULL) {
+		    int addval;
+		    *aptr = addin;
+		    if (sscanf(aptr + 1, "%d", &addval) != 1) {
+			Printf("Unable to parse parameter increment '%s'\n", aptr);
+			return 1;
+		    }
+		    end += (addin == '+') ? addval : -addval;
 		}
 	    }
 	}
@@ -583,6 +623,81 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	       break;
 	    }
 	}
+    }
+
+    /* Handle parameters by treating as a localparam or definition.	*/
+    /* Currently anything other than a constant value is not handled	*/
+    /* and so will flag a warning.					*/
+
+    else if (match(nexttok, "parameter") || match(nexttok, "localparam")) {
+	char *paramkey = NULL;
+	char *paramval = NULL;
+
+	// Pick up key = value pairs and store in current cell.  Look only
+	// at the keyword before "=".  Then set the defition as everything
+	// remaining in the line, excluding comments, until the end-of-statement
+
+	while (nexttok != NULL)
+	{
+	    struct property *kl = NULL;
+
+	    /* Parse for parameters used in expressions.  Save	*/
+	    /* parameters in the "verilogparams" hash table.	*/
+
+	    SkipTok(VLOG_DELIMITERS);
+	    if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
+	    if (match(nexttok, "=")) {
+		/* Pick up remainder of statement */
+		while (nexttok != NULL) {
+		    SkipTokNoNewline("X///**/X;,");
+		    if (nexttok == NULL) break;
+		    if (match(nexttok, ";") || match(nexttok, ",")) break;
+		    if (paramval == NULL) paramval = strsave(nexttok);
+		    else {
+			char *paramlast;
+			/* Append nexttok to paramval */
+			paramlast = paramval;
+			paramval = (char *)MALLOC(strlen(paramlast) + strlen(nexttok)
+				+ 2);
+			sprintf(paramval, "%s %s", paramlast, nexttok);
+			FREE(paramlast);
+		    }
+		}
+
+		kl = NewProperty();
+		kl->key = strsave(paramkey);
+		kl->idx = 0;
+		kl->merge = MERGE_NONE;
+
+		if (ConvertStringToInteger(paramval, &ival) == 1) {
+		    kl->type = PROP_INTEGER;
+		    kl->slop.ival = 0;
+		    kl->pdefault.ival = ival;
+		}
+		else if (ConvertStringToFloat(paramval, &dval) == 1) {
+		    kl->type = PROP_DOUBLE;
+		    kl->slop.dval = 0.01;
+		    kl->pdefault.dval = dval;
+		}
+		else {
+		    kl->type = PROP_STRING;
+		    kl->slop.dval = 0.0;
+		    kl->pdefault.string = strsave(paramval);
+		}
+
+		HashPtrInstall(paramkey, kl, &verilogparams);
+		FREE(paramval);
+		paramval = NULL;
+
+		if ((nexttok == NULL) || match(nexttok, ";")) break;
+	    }
+	    else {
+		if (paramkey != NULL) FREE(paramkey);
+		paramkey = strsave(nexttok);
+	    }
+	}
+	if (paramval != NULL) FREE(paramval);
+	if (paramkey != NULL) FREE(paramkey);
     }
 
     else if (match(nexttok, "module")) {
@@ -979,44 +1094,13 @@ skip_endmodule:
       }
       /* Presumably it is not an error to undefine an undefined keyword */
     }
-    else if (match(nexttok, "localparam")) {
-      // Pick up key = value pairs and store in current cell
-      while (nexttok != NULL)
-      {
-	 struct property *kl = NULL;
-
-	 /* Parse for parameters used in expressions.  Save	*/
-	 /* parameters in the "verilogparams" hash table.	*/
-
-	 SkipTokNoNewline(VLOG_DELIMITERS);
-	 if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
-	 if ((eqptr = strchr(nexttok, '=')) != NULL) {
-	    *eqptr = '\0';
-	    kl = NewProperty();
-	    kl->key = strsave(nexttok);
-	    kl->idx = 0;
-	    kl->merge = MERGE_NONE;
-
-	    if (ConvertStringToInteger(eqptr + 1, &ival) == 1) {
-	       kl->type = PROP_INTEGER;
-	       kl->slop.ival = 0;
-	       kl->pdefault.ival = ival;
-	    }
-	    else if (ConvertStringToFloat(eqptr + 1, &dval) == 1) {
-	       kl->type = PROP_DOUBLE;
-	       kl->slop.dval = 0.01;
-	       kl->pdefault.dval = dval;
-	    }
-	    else {
-	       kl->type = PROP_STRING;
-	       kl->slop.dval = 0.0;
-	       kl->pdefault.string = strsave(eqptr + 1);
-	    }
-	    HashPtrInstall(nexttok, kl, &verilogparams);
-	 }
-      }
+    else if (match(nexttok, "real") || match(nexttok, "integer")) {
+	Printf("Ignoring '%s' in module '%s'\n", nexttok, model);
+	/* Do not skip to end of module, as these can be in the middle of   */
+	/* I/O assignments, which need to be parsed.			    */
+	while (!match(nexttok, ";")) SkipTok("X///**/X,;");
+	continue;
     }
-
     else if (match(nexttok, "wire") || match(nexttok, "assign")) {	/* wire = node */
 	struct bus wb, wb2, *nb;
 	char nodename[128], noderoot[100];
@@ -1204,7 +1288,9 @@ skip_endmodule:
       // Ignore any other directive starting with a backtick (e.g., `timescale)
       SkipNewLine(VLOG_DELIMITERS);
     }
-    else if (match(nexttok, "reg") || match(nexttok, "always")) {
+    else if (match(nexttok, "reg") || match(nexttok, "always") ||
+	    match(nexttok, "specify") || match(nexttok, "initial")) {
+      Printf("Behavioral keyword '%s' found in source.\n", nexttok);
       Printf("Module '%s' is not structural verilog, making black-box.\n", model);
       // To be done:  Remove any contents (but may not be necessary)
       // Recast as module
@@ -1214,6 +1300,7 @@ skip_endmodule:
     else {	/* module instances */
       char instancename[100], modulename[100];
       int itype, arraystart, arrayend, arraymax, arraymin;
+      char ignore;
 
       instancename[99] = '\0';
       modulename[99] = '\0';
@@ -1233,9 +1320,12 @@ skip_endmodule:
 	PushStack(fname, CellStackPtr);
       }
       
+      SkipTokComments(VLOG_DELIMITERS);
+
+nextinst:
+      ignore = FALSE;
       head = NULL;
       tail = NULL;
-      SkipTokComments(VLOG_DELIMITERS);
 
       // Next token must be '#(' (parameters) or an instance name
 
@@ -1308,19 +1398,21 @@ skip_endmodule:
 	 // Read the pin list
          while (nexttok != NULL) {
 	    SkipTokComments(VLOG_DELIMITERS);
-	    // NOTE: Deal with `ifdef et al. properly.  Ignoring for now.
-	    while (nexttok[0] == '`') {
-		SkipNewLine(VLOG_DELIMITERS);
-		SkipTokComments(VLOG_DELIMITERS);
-	    }
 	    if (match(nexttok, ")")) break;
 	    else if (match(nexttok, ",")) continue;
 
 	    // We need to look for pins of the type ".name(value)"
 
 	    if (nexttok[0] != '.') {
-	        Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
-	        SkipNewLine(VLOG_DELIMITERS);
+	        Printf("Warning:  Ignoring subcircuit with no pin names "
+			    "at \"%s\"\n", nexttok);
+		InputParseError(stderr);
+		while (nexttok != NULL) {
+		    SkipTokComments(VLOG_DELIMITERS);
+		    if (match(nexttok, ";")) break;
+		}
+		ignore = TRUE;
+		break;
 	    }
 	    else {
 	       new_port = (struct portelement *)CALLOC(1, sizeof(struct portelement));
@@ -1401,10 +1493,21 @@ skip_endmodule:
       else {
          Printf("Expected to find instance pin block but got \"%s\"\n", nexttok);
       }
-      /* Instance should end with a semicolon */
+      if (ignore == TRUE) continue;	/* moving along. . . */
+
+      /* Verilog allows multiple instances of a single cell type to be chained	*/
+      /* together with commas.							*/
+
       SkipTokComments(VLOG_DELIMITERS);
-      if (!match(nexttok, ";")) {
+      if (match(nexttok, ",")) {
+	 goto nextinst;
+      }
+
+      /* Otherwise, instance must end with a semicolon */
+    
+      else if (!match(nexttok, ";")) {
 	 Printf("Expected to find end of instance but got \"%s\"\n", nexttok);
+	 InputParseError(stderr);
       }
 
       /* Check for ignored class */
