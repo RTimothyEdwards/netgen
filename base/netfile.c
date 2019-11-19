@@ -210,6 +210,7 @@ struct hashdict *definitions = (struct hashdict *)NULL;
 /*----------------------------------------------------------------------*/
 /* TrimQuoted() ---							*/
 /* Remove spaces from inside single- or double-quoted strings.		*/
+/* Ignore verilog constant bits (e.g., "1'b0") when parsing.		*/
 /*----------------------------------------------------------------------*/
 
 void TrimQuoted(char *line)
@@ -225,6 +226,13 @@ void TrimQuoted(char *line)
     {
 	changed = FALSE;
 	qstart = strchr(lptr, '\'');
+	if (qstart && (qstart > lptr)) {
+	    if (isdigit(*(qstart - 1))) {
+		lptr = qstart + 1;
+		changed = TRUE;
+		continue;
+	    }
+	}
 	if (qstart)
 	{
 	    qend = strchr(qstart + 1, '\'');

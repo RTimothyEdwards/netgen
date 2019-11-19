@@ -3860,6 +3860,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    cval = 0.0;
    for (i = 0; i < run; i++) {
       merge_type = MERGE_NONE;
+      ml = NULL;
       for (p = 0;; p++) {
 	 vl = &(obp->instance.props[p]);
 	 if (vl->type == PROP_ENDLIST) break;
@@ -3888,11 +3889,11 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
       }
       if (merge_type == MERGE_P_ADD) {
 	 proplist[i].value = cval * (double)mval;
-	 ml->value.ival = 1;
+	 if (ml) ml->value.ival = 1;
       }
       else if (merge_type == MERGE_P_PAR) {
 	 proplist[i].value = cval / (double)mval;
-	 ml->value.ival = 1;
+	 if (ml) ml->value.ival = 1;
       }
       proplist[i].idx = i;
       proplist[i].ob = obp;
@@ -3904,6 +3905,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
       /* and recalculate all the proplist values.				*/
       mval = 1;
       obp = obn;
+      ml = NULL;
       merge_type = MERGE_NONE;
       for (i = 0; i < run; i++) {
          for (p = 0;; p++) {
@@ -3935,11 +3937,11 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
          }
          if (merge_type == MERGE_P_ADD) {
 	    proplist[i].value = cval * (double)mval;
-            ml->value.ival = 1;
+            if (ml) ml->value.ival = 1;
 	 }
 	 else if (merge_type == MERGE_P_PAR) {
 	    proplist[i].value = cval / (double)mval;
-            ml->value.ival = 1;
+            if (ml) ml->value.ival = 1;
 	 }
          obp = obp->next;
       }
