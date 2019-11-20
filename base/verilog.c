@@ -634,7 +634,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	char *paramval = NULL;
 
 	// Pick up key = value pairs and store in current cell.  Look only
-	// at the keyword before "=".  Then set the defition as everything
+	// at the keyword before "=".  Then set the definition as everything
 	// remaining in the line, excluding comments, until the end-of-statement
 
 	while (nexttok != NULL)
