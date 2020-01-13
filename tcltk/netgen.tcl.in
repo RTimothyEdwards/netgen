@@ -221,7 +221,7 @@ proc netgen::convert_to_json {filename lvs_final} {
 		     foreach inst $cktval {
 			incr iidx
 	                puts $fjson "          \["
-			set instname [lindex $inst 0]
+			set instname [string map {"\\" ""} [lindex $inst 0]]
 		        puts $fjson "            \"$instname\","
 		        puts $fjson "            \["
 			set instpins [lindex $inst 1]
@@ -250,7 +250,7 @@ proc netgen::convert_to_json {filename lvs_final} {
 		     foreach inst $cktval {
 			incr iidx
 	                puts $fjson "          \["
-			set instname [lindex $inst 0]
+			set instname [string map {"\\" ""} [lindex $inst 0]]
 		        puts $fjson "            \"$instname\","
 		        puts $fjson "            \["
 			set instpins [lindex $inst 1]
@@ -292,8 +292,8 @@ proc netgen::convert_to_json {filename lvs_final} {
 		  foreach instance $value {
 		     incr pidx
 	             puts $fjson "      \["
-		     set instnames [lindex $instance 0]
-		     set instname0 [lindex $instnames 0]
+		     set instnames [string map {"\\" ""} [lindex $instance 0]]
+		     set instname0 [string map {"\\" ""} [lindex $instnames 0]]
 	             puts $fjson "         \["
 		     puts $fjson "           \"${instname0}\","
 	             puts $fjson "           \["
@@ -310,7 +310,7 @@ proc netgen::convert_to_json {filename lvs_final} {
 		     puts $fjson "             \[\"${propname}\", \"${propval}\"\]"
 	             puts $fjson "           \]"
 	             puts $fjson "         \],"
-		     set instname1 [lindex $instnames 1]
+		     set instname1 [string map {"\\" ""} [lindex $instnames 1]]
 	             puts $fjson "         \["
 		     puts $fjson "           \"${instname1}\","
 	             puts $fjson "           \["
