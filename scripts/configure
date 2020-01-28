@@ -633,7 +633,7 @@ gr_srcs
 gr_libs
 gr_dflags
 gr_cflags
-dist_prefix
+DIST_DIR
 cadinstall
 programs
 unused
@@ -4805,15 +4805,15 @@ usingX11=
 # place that is a temporary staging area, like DESTDIR, but unlike DESTDIR,
 # the prefix is replaced by the destination directory, rather than appended
 # to it.
-dist_prefix="\${exec_prefix}"
+DIST_DIR="\${exec_prefix}"
 
 # Check whether --with-distdir was given.
 if test "${with_distdir+set}" = set; then :
   withval=$with_distdir;
   if test "$withval" = "no" -o "$withval" = "NO" ; then
-     dist_prefix="\${exec_prefix}"
+     DIST_DIR="\${exec_prefix}"
   else
-     dist_prefix=$arg
+     DIST_DIR=${withval}
   fi
 
 fi

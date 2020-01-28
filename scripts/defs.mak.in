@@ -35,9 +35,9 @@ DOCDIR                 = ${libdir}/netgen/doc
 TCLDIR                 = ${libdir}/netgen/tcl
 PYDIR		       = ${libdir}/netgen/python
 
-INSTALL_BINDIR                 = @dist_prefix@/bin
-INSTALL_MANDIR                 = @dist_prefix@/share/man
-INSTALL_LIBDIR                 = @dist_prefix@/lib
+INSTALL_BINDIR                 = @DIST_DIR@/bin
+INSTALL_MANDIR                 = @DIST_DIR@/share/man
+INSTALL_LIBDIR                 = @DIST_DIR@/lib
 INSTALL_DOCDIR                 = ${INSTALL_LIBDIR}/netgen/doc
 INSTALL_TCLDIR                 = ${INSTALL_LIBDIR}/netgen/tcl
 INSTALL_PYDIR		       = ${INSTALL_LIBDIR}/netgen/python
