@@ -61,7 +61,7 @@ install-real: install-dirs
 
 install-tcl-dirs:
 	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${INSTALL_BINDIR} \
-		$(DESTDIR)${TCLDIR} $(DESTDIR)${INSTALL_PYDIR}
+		$(DESTDIR)${INSTALL_TCLDIR} $(DESTDIR)${INSTALL_PYDIR}
 
 install-dirs:
 	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${INSTALL_BINDIR}
