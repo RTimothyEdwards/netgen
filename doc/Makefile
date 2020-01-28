@@ -2,11 +2,11 @@ NETGENDIR = ..
 
 include ${NETGENDIR}/defs.mak
 
-MANDIRS = $(DESTDIR)${MANDIR} $(DESTDIR)${MANDIR}/man1
-DOCDIRS = $(DESTDIR)${DOCDIR}
+MANDIRS = $(DESTDIR)${INSTALL_MANDIR} $(DESTDIR)${INSTALL_MANDIR}/man1
+DOCDIRS = $(DESTDIR)${INSTALL_DOCDIR}
 
 MANFILES = 
-DOCFILES = $(DESTDIR)${DOCDIR}/netgen.doc
+DOCFILES = $(DESTDIR)${INSTALL_DOCDIR}/netgen.doc
 
 install-tcl: ${DOCDIRS} ${DOCFILES}
 
@@ -23,8 +23,8 @@ make-doc-dirs:
 	${SCRIPTS}/mkdirs ${DOCDIRS}
 
 # This file does not actually exist. . .
-$(DESTDIR)${MANDIR}/man1/netgen.1: netgen.1 ${MANDIRS}
-	${CP} netgen.1 $(DESTDIR)${MANDIR}/man1/netgen.1
+$(DESTDIR)${INSTALL_MANDIR}/man1/netgen.1: netgen.1 ${MANDIRS}
+	${CP} netgen.1 $(DESTDIR)${INSTALL_MANDIR}/man1/netgen.1
 
-$(DESTDIR)${DOCDIR}/netgen.doc: netgen.doc ${DOCDIRS}
-	${CP} netgen.doc $(DESTDIR)${DOCDIR}/netgen.doc
+$(DESTDIR)${INSTALL_DOCDIR}/netgen.doc: netgen.doc ${DOCDIRS}
+	${CP} netgen.doc $(DESTDIR)${INSTALL_DOCDIR}/netgen.doc
