@@ -12,15 +12,15 @@ CLEANS += netgen.sh netgen.tcl netgenexec${EXEEXT}
 CFLAGS += -I${NETGENDIR}/base
 
 TCL_FILES = \
-	$(DESTDIR)${TCLDIR}/tkcon.tcl \
-	$(DESTDIR)${TCLDIR}/console.tcl \
-	$(DESTDIR)${TCLDIR}/netgen.tcl
+	$(DESTDIR)${INSTALL_TCLDIR}/tkcon.tcl \
+	$(DESTDIR)${INSTALL_TCLDIR}/console.tcl \
+	$(DESTDIR)${INSTALL_TCLDIR}/netgen.tcl
 
 tcl-main: netgenexec${EXEEXT} netgen.tcl netgen.sh
 
-install-tcl: netgenexec${EXEEXT} $(DESTDIR)${BINDIR}/netgen.sh ${TCL_FILES}
-	${RM} $(DESTDIR)${TCLDIR}/netgenexec${EXEEXT}
-	${CP} netgenexec${EXEEXT} $(DESTDIR)${TCLDIR}/netgenexec${EXEEXT}
+install-tcl: netgenexec${EXEEXT} $(DESTDIR)${INSTALL_BINDIR}/netgen.sh ${TCL_FILES}
+	${RM} $(DESTDIR)${INSTALL_TCLDIR}/netgenexec${EXEEXT}
+	${CP} netgenexec${EXEEXT} $(DESTDIR)${INSTALL_TCLDIR}/netgenexec${EXEEXT}
 
 netgenexec${EXEEXT}: netgenexec.c
 	${CC} ${CFLAGS} ${CPPFLAGS} ${DFLAGS_NOSTUB} netgenexec.c \
@@ -39,13 +39,13 @@ netgen.sh: netgen.sh.in
 	    -e 's%WISH_EXE%${WISH_EXE}%g' \
 	    netgen.sh.in > netgen.sh
 
-$(DESTDIR)${TCLDIR}/%: %
-	${RM} $(DESTDIR)${TCLDIR}/$*
-	${CP} $* $(DESTDIR)${TCLDIR}/$*
+$(DESTDIR)${INSTALL_TCLDIR}/%: %
+	${RM} $(DESTDIR)${INSTALL_TCLDIR}/$*
+	${CP} $* $(DESTDIR)${INSTALL_TCLDIR}/$*
 
-$(DESTDIR)${BINDIR}/netgen.sh: netgen.sh
-	${RM} $(DESTDIR)${BINDIR}/netgen.sh $(DESTDIR)${BINDIR}/netgen
-	${CP} netgen.sh $(DESTDIR)${BINDIR}/netgen
-	(cd $(DESTDIR)${BINDIR}; chmod 0755 netgen)
+$(DESTDIR)${INSTALL_BINDIR}/netgen.sh: netgen.sh
+	${RM} $(DESTDIR)${INSTALL_BINDIR}/netgen.sh $(DESTDIR)${INSTALL_BINDIR}/netgen
+	${CP} netgen.sh $(DESTDIR)${INSTALL_BINDIR}/netgen
+	(cd $(DESTDIR)${INSTALL_BINDIR}; chmod 0755 netgen)
 
 include ${NETGENDIR}/rules.mak

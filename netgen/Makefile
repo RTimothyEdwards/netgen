@@ -25,23 +25,23 @@ tclnetgen${SHDLIB_EXT}: ${EXTRA_LIBS}
 		${LD_RUN_PATH} ${EXTRA_LIBS} ${LD_EXTRA_LIBS} \
 		-lc ${LIBS} ${LIB_SPECS} ${LDFLAGS}
 
-$(DESTDIR)${BINDIR}/netgen:
+$(DESTDIR)${INSTALL_BINDIR}/netgen:
 	${RM} $@
 	${CP} netgen $@
 
-$(DESTDIR)${BINDIR}/ntk2adl:
+$(DESTDIR)${INSTALL_BINDIR}/ntk2adl:
 	${RM} $@
 	${CP} ntk2adl $@
 
-$(DESTDIR)${BINDIR}/ntk2xnf:
+$(DESTDIR)${INSTALL_BINDIR}/ntk2xnf:
 	${RM} $@
 	${CP} ntk2xnf $@
 
-$(DESTDIR)${BINDIR}/netcomp:
+$(DESTDIR)${INSTALL_BINDIR}/netcomp:
 	${RM} $@
 	${CP} netcomp $@
 
-$(DESTDIR)${BINDIR}/inetcomp:
+$(DESTDIR)${INSTALL_BINDIR}/inetcomp:
 	${RM} $@
 	${CP} inetcomp $@
 
@@ -61,14 +61,14 @@ ntk2xnf: ntk2xnf.c
 	${CC} ${CFLAGS} ${CPPFLAGS} ${DFLAGS} ntk2xnf.c -o $@ ${EXTRA_LIBS} \
 		${LIBS} ${LDFLAGS}
 
-install: $(DESTDIR)${BINDIR}/netgen $(DESTDIR)${BINDIR}/netcomp \
-		$(DESTDIR)${BINDIR}/inetcomp $(DESTDIR)${BINDIR}/ntk2adl \
-		$(DESTDIR)${BINDIR}/ntk2xnf
+install: $(DESTDIR)${INSTALL_BINDIR}/netgen $(DESTDIR)${INSTALL_BINDIR}/netcomp \
+		$(DESTDIR)${INSTALL_BINDIR}/inetcomp $(DESTDIR)${INSTALL_BINDIR}/ntk2adl \
+		$(DESTDIR)${INSTALL_BINDIR}/ntk2xnf
 
-install-tcl: $(DESTDIR)${TCLDIR} $(DESTDIR)${TCLDIR}/tclnetgen${SHDLIB_EXT}
+install-tcl: $(DESTDIR)${INSTALL_TCLDIR} $(DESTDIR)${INSTALL_TCLDIR}/tclnetgen${SHDLIB_EXT}
 
-$(DESTDIR)${TCLDIR}/tclnetgen${SHDLIB_EXT}: tclnetgen${SHDLIB_EXT}
-	${RM} $(DESTDIR)${TCLDIR}/tclnetgen${SHDLIB_EXT}
-	${CP} tclnetgen${SHDLIB_EXT} $(DESTDIR)${TCLDIR}/tclnetgen${SHDLIB_EXT}
+$(DESTDIR)${INSTALL_TCLDIR}/tclnetgen${SHDLIB_EXT}: tclnetgen${SHDLIB_EXT}
+	${RM} $(DESTDIR)${INSTALL_TCLDIR}/tclnetgen${SHDLIB_EXT}
+	${CP} tclnetgen${SHDLIB_EXT} $(DESTDIR)${INSTALL_TCLDIR}/tclnetgen${SHDLIB_EXT}
 
 include ${NETGENDIR}/rules.mak

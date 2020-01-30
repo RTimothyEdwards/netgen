@@ -51,8 +51,8 @@ depend:
 install: $(INSTALL_TARGET)
 
 install-netgen:
-	@echo --- installing executable to $(DESTDIR)${BINDIR}
-	@echo --- installing run-time files to $(DESTDIR)${LIBDIR}
+	@echo --- installing executable to $(DESTDIR)${INSTALL_BINDIR}
+	@echo --- installing run-time files to $(DESTDIR)${INSTALL_LIBDIR}
 	@${MAKE} install-real >> install.log
 
 install-real: install-dirs
@@ -60,15 +60,15 @@ install-real: install-dirs
 		(cd $$dir && ${MAKE} install); done
 
 install-tcl-dirs:
-	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${BINDIR} \
-		$(DESTDIR)${TCLDIR} $(DESTDIR)${PYDIR}
+	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${INSTALL_BINDIR} \
+		$(DESTDIR)${INSTALL_TCLDIR} $(DESTDIR)${INSTALL_PYDIR}
 
 install-dirs:
-	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${BINDIR}
+	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${INSTALL_BINDIR}
 
 install-tcl: install-dirs
-	@echo --- installing executable to $(DESTDIR)${BINDIR}
-	@echo --- installing run-time files to $(DESTDIR)${LIBDIR}
+	@echo --- installing executable to $(DESTDIR)${INSTALL_BINDIR}
+	@echo --- installing run-time files to $(DESTDIR)${INSTALL_LIBDIR}
 	@${MAKE} install-tcl-real 2>&1 >> install.log
 
 install-tcl-real: install-tcl-dirs
