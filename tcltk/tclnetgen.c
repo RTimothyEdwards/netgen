@@ -1978,7 +1978,7 @@ _netgen_printmem(ClientData clientData,
 /*------------------------------------------------------*/
 /* Function name: _netcmp_format			*/
 /* Syntax:						*/
-/*    netgen::format [col1_width col2_width]		*/
+/*    netgen::format [col1_width [col2_width]]		*/
 /* Formerly: (none)					*/
 /* Results:						*/
 /* Side Effects:					*/
@@ -1990,11 +1990,16 @@ _netcmp_format(ClientData clientData,
 {
     int col1_width = 41, col2_width = 41;
 
-    if (objc == 3) {
+    if (objc > 1) {
 	if (Tcl_GetIntFromObj(interp, objv[1], &col1_width) != TCL_OK)
 	    return TCL_ERROR;
-	if (Tcl_GetIntFromObj(interp, objv[2], &col2_width) != TCL_OK)
-	    return TCL_ERROR;
+	if (objc > 2) {
+	    if (Tcl_GetIntFromObj(interp, objv[2], &col2_width) != TCL_OK)
+		return TCL_ERROR;
+	} else {
+	    /* If only one argument is given, then apply it to both columns */
+	    col2_width = col1_width;
+	}
 
 	if (col1_width <= 0 || col2_width <= 0) {
 	    Tcl_SetResult(interp, "Column width cannot be zero or less\n", NULL);
@@ -2020,7 +2025,7 @@ _netcmp_format(ClientData clientData,
 	return TCL_OK;
     }
     else {
-	Tcl_WrongNumArgs(interp, 1, objv, "col1_width col2_width");
+	Tcl_WrongNumArgs(interp, 1, objv, "[col1_width [col2_width]]");
 	return TCL_ERROR;
     }
 }
