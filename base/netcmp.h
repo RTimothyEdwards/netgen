@@ -8,6 +8,9 @@ extern struct nlist *Circuit2;
 
 extern int ExhaustiveSubdivision;
 
+extern int left_col_end;
+extern int right_col_end;
+
 #ifdef TCL_NETGEN
 #include <tcl.h>
 extern int InterruptPending;

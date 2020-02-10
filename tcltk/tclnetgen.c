@@ -85,6 +85,7 @@ int _netcmp_compare(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_iterate(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_summary(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_print(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
+int _netcmp_format(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_run(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_verify(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_automorphs(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
@@ -199,6 +200,9 @@ Command netcmp_cmds[] = {
 	{"print",		_netcmp_print,
 		"\n   "
 		"print netcomp internal data structure"},
+	{"format",		_netcmp_format,
+		"<col1_width> <col2_width>\n   "
+		"set width of formatted output"},
 	{"run",			_netcmp_run,
 		"[converge|resolve]\n   "
 		"converge: run netcomp to completion (convergence)\n   "
@@ -1970,6 +1974,56 @@ _netgen_printmem(ClientData clientData,
    return TCL_OK;
 }
 #endif
+
+/*------------------------------------------------------*/
+/* Function name: _netcmp_format			*/
+/* Syntax:						*/
+/*    netgen::format [col1_width col2_width]		*/
+/* Formerly: (none)					*/
+/* Results:						*/
+/* Side Effects:					*/
+/*------------------------------------------------------*/
+
+int
+_netcmp_format(ClientData clientData,
+    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int col1_width = 41, col2_width = 41;
+
+    if (objc == 3) {
+	if (Tcl_GetIntFromObj(interp, objv[1], &col1_width) != TCL_OK)
+	    return TCL_ERROR;
+	if (Tcl_GetIntFromObj(interp, objv[2], &col2_width) != TCL_OK)
+	    return TCL_ERROR;
+
+	if (col1_width <= 0 || col2_width <= 0) {
+	    Tcl_SetResult(interp, "Column width cannot be zero or less\n", NULL);
+	}
+
+	// Default values for left and right columns are 43 and 87
+	left_col_end = col1_width + 2;
+	right_col_end = left_col_end + col2_width + 3;
+    }
+    else if (objc == 1) {
+	Tcl_Obj *lobj, *tobj;
+
+	col1_width = left_col_end - 2;
+	col2_width = right_col_end - col1_width - 5;
+
+	lobj = Tcl_NewListObj(0, NULL);
+
+	tobj = Tcl_NewIntObj(col1_width);
+        Tcl_ListObjAppendElement(interp, lobj, Tcl_NewIntObj(col1_width));
+        Tcl_ListObjAppendElement(interp, lobj, Tcl_NewIntObj(col2_width));
+
+	Tcl_SetObjResult(interp, lobj);
+	return TCL_OK;
+    }
+    else {
+	Tcl_WrongNumArgs(interp, 1, objv, "col1_width col2_width");
+	return TCL_ERROR;
+    }
+}
 
 /*------------------------------------------------------*/
 /* The following code breaks up the NETCOMP() command	*/
