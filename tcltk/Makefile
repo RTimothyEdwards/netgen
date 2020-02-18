@@ -25,7 +25,7 @@ install-tcl: netgenexec${EXEEXT} $(DESTDIR)${INSTALL_BINDIR}/netgen.sh ${TCL_FIL
 netgenexec${EXEEXT}: netgenexec.c
 	${CC} ${CFLAGS} ${CPPFLAGS} ${DFLAGS_NOSTUB} netgenexec.c \
 		-o netgenexec${EXEEXT} \
-		${LDFLAGS} ${LIBS} ${LIB_SPECS_NOSTUB}
+		${LIB_SPECS_NOSTUB} ${LDFLAGS} ${LIBS} ${GR_LIBS}
 
 netgen.tcl: netgen.tcl.in
 	sed -e 's%TCL_DIR%${TCLDIR}%g' \
