@@ -9,7 +9,7 @@ MODULES = base
 MAKEFLAGS =
 INSTALL_CAD_DIRS = lib doc
 
-include defs.mak
+-include defs.mak
 
 all:	$(ALL_TARGET)
 
