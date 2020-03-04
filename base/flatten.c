@@ -1539,7 +1539,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	/* (it without regard to cell1) improves the matching.	*/
 
 	else if ((ecomp->num1 != ecomp->num2) && (ecomp->cell2 != NULL) &&
-			(ecomp->cell2->class == CLASS_SUBCKT)) {
+			(ecomp->num2 != 0) && (ecomp->cell2->class == CLASS_SUBCKT)) {
 	    ecomp->add2 = -ecomp->num2;
 	    match = 1;
 	    for (ob2 = ecomp->cell2->cell; ob2; ob2 = ob2->next) {
@@ -1597,7 +1597,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	/* (it without regard to cell1) improves the matching.	*/
 
 	else if ((ecomp->num1 != ecomp->num2) && (ecomp->cell1 != NULL) &&
-			(ecomp->cell1->class == CLASS_SUBCKT)) {
+			(ecomp->num1 != 0) && (ecomp->cell1->class == CLASS_SUBCKT)) {
 	    ecomp->add1 = -ecomp->num1;
 	    match = 1;
 	    for (ob2 = ecomp->cell1->cell; ob2; ob2 = ob2->next) {
