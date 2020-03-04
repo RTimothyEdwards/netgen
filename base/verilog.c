@@ -283,7 +283,7 @@ int GetBusTok(struct bus *wb)
 
 int GetBus(char *astr, struct bus *wb)
 {
-    char *colonptr, *brackstart, *brackend, *sigend, sdelim;
+    char *colonptr, *brackstart, *brackend, *sigend, sdelim, *aastr;
     int result, start, end;
 
     if (wb == NULL) return 0;
@@ -325,15 +325,22 @@ int GetBus(char *astr, struct bus *wb)
 	return 0;
     }
 
-    brackstart = strchr(astr, '[');
+    // Delimiters may appear in backslash-escaped names. . . ignore these.
+    aastr = astr;
+    if (*aastr == '\\') {
+	aastr++;
+	while (*aastr != ' ' && *aastr != '\\' && *aastr != '\0') aastr++;
+    }
+
+    brackstart = strchr(aastr, '[');
     if (brackstart != NULL) {
-	brackend = strchr(astr, ']');
+	brackend = strchr(aastr, ']');
 	if (brackend == NULL) {
 	    Printf("Badly formed array notation \"%s\"\n", astr);
 	    return 1;
 	}
 	*brackend = '\0';
-	colonptr = strchr(astr, ':');
+	colonptr = strchr(aastr, ':');
 	if (colonptr) *colonptr = '\0';
 	result = sscanf(brackstart + 1, "%d", &start);
 	if (colonptr) *colonptr = ':';
