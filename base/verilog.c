@@ -2043,11 +2043,15 @@ void IncludeVerilog(char *fname, int parent, struct cellstack **CellStackPtr,
 	if (strchr(fname, '.') == NULL) {
            SetExtension(name, fname, VERILOG_EXTENSION);
            filenum = OpenParseFile(name, parent);
+	   if (filenum < 0) {
+	      fprintf(stderr,"Error in Verilog file include: No file %s\n", name);
+	      return;
+	   }
         }
-	if (filenum < 0) {
+	else {
 	   fprintf(stderr,"Error in Verilog file include: No file %s\n", fname);
 	   return;
-        }    
+        }
      }
   }
   ReadVerilogFile(fname, parent, CellStackPtr, blackbox);
