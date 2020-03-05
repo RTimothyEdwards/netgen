@@ -6729,7 +6729,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			/* Make a pass through circuit 1 to find out if	*/
 			/* the pin really is connected to anything, or	*/
 			/* has been left orphaned after flattening.  If	*/
-			/* disconnected, set its node number to -1.	*/
+			/* disconnected, set its node number to -2.	*/
 
 			for (obt = ob1->next; obt; obt = obt->next) {
 			   if (obt->type >= FIRSTPIN)
@@ -6737,7 +6737,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 				 break;
 			}
 			if (obt == NULL) {
-			   ob1->node = -1;	// Will run this through cleanuppins
+			   ob1->node = -2;	// Will run this through cleanuppins
 			   needclean1 = 1;
 			}
 		     }
@@ -6884,7 +6884,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 		  break;
 	 }
 	 if (obt == NULL) {
-	    ob2->node = -1;	// Will run this through cleanuppins
+	    ob2->node = -2;	// Will run this through cleanuppins
 	    needclean2 = 1;
 	    continue;
 	 }
@@ -6986,6 +6986,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       else if (ob1 != NULL && ob1->type == PORT) {
 	 /* Disconnected node was not meaningful, has no pin match in	*/
 	 /* the compared circuit, and so should be discarded.		*/
+	 ob1->node = -2;
 	 needclean1 = 1;
 
 	 /* Adjust numbering around removed node */

@@ -1166,7 +1166,7 @@ struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
           while (ob && obt && (ob->type > FIRSTPIN || ob == firstpin) &&
 			ob->model.class != NULL) {
 	     nob = ob->next;
-	     if ((obt->type == PORT) && (obt->node == -1)) {
+	     if ((obt->type == PORT) && (obt->node == -2)) {
 
 	        /* Remove this pin */
 
@@ -1238,7 +1238,7 @@ int CleanupPins(char *name, int filenum)
 
    for (ob = ThisCell->cell; ob != NULL; ob = ob->next) {
       if (ob->type != PORT) break;
-      if (ob->node == -1) {
+      if (ob->node == -2) {
 	 needscleanup = 1;
 	 break;
       }
@@ -1265,7 +1265,7 @@ int CleanupPins(char *name, int filenum)
       }
       else if (ob->type != PORT) break;
       nob = ob->next;
-      if (ob->node == -1) {
+      if (ob->node == -2) {
 	 if (lob == NULL) {
 	    ThisCell->cell = ob->next;
 	 }
