@@ -2959,15 +2959,31 @@ _netcmp_equate(ClientData clientData,
 
       case PINS_IDX:
 	 if ((ElementClasses == NULL) && (auto_blackbox == FALSE)) {
-	    if (CurrentCell == NULL)
+	    if (CurrentCell == NULL) {
 		Fprintf(stderr, "Equate elements:  no current cell.\n");
-	    Fprintf(stderr, "Equate pins:  cell %s and/or %s has no elements.\n",
-			name1, name2);
-	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
-	    return TCL_OK;
+		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
+		return TCL_OK;
+	    }
+	    else if ((tp1->flags & CELL_PLACEHOLDER) ||
+			(tp2->flags & CELL_PLACEHOLDER)) {
+		if (tp1->flags & CELL_PLACEHOLDER) {
+		    Fprintf(stdout, "Warning: Equate pins:  cell %s "
+			"has no definition, treated as a black box.\n", name1);
+		}
+		if (tp2->flags & CELL_PLACEHOLDER) {
+		    Fprintf(stdout, "Warning: Equate pins:  cell %s "
+			"has no definition, treated as a black box.\n", name2);
+		}
+	    }
+	    else {
+		Fprintf(stdout, "Equate pins:  cell %s and/or %s "
+			"has no elements.\n", name1, name2);
+		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
+		return TCL_OK;
+	    }
 	 }
-	 else if (ElementClasses == NULL) {
-	    /* This has been called outside of a netlist compare,	*/
+	 if (ElementClasses == NULL) {
+	    /* This may have been called outside of a netlist compare,	*/
 	    /* probably to force name matching of pins on black-box	*/
 	    /* devices.  But MatchPins only works if tp1 == Circuit1	*/
 	    /* and tp2 == Circuit2, so preserve these values and 	*/

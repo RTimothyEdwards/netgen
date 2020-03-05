@@ -673,6 +673,7 @@ char *strdtok(char *pstring, char *delim1, char *delim2)
     /* accordingly (needs to be done).						*/
 
     if (*s == '\\') {
+        s++;
         while (*s != '\0') {
 	    if ((*s == ' ') || (*s == '\\')) {
 		s++;

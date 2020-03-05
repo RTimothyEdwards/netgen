@@ -801,9 +801,12 @@ void DescribeInstance(char *name, int file)
   {
     if (ob->node > nodemax) nodemax = ob->node;
     else if ((ob->node == -1) && (ob->model.port != PROXY)) {
-      if (disconnectednodes == 0) Fprintf(stderr, "\n");
-      disconnectednodes++;
-      Fprintf(stderr, "Cell %s disconnected node: %s\n", tp->name, ob->name);
+      if (!(tp->flags & CELL_PLACEHOLDER))
+      {
+	if (disconnectednodes == 0) Fprintf(stderr, "\n");
+        disconnectednodes++;
+        Fprintf(stderr, "Cell %s disconnected node: %s\n", tp->name, ob->name);
+      }
     }
   }
   instlist = (unsigned char *) CALLOC((nodemax + 1), sizeof(unsigned char));
