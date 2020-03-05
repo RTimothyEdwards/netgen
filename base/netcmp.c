@@ -4436,12 +4436,13 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		  if (vl == NULL) {
 		     if (kl->type != vlist[p][j]->type)
 			PromoteProperty(kl, vl2);
+		     vl = &dfltvl;
 		  }
 		  else {
 		     if (kl->type != vlist[p][i]->type)
 			PromoteProperty(kl, vl);
+		     vl2 = &dfltvl;
 		  }
-		  vl = &dfltvl;
 		  dfltvl.type = kl->type;
 		  switch (kl->type) {
 		     case PROP_STRING:
