@@ -1983,11 +1983,15 @@ void IncludeSpice(char *fname, int parent, struct cellstack **CellStackPtr,
 	if (strchr(fname, '.') == NULL) {
            SetExtension(name, fname, SPICE_EXTENSION);
            filenum = OpenParseFile(name, parent);
-	}
-        if (filenum < 0) {
-           Fprintf(stderr,"Error in SPICE file include: No file %s\n",name);
-           return;
+	   if (filenum < 0) {
+             Fprintf(stderr, "Error in SPICE file include: No file %s\n", name);
+             return;
+	   }
         }    
+        else {
+          Fprintf(stderr, "Error in SPICE file include: No file %s\n", fname);
+          return;
+	}
      }
   }
   ReadSpiceFile(fname, parent, CellStackPtr, blackbox);
