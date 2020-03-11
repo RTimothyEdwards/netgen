@@ -3825,6 +3825,51 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    }
    obp->next = obn;	/* Restore last link */
 
+   // In series runs, all records after the first start with tag "+".
+   // If the tag got moved to the first record, then move it down to
+   // the record that is missing the tag.
+
+   obn = ob1->next;
+   if (!strcmp(obn->instance.props[0].key, "_tag")) {
+      char *tmpkey;
+      struct valuelist *kv2;
+      int l;
+
+      if (!strcmp(obn->instance.props[0].value.string, "+")) {
+	 /* Remove this property tag "+" */
+	 FREE(obn->instance.props[0].key);
+	 FREE(obn->instance.props[0].value.string);
+	 for (p = 0;; p++) {
+	    obn->instance.props[p].key = obn->instance.props[p + 1].key;
+	    obn->instance.props[p].type = obn->instance.props[p + 1].type;
+	    obn->instance.props[p].value = obn->instance.props[p + 1].value;
+	    if (obn->instance.props[p].type == PROP_ENDLIST) break;
+	 }
+	 for (i = 1; i < run; i++) {
+	    obn = obn->next;
+	    if (strcmp(obn->instance.props[0].key, "_tag")) {
+	       for (p = 1;; p++) 
+		  if (obn->instance.props[p].type == PROP_ENDLIST) break;
+
+	       /* Create a new property record to hold all the existing	*/
+	       /* properties plus the tag at the beginning.		*/
+
+	       kv2 = (struct valuelist *)MALLOC((p + 2) * sizeof(struct valuelist));
+	       kv2->key = strsave("_tag");
+	       kv2->type = PROP_STRING;
+	       kv2->value.string = (char *)MALLOC(2);
+	       kv2->value.string[0] = '+';
+	       kv2->value.string[1] = '\0';
+	       for (l = 0; l <= p; l++)
+		  kv2[l + 1] = obn->instance.props[l];
+	       FREE(obn->instance.props);
+	       obn->instance.props = kv2;
+	       break;
+	    }
+	 }
+      }
+   }
+
    FREE(proplist);
 }
 
@@ -4135,8 +4180,8 @@ void PropertySortAndCombine(struct objlist *pre1, struct nlist *tp1,
       max2 = 0;
       for (c2 = netwk2; ; c2++) {
          if (*c2 == 'D') {
-	    cnt++;
  	    run++;
+	    cnt++;
          }
          else {
             if (run > max2) {
@@ -4418,7 +4463,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    // Now combine records with same properties by summing M (S).
    if (comb == FALSE) {
       for (i = 0; i < run - 1; i++) {
-	 for (j = 1; j < run; j++) {
+	 for (j = i + 1; j < run; j++) {
 	    pmatch = 0;
 	    for (p = 1; p < pcount; p++) {
 	       kl = plist[p];
@@ -4558,7 +4603,6 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		  vlist[0][j]->value.ival = 0;
 	       }
 	    }
-            else j++;
 	 }
       }
    }
