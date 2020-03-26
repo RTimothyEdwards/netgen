@@ -259,7 +259,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   struct  nlist *ChildCell;
   struct objlist *tmp, *ob2, *ob3;
   int	notdone, rnodenum;
-  char	tmpstr[200];
+  char	tmpstr[1024];
   int	nextnode, oldmax, numflat = 0;
 #if !OLDPREFIX
   int     prefixlength;
