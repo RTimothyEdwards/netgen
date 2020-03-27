@@ -1565,19 +1565,40 @@ nextinst:
 	    // Check if net name is a wire bus or portion of a bus
 	    if (GetBus(scan->net, &wb) == 0) {
 		int range;
+
+		// This takes care of three situations:
+		// (1) The signal bus length matches the number of instances:
+		//     apply one signal per instance.
+		// (2) The signal bus length is a multiple of the number of instances:
+		//     apply a signal sub-bus to each instance.
+		// (3) The number of instances is a multiple of the signal bus length:
+		//     apply the same signal to each instance.
+
 		if ((arrayend - arraystart) == (wb.end - wb.start)) {
 		    // Net is a bus, but net is split over arrayed instances
 		    Port(scan->name);
 		}
 		else if (wb.start > wb.end) {
-		    range = wb.start - wb.end;
+		    if ((arraystart - arrayend) > (wb.start - wb.end))
+			range = (((arraystart - arrayend) + 1) /
+				    ((wb.start - wb.end) + 1)) - 1;
+		    else
+			range = (((wb.start - wb.end) + 1) /
+				    ((arraystart - arrayend) + 1)) - 1;
+
 		    for (i = range; i >= 0; i--) {
 			sprintf(defport, "%s[%d]", scan->name, i);
 			Port(defport);
 		    }
 		}
 		else {
-		    range = wb.end - wb.start;
+		    if ((arrayend - arraystart) >  (wb.end - wb.start))
+			range = (((arrayend - arraystart) + 1) /
+				    ((wb.end - wb.start) + 1)) - 1;
+		    else
+			range = (((wb.end - wb.start) + 1) /
+				    ((arrayend - arraystart) + 1)) - 1;
+
 		    for (i = 0; i <= range; i++) {
 			sprintf(defport, "%s[%d]", scan->name, i);
 			Port(defport);
