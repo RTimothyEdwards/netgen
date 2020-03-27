@@ -1910,29 +1910,37 @@ nextinst:
 		   else {
 		       // Instance must be an array
 		       char netname[128];
-		       int slice, portlen;
+		       int slice, portlen, siglen;
 
 		       /* Get the array size of the port for bit slicing */
 		       portlen = (scan->width < 0) ? 1 : scan->width;
 
-		       if (wb.start >= wb.end && arraystart >= arrayend)
-			   slice = wb.start - (arraystart - i) * portlen;
-		       else if (wb.start < wb.end && arraystart > arrayend)
-			   slice = wb.start + (arraystart - i) * portlen;
-		       else if (wb.start > wb.end && arraystart < arrayend)
-			   slice = wb.start - (arraystart + i) * portlen;
-		       else // (wb.start < wb.end && arraystart < arrayend)
-			   slice = wb.start + (arraystart + i) * portlen;
+		       /* Get the full array size of the connecting bus */
+		       GetBus(scanroot, &wb2);
+		       siglen = wb2.start - wb2.end;
+		       if (siglen < 0) siglen = -siglen;
+		       siglen++;
 
-		       if (wb.start < wb.end) {
-			   while (slice < wb.start) slice += portlen;
-			   while (slice > wb.end) slice -= portlen;
+		       // If signal array is smaller than the portlength *
+		       // length of instance array, then the signal wraps.
+
+		       if (wb2.start >= wb2.end && arraystart >= arrayend) {
+			   slice = wb.start - (arraystart - i) * portlen;
+			   while (slice < wb2.end) slice += siglen;
 		       }
-		       else {
-			   while (slice > wb.start) slice -= portlen;
-			   while (slice < wb.end) slice += portlen;
+		       else if (wb2.start < wb2.end && arraystart > arrayend) {
+			   slice = wb.start + (arraystart - i) * portlen;
+			   while (slice > wb2.end) slice -= siglen;
 		       }
-			   
+		       else if (wb2.start > wb2.end && arraystart < arrayend) {
+			   slice = wb.start - (arraystart + i) * portlen;
+			   while (slice < wb2.end) slice += siglen;
+		       }
+		       else { // (wb2.start < wb2.end && arraystart < arrayend)
+			   slice = wb.start + (arraystart + i) * portlen;
+			   while (slice > wb2.end) slice -= siglen;
+		       }
+
 		       sprintf(netname, "%s[%d]", scanroot, slice);
 	               if (LookupObject(netname, CurrentCell) == NULL) Node(netname);
 	               join(netname, obptr->name);
