@@ -1070,6 +1070,13 @@ skip_endmodule:
 	 kl->pdefault.ival = 1;
          kl->slop.ival = 0;
       }
+      else if (nexttok[0] == '(') {
+	 /* For now, the netgen verilog parser doesn't handle `define f(X) ... */
+	 SkipNewLine(VLOG_DELIMITERS);
+	 FREE(kl->key);
+	 FREE(kl);
+	 kl = NULL;
+      }
       else if (ConvertStringToInteger(nexttok, &ival) == 1) {
 	 /* Parameter parses as an integer */
       	 kl->type = PROP_INTEGER;
@@ -1088,7 +1095,7 @@ skip_endmodule:
 	 kl->pdefault.string = strsave(nexttok);
          kl->slop.dval = 0.0;
       }
-      HashPtrInstall(kl->key, kl, &verilogdefs);
+      if (kl) HashPtrInstall(kl->key, kl, &verilogdefs);
     }
     else if (match(nexttok, "`undef")) {
       struct property *kl = NULL;
@@ -1328,6 +1335,22 @@ skip_endmodule:
       struct objlist *obptr;
 
       strncpy(modulename, nexttok, 99);
+
+      /* If module name is a verilog primitive, then treat the module as a  */
+      /* black box (this is not a complete list.  Preferable to use hash    */
+      /* function instead of lots of strcmp() calls).			    */
+
+      if (!strcmp(modulename, "buf") || !strcmp(modulename, "notif1") ||
+	    !strcmp(modulename, "not") || !strcmp(modulename, "and") ||
+	    !strcmp(modulename, "or") || !strcmp(modulename, "bufif0") ||
+	    !strcmp(modulename, "bufif1") || !strcmp(modulename, "notif0")) {
+
+         Printf("Module contains verilog primitive '%s'.\n", nexttok);
+         Printf("Module '%s' is not structural verilog, making black-box.\n", model);
+	 SetClass(CLASS_MODULE);
+	 goto skip_endmodule;
+      }
+
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
