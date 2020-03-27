@@ -1445,25 +1445,25 @@ nextinst:
 	       }
 	       else {
 		  if (!strcmp(nexttok, "{")) {
-		     char *in_line_net = (char *)MALLOC(1);
-		     char *new_in_line_net = NULL;
-		     *in_line_net = '\0';
-		     /* In-line array---read to "}" */
+		     char *wire_bundle = (char *)MALLOC(1);
+		     char *new_wire_bundle = NULL;
+		     *wire_bundle = '\0';
+		     /* Wire bundle---read to "}" */
 		     while (nexttok) {
-			 new_in_line_net = (char *)MALLOC(strlen(in_line_net) +
+			 new_wire_bundle = (char *)MALLOC(strlen(wire_bundle) +
 				    strlen(nexttok) + 1);
 			 /* Roundabout way to do realloc() becase there is no REALLOC() */
-			 strcpy(new_in_line_net, in_line_net);
-			 strcat(new_in_line_net, nexttok);
-			 FREE(in_line_net);
-			 in_line_net = new_in_line_net;
+			 strcpy(new_wire_bundle, wire_bundle);
+			 strcat(new_wire_bundle, nexttok);
+			 FREE(wire_bundle);
+			 wire_bundle = new_wire_bundle;
 			 if (!strcmp(nexttok, "}")) break;
 			 SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 		     }
 		     if (!nexttok) {
-			 Printf("Unterminated net in pin %s\n", in_line_net);
+			 Printf("Unterminated net in pin %s\n", wire_bundle);
 		     }
-		     new_port->net = in_line_net;
+		     new_port->net = wire_bundle;
 		  }
 		  else
 		     new_port->net = strsave(nexttok);
@@ -1702,16 +1702,33 @@ nextinst:
 	    }
 
 	    if (result == 0) {
-	       if (((wb.start - wb.end) != (portstart - portend)) &&
-		   	((wb.start - wb.end) != (portend - portstart))) {
-		  if (((wb.start - wb.end) != (arraystart - arrayend)) &&
-			((wb.start - wb.end) != (arrayend - arraystart))) {
-		     Fprintf(stderr, "Error:  Net %s bus width does not match "
-				"port %s bus width.\n", scan->net, scan->name);
-		  }
-		  // Otherwise, net is bit-sliced across array of instances.
+	       int match = 0;
+	       int wblen, portlen, arraylen;
+
+	       arraylen = arraystart - arrayend;
+	       portlen = portstart - portend;
+	       wblen = wb.start - wb.end;
+
+	       if (arraylen < 0) arraylen = -arraylen;
+	       if (portlen < 0) portlen = -portlen;
+	       if (wblen < 0) wblen = -wblen;
+
+	       arraylen++;
+	       portlen++;
+	       wblen++;
+
+	       if ((portlen * arraylen) == wblen) match = 1;
+	       else if (wblen == portlen) match = 1;
+	       else if (wblen == arraylen) match = 1;
+	       else {
+		  Fprintf(stderr, "Warning:  Net %s bus width (%d) does not match "
+				"port %s bus width (%d) or array width (%d).\n",
+				scan->net, wblen, scan->name, portlen, arraylen);
 	       }
-	       else if (wb.start > wb.end) {
+
+	       // Net is bit-sliced across array of instances.
+
+	       if (wb.start > wb.end) {
 		  char *bptr, *cptr, cchar, *netname;
 		  unsigned char is_bundle = 0;
 		  struct bus wbb;
@@ -1739,8 +1756,6 @@ nextinst:
 		  else
 		     i = -1;
 
-		  if (is_bundle) *cptr = cchar;	 /* Restore bundle delimiter */
-		  
 		  while (1) {
 	             new_port = (struct portelement *)CALLOC(1,
 				sizeof(struct portelement));
@@ -1764,8 +1779,10 @@ nextinst:
 
 		     if (portstart > portend) j--;
 		     else j++;
-		     if (wbb.start > wbb.end) i--;
-		     else i++;
+		     if (i != -1) {
+			if (wbb.start > wbb.end) i--;
+			else i++;
+		     }
 
 		     if (is_bundle &&
 			    ((i == -1) ||
@@ -1774,6 +1791,7 @@ nextinst:
 		         if (bptr) *bptr = '[';
 
 			 netname = cptr + 1;
+			 if (cptr) *cptr = cchar; /* Restore previous bundle delimiter */
 		         cptr = strchr(netname, ',');
 			 if (cptr == NULL) cptr = strchr(netname, '}');
 			 if (cptr == NULL) cptr = netname + strlen(netname) - 1;
@@ -1786,12 +1804,11 @@ nextinst:
 				*bptr = '\0';
 			 }
 			 else i = -1;
-
-			 *cptr = cchar;	    /* Restore delimiter */
 		     }
 		  }
 		  FREE(scan);
 		  scan = last;
+		  if (cptr) *cptr = cchar; /* Restore bundle delimiter */
 	       }
 	    }
 	    else if (portstart != portend) {
