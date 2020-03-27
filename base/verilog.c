@@ -919,7 +919,7 @@ skip_endmodule:
     }
     else if (match(nexttok, "input") || match(nexttok, "output")
 		|| match(nexttok, "inout")) {
-	struct bus wb;
+	struct bus wb, *nb;
  
 	// Parsing of ports as statements not in the module pin list.
 	wb.start = wb.end = -1;
@@ -952,6 +952,11 @@ skip_endmodule:
 			    Port(portname);
 			}
 		    }
+		    /* Also register this port as a bus */
+		    nb = NewBus();
+		    nb->start = wb.start;
+		    nb->end = wb.end;
+		    HashPtrInstall(nexttok, nb, &buses);
 		    wb.start = wb.end = -1;
 		}
 		else {
@@ -1315,6 +1320,7 @@ skip_endmodule:
       struct portelement {
 	char *name;	// Name of port in subcell
 	char *net;	// Name of net connecting to port in the parent
+	int   width;	// Width of port, if port is a bus
 	struct portelement *next;
       };
 
@@ -1424,6 +1430,7 @@ nextinst:
 	    else {
 	       new_port = (struct portelement *)CALLOC(1, sizeof(struct portelement));
 	       new_port->name = strsave(nexttok + 1);
+	       new_port->width = -1;
 	       SkipTokComments(VLOG_DELIMITERS);
 	       if (!match(nexttok, "(")) {
 	           Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
@@ -1650,7 +1657,12 @@ nextinst:
 	    int j, result;
 	    struct objlist *bobj;
 	    char *bptr;
-	    int minnet, maxnet, testidx;
+	    int minnet, maxnet, testidx, width;
+
+	    width = portstart - portend;
+	    if (width < 0) width = -width;
+	    width++;
+	    scan->width = width;
 
 	    result = GetBus(scan->net, &wb);
 	    if (result == -1) {
@@ -1703,27 +1715,24 @@ nextinst:
 
 	    if (result == 0) {
 	       int match = 0;
-	       int wblen, portlen, arraylen;
+	       int wblen, arraylen;
 
 	       arraylen = arraystart - arrayend;
-	       portlen = portstart - portend;
 	       wblen = wb.start - wb.end;
 
 	       if (arraylen < 0) arraylen = -arraylen;
-	       if (portlen < 0) portlen = -portlen;
 	       if (wblen < 0) wblen = -wblen;
 
 	       arraylen++;
-	       portlen++;
 	       wblen++;
 
-	       if ((portlen * arraylen) == wblen) match = 1;
-	       else if (wblen == portlen) match = 1;
+	       if ((scan->width * arraylen) == wblen) match = 1;
+	       else if (wblen == scan->width) match = 1;
 	       else if (wblen == arraylen) match = 1;
 	       else {
 		  Fprintf(stderr, "Warning:  Net %s bus width (%d) does not match "
 				"port %s bus width (%d) or array width (%d).\n",
-				scan->net, wblen, scan->name, portlen, arraylen);
+				scan->net, wblen, scan->name, scan->width, arraylen);
 	       }
 
 	       // Net is bit-sliced across array of instances.
@@ -1766,6 +1775,7 @@ nextinst:
 		     else
 			 sprintf(vname, "%s[%d]", netname, i); 
 	             new_port->net = strsave(vname);
+		     new_port->width = scan->width;
 
 		     if (last == NULL)
 			head = new_port;
@@ -1838,7 +1848,7 @@ nextinst:
          obptr = LookupInstance(locinst, CurrentCell);
          if (obptr != NULL) {
             do {
-	       struct bus wb;
+	       struct bus wb, wb2;
 	       char *obpinname;
 	       int obpinidx;
 
@@ -1865,6 +1875,7 @@ nextinst:
 	       }
 
 	       if (GetBus(scan->net, &wb) == 0) {
+		   char *bptr2;
 		   char *scanroot;
 		   scanroot = strsave(scan->net);
 		   brackptr = strchr(scanroot, '[');
@@ -1899,15 +1910,28 @@ nextinst:
 		   else {
 		       // Instance must be an array
 		       char netname[128];
-		       int slice;
+		       int slice, portlen;
+
+		       /* Get the array size of the port for bit slicing */
+		       portlen = (scan->width < 0) ? 1 : scan->width;
+
 		       if (wb.start >= wb.end && arraystart >= arrayend)
-			   slice = wb.start - (arraystart - i);
+			   slice = wb.start - (arraystart - i) * portlen;
 		       else if (wb.start < wb.end && arraystart > arrayend)
-			   slice = wb.start + (arraystart - i);
+			   slice = wb.start + (arraystart - i) * portlen;
 		       else if (wb.start > wb.end && arraystart < arrayend)
-			   slice = wb.start - (arraystart + i);
+			   slice = wb.start - (arraystart + i) * portlen;
 		       else // (wb.start < wb.end && arraystart < arrayend)
-			   slice = wb.start + (arraystart + i);
+			   slice = wb.start + (arraystart + i) * portlen;
+
+		       if (wb.start < wb.end) {
+			   while (slice < wb.start) slice += portlen;
+			   while (slice > wb.end) slice -= portlen;
+		       }
+		       else {
+			   while (slice > wb.start) slice -= portlen;
+			   while (slice < wb.end) slice += portlen;
+		       }
 			   
 		       sprintf(netname, "%s[%d]", scanroot, slice);
 	               if (LookupObject(netname, CurrentCell) == NULL) Node(netname);
