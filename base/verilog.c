@@ -919,7 +919,7 @@ skip_endmodule:
     }
     else if (match(nexttok, "input") || match(nexttok, "output")
 		|| match(nexttok, "inout")) {
-	struct bus wb;
+	struct bus wb, *nb;
  
 	// Parsing of ports as statements not in the module pin list.
 	wb.start = wb.end = -1;
@@ -952,6 +952,11 @@ skip_endmodule:
 			    Port(portname);
 			}
 		    }
+		    /* Also register this port as a bus */
+		    nb = NewBus();
+		    nb->start = wb.start;
+		    nb->end = wb.end;
+		    HashPtrInstall(nexttok, nb, &buses);
 		    wb.start = wb.end = -1;
 		}
 		else {
@@ -1065,6 +1070,13 @@ skip_endmodule:
 	 kl->pdefault.ival = 1;
          kl->slop.ival = 0;
       }
+      else if (nexttok[0] == '(') {
+	 /* For now, the netgen verilog parser doesn't handle `define f(X) ... */
+	 SkipNewLine(VLOG_DELIMITERS);
+	 FREE(kl->key);
+	 FREE(kl);
+	 kl = NULL;
+      }
       else if (ConvertStringToInteger(nexttok, &ival) == 1) {
 	 /* Parameter parses as an integer */
       	 kl->type = PROP_INTEGER;
@@ -1083,7 +1095,7 @@ skip_endmodule:
 	 kl->pdefault.string = strsave(nexttok);
          kl->slop.dval = 0.0;
       }
-      HashPtrInstall(kl->key, kl, &verilogdefs);
+      if (kl) HashPtrInstall(kl->key, kl, &verilogdefs);
     }
     else if (match(nexttok, "`undef")) {
       struct property *kl = NULL;
@@ -1315,6 +1327,7 @@ skip_endmodule:
       struct portelement {
 	char *name;	// Name of port in subcell
 	char *net;	// Name of net connecting to port in the parent
+	int   width;	// Width of port, if port is a bus
 	struct portelement *next;
       };
 
@@ -1322,6 +1335,22 @@ skip_endmodule:
       struct objlist *obptr;
 
       strncpy(modulename, nexttok, 99);
+
+      /* If module name is a verilog primitive, then treat the module as a  */
+      /* black box (this is not a complete list.  Preferable to use hash    */
+      /* function instead of lots of strcmp() calls).			    */
+
+      if (!strcmp(modulename, "buf") || !strcmp(modulename, "notif1") ||
+	    !strcmp(modulename, "not") || !strcmp(modulename, "and") ||
+	    !strcmp(modulename, "or") || !strcmp(modulename, "bufif0") ||
+	    !strcmp(modulename, "bufif1") || !strcmp(modulename, "notif0")) {
+
+         Printf("Module contains verilog primitive '%s'.\n", nexttok);
+         Printf("Module '%s' is not structural verilog, making black-box.\n", model);
+	 SetClass(CLASS_MODULE);
+	 goto skip_endmodule;
+      }
+
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
@@ -1424,6 +1453,7 @@ nextinst:
 	    else {
 	       new_port = (struct portelement *)CALLOC(1, sizeof(struct portelement));
 	       new_port->name = strsave(nexttok + 1);
+	       new_port->width = -1;
 	       SkipTokComments(VLOG_DELIMITERS);
 	       if (!match(nexttok, "(")) {
 	           Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
@@ -1445,25 +1475,25 @@ nextinst:
 	       }
 	       else {
 		  if (!strcmp(nexttok, "{")) {
-		     char *in_line_net = (char *)MALLOC(1);
-		     char *new_in_line_net = NULL;
-		     *in_line_net = '\0';
-		     /* In-line array---read to "}" */
+		     char *wire_bundle = (char *)MALLOC(1);
+		     char *new_wire_bundle = NULL;
+		     *wire_bundle = '\0';
+		     /* Wire bundle---read to "}" */
 		     while (nexttok) {
-			 new_in_line_net = (char *)MALLOC(strlen(in_line_net) +
+			 new_wire_bundle = (char *)MALLOC(strlen(wire_bundle) +
 				    strlen(nexttok) + 1);
 			 /* Roundabout way to do realloc() becase there is no REALLOC() */
-			 strcpy(new_in_line_net, in_line_net);
-			 strcat(new_in_line_net, nexttok);
-			 FREE(in_line_net);
-			 in_line_net = new_in_line_net;
+			 strcpy(new_wire_bundle, wire_bundle);
+			 strcat(new_wire_bundle, nexttok);
+			 FREE(wire_bundle);
+			 wire_bundle = new_wire_bundle;
 			 if (!strcmp(nexttok, "}")) break;
 			 SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 		     }
 		     if (!nexttok) {
-			 Printf("Unterminated net in pin %s\n", in_line_net);
+			 Printf("Unterminated net in pin %s\n", wire_bundle);
 		     }
-		     new_port->net = in_line_net;
+		     new_port->net = wire_bundle;
 		  }
 		  else
 		     new_port->net = strsave(nexttok);
@@ -1650,7 +1680,12 @@ nextinst:
 	    int j, result;
 	    struct objlist *bobj;
 	    char *bptr;
-	    int minnet, maxnet, testidx;
+	    int minnet, maxnet, testidx, width;
+
+	    width = portstart - portend;
+	    if (width < 0) width = -width;
+	    width++;
+	    scan->width = width;
 
 	    result = GetBus(scan->net, &wb);
 	    if (result == -1) {
@@ -1702,17 +1737,31 @@ nextinst:
 	    }
 
 	    if (result == 0) {
-	       if (((wb.start - wb.end) != (portstart - portend)) &&
-		   	((wb.start - wb.end) != (portend - portstart))) {
-		  if (((wb.start - wb.end) != (arraystart - arrayend)) &&
-			((wb.start - wb.end) != (arrayend - arraystart))) {
-		     Fprintf(stderr, "Error:  Net %s bus width does not match "
-				"port %s bus width.\n", scan->net, scan->name);
-		  }
-		  // Otherwise, net is bit-sliced across array of instances.
+	       int match = 0;
+	       int wblen, arraylen;
+
+	       arraylen = arraystart - arrayend;
+	       wblen = wb.start - wb.end;
+
+	       if (arraylen < 0) arraylen = -arraylen;
+	       if (wblen < 0) wblen = -wblen;
+
+	       arraylen++;
+	       wblen++;
+
+	       if ((scan->width * arraylen) == wblen) match = 1;
+	       else if (wblen == scan->width) match = 1;
+	       else if (wblen == arraylen) match = 1;
+	       else {
+		  Fprintf(stderr, "Warning:  Net %s bus width (%d) does not match "
+				"port %s bus width (%d) or array width (%d).\n",
+				scan->net, wblen, scan->name, scan->width, arraylen);
 	       }
-	       else if (wb.start > wb.end) {
-		  char *bptr, *cptr, cchar, *netname;
+
+	       // Net is bit-sliced across array of instances.
+
+	       if (wb.start > wb.end) {
+		  char *bptr, *cptr = NULL, cchar, *netname;
 		  unsigned char is_bundle = 0;
 		  struct bus wbb;
 
@@ -1739,8 +1788,6 @@ nextinst:
 		  else
 		     i = -1;
 
-		  if (is_bundle) *cptr = cchar;	 /* Restore bundle delimiter */
-		  
 		  while (1) {
 	             new_port = (struct portelement *)CALLOC(1,
 				sizeof(struct portelement));
@@ -1751,6 +1798,7 @@ nextinst:
 		     else
 			 sprintf(vname, "%s[%d]", netname, i); 
 	             new_port->net = strsave(vname);
+		     new_port->width = scan->width;
 
 		     if (last == NULL)
 			head = new_port;
@@ -1764,8 +1812,10 @@ nextinst:
 
 		     if (portstart > portend) j--;
 		     else j++;
-		     if (wbb.start > wbb.end) i--;
-		     else i++;
+		     if (i != -1) {
+			if (wbb.start > wbb.end) i--;
+			else i++;
+		     }
 
 		     if (is_bundle &&
 			    ((i == -1) ||
@@ -1774,6 +1824,7 @@ nextinst:
 		         if (bptr) *bptr = '[';
 
 			 netname = cptr + 1;
+			 if (cptr) *cptr = cchar; /* Restore previous bundle delimiter */
 		         cptr = strchr(netname, ',');
 			 if (cptr == NULL) cptr = strchr(netname, '}');
 			 if (cptr == NULL) cptr = netname + strlen(netname) - 1;
@@ -1786,12 +1837,11 @@ nextinst:
 				*bptr = '\0';
 			 }
 			 else i = -1;
-
-			 *cptr = cchar;	    /* Restore delimiter */
 		     }
 		  }
 		  FREE(scan);
 		  scan = last;
+		  if (cptr) *cptr = cchar; /* Restore bundle delimiter */
 	       }
 	    }
 	    else if (portstart != portend) {
@@ -1821,7 +1871,7 @@ nextinst:
          obptr = LookupInstance(locinst, CurrentCell);
          if (obptr != NULL) {
             do {
-	       struct bus wb;
+	       struct bus wb, wb2;
 	       char *obpinname;
 	       int obpinidx;
 
@@ -1848,6 +1898,7 @@ nextinst:
 	       }
 
 	       if (GetBus(scan->net, &wb) == 0) {
+		   char *bptr2;
 		   char *scanroot;
 		   scanroot = strsave(scan->net);
 		   brackptr = strchr(scanroot, '[');
@@ -1882,16 +1933,37 @@ nextinst:
 		   else {
 		       // Instance must be an array
 		       char netname[128];
-		       int slice;
-		       if (wb.start >= wb.end && arraystart >= arrayend)
-			   slice = wb.start - (arraystart - i);
-		       else if (wb.start < wb.end && arraystart > arrayend)
-			   slice = wb.start + (arraystart - i);
-		       else if (wb.start > wb.end && arraystart < arrayend)
-			   slice = wb.start - (arraystart + i);
-		       else // (wb.start < wb.end && arraystart < arrayend)
-			   slice = wb.start + (arraystart + i);
-			   
+		       int slice, portlen, siglen;
+
+		       /* Get the array size of the port for bit slicing */
+		       portlen = (scan->width < 0) ? 1 : scan->width;
+
+		       /* Get the full array size of the connecting bus */
+		       GetBus(scanroot, &wb2);
+		       siglen = wb2.start - wb2.end;
+		       if (siglen < 0) siglen = -siglen;
+		       siglen++;
+
+		       // If signal array is smaller than the portlength *
+		       // length of instance array, then the signal wraps.
+
+		       if (wb2.start >= wb2.end && arraystart >= arrayend) {
+			   slice = wb.start - (arraystart - i) * portlen;
+			   while (slice < wb2.end) slice += siglen;
+		       }
+		       else if (wb2.start < wb2.end && arraystart > arrayend) {
+			   slice = wb.start + (arraystart - i) * portlen;
+			   while (slice > wb2.end) slice -= siglen;
+		       }
+		       else if (wb2.start > wb2.end && arraystart < arrayend) {
+			   slice = wb.start - (arraystart + i) * portlen;
+			   while (slice < wb2.end) slice += siglen;
+		       }
+		       else { // (wb2.start < wb2.end && arraystart < arrayend)
+			   slice = wb.start + (arraystart + i) * portlen;
+			   while (slice > wb2.end) slice -= siglen;
+		       }
+
 		       sprintf(netname, "%s[%d]", scanroot, slice);
 	               if (LookupObject(netname, CurrentCell) == NULL) Node(netname);
 	               join(netname, obptr->name);
