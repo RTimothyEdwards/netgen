@@ -99,6 +99,31 @@ struct bus *NewBus()
 }
 
 //-------------------------------------------------------------------------
+// Find a character c in a string, assuming that string may contain
+// verilog names, where anything, including char c, may appear in the
+// string if it is a backslash-escaped name.  Only the position of
+// character c outside of a verilog name is reported.
+//-------------------------------------------------------------------------
+
+char *strvchr(char *string, char c)
+{
+    char *s;
+
+    for (s = string; *s != '\0'; s++) {
+	if (*s == '\\') {
+	    while (*s != '\0' && *s != ' ') s++;
+	    if (*s == '\0') {
+		Fprintf(stderr, "Error:  Verilog backslash-escaped name"
+			" does not end with a space.\n");
+		break;
+	    }
+	}
+	if (*s == c) return s;
+    }
+    return NULL;
+}
+
+//-------------------------------------------------------------------------
 // Get bus indexes from the notation name[a:b].  If there is only "name"
 // then look up the name in the bus hash list and return the index bounds.
 // Return 0 on success, 1 on syntax error, and -1 if signal is not a bus.
@@ -302,8 +327,8 @@ int GetBus(char *astr, struct bus *wb)
 	astr++;
 	wb->end = 0;
 	while((*astr != '\0') && (*astr != '}')) {
-	    sigend = strchr(astr, ',');
-	    if (sigend == NULL) sigend = strchr(astr, '}');
+	    sigend = strvchr(astr, ',');
+	    if (sigend == NULL) sigend = strvchr(astr, '}');
 	    if (sigend == NULL) {
 		Printf("Badly formed wire bundle \"%s\"\n", astr - 1);
 		return 1;
@@ -332,15 +357,15 @@ int GetBus(char *astr, struct bus *wb)
 	while (*aastr != ' ' && *aastr != '\\' && *aastr != '\0') aastr++;
     }
 
-    brackstart = strchr(aastr, '[');
+    brackstart = strvchr(aastr, '[');
     if (brackstart != NULL) {
-	brackend = strchr(aastr, ']');
+	brackend = strvchr(aastr, ']');
 	if (brackend == NULL) {
 	    Printf("Badly formed array notation \"%s\"\n", astr);
 	    return 1;
 	}
 	*brackend = '\0';
-	colonptr = strchr(aastr, ':');
+	colonptr = strvchr(aastr, ':');
 	if (colonptr) *colonptr = '\0';
 	result = sscanf(brackstart + 1, "%d", &start);
 	if (colonptr) *colonptr = ':';
@@ -1184,7 +1209,7 @@ skip_endmodule:
 	else {	    /* "assign" */
 	    SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 	    if (GetBus(nexttok, &wb) == 0) {
-		char *aptr = strchr(nexttok, '[');
+		char *aptr = strvchr(nexttok, '[');
 		if (aptr != NULL) {
 		    *aptr = '\0';
 		    /* Find object of first net in bus */
@@ -1238,7 +1263,7 @@ skip_endmodule:
 		}
 		else {
 		    if (GetBus(nexttok, &wb2) == 0) {
-			char *aptr = strchr(nexttok, '[');
+			char *aptr = strvchr(nexttok, '[');
 			j = wb2.start;
 			if (aptr != NULL) {
 			    *aptr = '\0';
@@ -1699,7 +1724,7 @@ nextinst:
 
 		for (bobj = CurrentCell->cell; bobj; bobj = bobj->next) {
 		    if (bobj->type == PORT) {
-			if ((bptr = strchr(bobj->name, '[')) != NULL) {
+			if ((bptr = strvchr(bobj->name, '[')) != NULL) {
 			    *bptr = '\0';
 			    if (!strcmp(bobj->name, scan->net)) {
 				*bptr = '[';
@@ -1711,7 +1736,7 @@ nextinst:
 			}
 		    }
 		    else if (bobj->type == NODE) {
-			if ((bptr = strchr(bobj->name, '[')) != NULL) {
+			if ((bptr = strvchr(bobj->name, '[')) != NULL) {
 			    *bptr = '\0';
 			    if (!strcmp(bobj->name, scan->net)) {
 				if (sscanf(bptr + 1, "%d", &testidx) == 1) {
@@ -1772,8 +1797,8 @@ nextinst:
 		  if (*netname == '{') {
 		     is_bundle = 1;
 		     netname++;
-		     cptr = strchr(netname, ',');
-		     if (cptr == NULL) cptr = strchr(netname, '}');
+		     cptr = strvchr(netname, ',');
+		     if (cptr == NULL) cptr = strvchr(netname, '}');
 		     if (cptr == NULL) cptr = netname + strlen(netname) - 1;
 		     cchar = *cptr;
 		     *cptr = '\0';
@@ -1782,7 +1807,7 @@ nextinst:
 		  // Remove indexed part of scan->net
 		  if (GetBus(netname, &wbb) == 0) {
 		     i = wbb.start;
-		     if ((bptr = strchr(netname, '[')) != NULL)
+		     if ((bptr = strvchr(netname, '[')) != NULL)
 			 *bptr = '\0';
 		  }
 		  else
@@ -1825,15 +1850,15 @@ nextinst:
 
 			 netname = cptr + 1;
 			 if (cptr) *cptr = cchar; /* Restore previous bundle delimiter */
-		         cptr = strchr(netname, ',');
-			 if (cptr == NULL) cptr = strchr(netname, '}');
+		         cptr = strvchr(netname, ',');
+			 if (cptr == NULL) cptr = strvchr(netname, '}');
 			 if (cptr == NULL) cptr = netname + strlen(netname) - 1;
 			 cchar = *cptr;
 			 *cptr = '\0';
 
 			 if (GetBus(netname, &wbb) == 0) {
 			    i = wbb.start;
-			    if ((bptr = strchr(netname, '[')) != NULL)
+			    if ((bptr = strvchr(netname, '[')) != NULL)
 				*bptr = '\0';
 			 }
 			 else i = -1;
@@ -1901,7 +1926,7 @@ nextinst:
 		   char *bptr2;
 		   char *scanroot;
 		   scanroot = strsave(scan->net);
-		   brackptr = strchr(scanroot, '[');
+		   brackptr = strvchr(scanroot, '[');
 		   if (brackptr) *brackptr = '\0';
 
 		   if (arraystart == -1) {
