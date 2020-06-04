@@ -301,20 +301,20 @@ int GetNextLineNoNewline(char *delimiter)
 
 	if (linesize == 0) {
 	    /* Allocate memory for line */
-	    linesize = 500;
-	    line = (char *)MALLOC(linesize);
-	    linetok = (char *)MALLOC(linesize);
+	    linesize = 2000;
+	    line = (char *)MALLOC(linesize + 1);
+	    linetok = (char *)MALLOC(linesize + 1);
 	}
 	fgets(line, linesize, infile);
 	while (strlen(line) == linesize - 1) {
-	    newbuf = (char *)MALLOC(linesize + 500);
+	    newbuf = (char *)MALLOC(linesize + 501);
 	    strcpy(newbuf, line);
 	    FREE(line);
 	    line = newbuf;
 	    fgets(line + linesize - 1, 501, infile);
 	    linesize += 500;
 	    FREE(linetok);
-	    linetok = (char *)MALLOC(linesize);
+	    linetok = (char *)MALLOC(linesize + 1);
 	}
 
 	/* Check for substitutions (verilog only).  Make sure linetok is    */
