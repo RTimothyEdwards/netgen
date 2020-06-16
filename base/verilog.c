@@ -1786,7 +1786,7 @@ nextinst:
 	       // Net is bit-sliced across array of instances.
 
 	       if (wb.start > wb.end) {
-		  char *bptr, *cptr = NULL, cchar, *netname;
+		  char *bptr = NULL, *cptr = NULL, cchar, *netname;
 		  unsigned char is_bundle = 0;
 		  struct bus wbb;
 
