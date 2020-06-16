@@ -2982,8 +2982,7 @@ _netcmp_equate(ClientData clientData,
 	    else {
 		Fprintf(stdout, "Equate pins:  cell %s and/or %s "
 			"has no elements.\n", name1, name2);
-		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
-		return TCL_OK;
+		/* This is not necessarily an error, so go ahead and match pins. */
 	    }
 	 }
 	 if (ElementClasses == NULL) {
