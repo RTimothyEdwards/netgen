@@ -1918,11 +1918,15 @@ nextinst:
 		  scan = scan->next;
 	       }
 	       if (scan == NULL) {
-		  Fprintf(stderr, "Error:  No match in call for pin %s\n", obpinname);
-		  break;
-	       }
+		  char localnet[100];
 
-	       if (GetBus(scan->net, &wb) == 0) {
+		  /* Assume an implicit unconnected pin */
+		  sprintf(localnet, "_noconnect_%d_", localcount++);
+		  Node(localnet);
+		  join(localnet, obptr->name);
+		  Fprintf(stderr, "Note:  Implicit pin %s\n", obpinname);
+	       }
+	       else if (GetBus(scan->net, &wb) == 0) {
 		   char *bptr2;
 		   char *scanroot;
 		   scanroot = strsave(scan->net);
