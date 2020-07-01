@@ -289,6 +289,7 @@ int GetNextLineNoNewline(char *delimiter)
     char *newbuf;
     int testc;
     int nested = 0;
+    int llen;
 
     if (feof(infile)) return -1;
 
@@ -306,12 +307,25 @@ int GetNextLineNoNewline(char *delimiter)
 	    linetok = (char *)MALLOC(linesize + 1);
 	}
 	fgets(line, linesize, infile);
-	while (strlen(line) == linesize - 1) {
+	/* Immediately resolve backslash-EOL */
+	llen = strlen(line);
+	while ((llen > 1) && (llen < linesize - 1) && *(line + llen - 2) == '\\') {
+	    *(line + llen - 2) = '\n';
+	    fgets(line + llen - 1, linesize - llen + 1, infile);
+	    llen = strlen(line);
+	}
+	while (llen == linesize - 1) {
 	    newbuf = (char *)MALLOC(linesize + 501);
 	    strcpy(newbuf, line);
 	    FREE(line);
 	    line = newbuf;
 	    fgets(line + linesize - 1, 501, infile);
+	    llen = strlen(line);
+	    while ((llen > 1) && (llen < linesize - 1) && *(line + llen - 2) == '\\') {
+		*(line + llen - 2) = '\n';
+		fgets(line + llen - 1, linesize - llen + 1, infile);
+		llen = strlen(line);
+	    }
 	    linesize += 500;
 	    FREE(linetok);
 	    linetok = (char *)MALLOC(linesize + 1);
@@ -498,6 +512,9 @@ void GetNextLine(char *delimiter)
 
 /*----------------------------------------------------------------------*/
 /* Return a pointer to the line at the position of nexttok		*/
+/* This is used only when returning the entire line, untokenized, and	*/
+/* is only called by the verilog read routine when reading the value of	*/
+/* a `define statement.							*/
 /*----------------------------------------------------------------------*/
 
 char *GetLineAtTok()
