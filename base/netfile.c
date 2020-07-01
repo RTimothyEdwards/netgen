@@ -329,7 +329,7 @@ int GetNextLineNoNewline(char *delimiter)
 	    for (s = line; *s != '\0'; s++) {
 		if (*s == '`') {
 		    w = s + 1;
-		    while (isalnum(*w)) w++;
+		    while (isalnum(*w) || (*w == '_') || (*w == '$')) w++;
 		    e = *w;
 		    *w = '\0';
 		    kl = (struct property *)HashLookup(s + 1, definitions);
@@ -365,7 +365,7 @@ int GetNextLineNoNewline(char *delimiter)
 	    for (s = line; *s != '\0'; s++) {
 		if (*s == '`') {
 		    w = s + 1;
-		    while (isalnum(*w)) w++;
+		    while (isalnum(*w) || (*w == '_') || (*w == '$')) w++;
 		    e = *w;
 		    *w = '\0';
 		    kl = (struct property *)HashLookup(s + 1, definitions);
@@ -494,6 +494,21 @@ void GetNextLine(char *delimiter)
     do {
 	if (GetNextLineNoNewline(delimiter) == -1) return;
     } while (nexttok == NULL);
+}
+
+/*----------------------------------------------------------------------*/
+/* Return a pointer to the line at the position of nexttok		*/
+/*----------------------------------------------------------------------*/
+
+char *GetLineAtTok()
+{
+    char *lpos;
+
+    if (nexttok == NULL) return NULL;
+    if (line == NULL) return NULL;
+
+    lpos = strstr(line, nexttok);
+    return lpos;
 }
 
 /*----------------------------------------------------------------------*/
