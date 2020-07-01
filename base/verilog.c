@@ -1218,9 +1218,11 @@ skip_endmodule:
 		    lhs = LookupObject(nodename, CurrentCell);
 		    *aptr = '[';
 		}
+		else strcpy(noderoot, nexttok);
 	    }
 	    else {
 		lhs = LookupObject(nexttok, CurrentCell);
+		strcpy(noderoot, nexttok);
 	    }
 	    SkipTokComments(VLOG_DELIMITERS);
 	    if (lhs && ((!nexttok) || (!match(nexttok, "=")))) {
