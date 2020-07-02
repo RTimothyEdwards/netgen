@@ -1115,10 +1115,17 @@ skip_endmodule:
          kl->slop.dval = 0.01;		// One percent default
       }
       else {
-	 /* Treat the parameter as a string */
+         char *toks;
+
+	 /* Treat the parameter as a string; BUT pull everything to */
+	 /* EOL, not just the current token.			    */
+	 toks = GetLineAtTok();
+
       	 kl->type = PROP_STRING;
-	 kl->pdefault.string = strsave(nexttok);
+	 kl->pdefault.string = strsave(toks);
          kl->slop.dval = 0.0;
+
+	 SkipNewLine(VLOG_DELIMITERS);
       }
       if (kl) HashPtrInstall(kl->key, kl, &verilogdefs);
     }
@@ -1218,9 +1225,11 @@ skip_endmodule:
 		    lhs = LookupObject(nodename, CurrentCell);
 		    *aptr = '[';
 		}
+		else strcpy(noderoot, nexttok);
 	    }
 	    else {
 		lhs = LookupObject(nexttok, CurrentCell);
+		strcpy(noderoot, nexttok);
 	    }
 	    SkipTokComments(VLOG_DELIMITERS);
 	    if (lhs && ((!nexttok) || (!match(nexttok, "=")))) {
