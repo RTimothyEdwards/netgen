@@ -1980,7 +1980,7 @@ void IncludeSpice(char *fname, int parent, struct cellstack **CellStackPtr,
 	/* helps, if the file didn't have an extension.  But	*/
 	/* really, we're getting desperate at this point.	*/
 
-	if (strchr(fname, '.') == NULL) {
+	if (strrchr(fname, '.') == NULL) {
            SetExtension(name, fname, SPICE_EXTENSION);
            filenum = OpenParseFile(name, parent);
 	   if (filenum < 0) {

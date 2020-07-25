@@ -3145,7 +3145,9 @@ void DescendCountQueue(struct nlist *tc, int *level, int loclevel)
       if (ob->type == FIRSTPIN) {
 	 /* First check if there is a class equivalent */
 	 tcsub = LookupCellFile(ob->model.class, tc->file);
-	 if (!tcsub || (tcsub->class != CLASS_SUBCKT)) continue;
+	 /* Module (black-box) class needs pin checking */
+	 if (!tcsub || ((tcsub->class != CLASS_SUBCKT) &&
+		    (tcsub->class != CLASS_MODULE))) continue;
 	 else if (tcsub == tc) continue;
 	 DescendCountQueue(tcsub, level, loclevel + 1);
       }
@@ -3238,7 +3240,8 @@ void DescendCompareQueue(struct nlist *tc, struct nlist *tctop, int stoplevel,
       tcsub = NULL;
       if (ob->type == FIRSTPIN) {
 	 tcsub = LookupCellFile(ob->model.class, tc->file);
-	 if (!tcsub || (tcsub->class != CLASS_SUBCKT)) continue;
+	 if (!tcsub || ((tcsub->class != CLASS_SUBCKT) &&
+		    (tcsub->class != CLASS_MODULE))) continue;
 	 else if (tcsub == tc) continue;
 	 DescendCompareQueue(tcsub, tctop, stoplevel, loclevel + 1, flip);
       }
