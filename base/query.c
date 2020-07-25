@@ -1066,7 +1066,7 @@ void Query(void)
       ActelLib();
       break;
     case 'S':
-      promptstring("Read SPICE (.ckt) file? ", repstr);
+      promptstring("Read SPICE (.spice) file? ", repstr);
       ReadSpice(repstr, &filenum);
       break;
     case 'V':

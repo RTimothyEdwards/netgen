@@ -798,7 +798,7 @@ int OpenParseFile(char *name, int fnum)
   FILE *locfile;
   struct filestack *newfile;
 
-  locfile = fopen(name,"r");
+  locfile = fopen(name, "r");
   linenum = 0;
   /* reset the token scanner */
   nexttok = NULL;  
@@ -883,7 +883,12 @@ char *ReadNetlist(char *fname, int *fnum)
       {SPICE_EXTENSION, ReadSpice},
       {SPICE_EXT2, ReadSpice},
       {SPICE_EXT3, ReadSpice},
+      {SPICE_EXT4, ReadSpice},
+      {SPICE_EXT5, ReadSpice},
+      {SPICE_EXT6, ReadSpice},
+      {SPICE_EXT7, ReadSpice},
       {VERILOG_EXTENSION, ReadVerilog},
+      {SYS_VERILOG_EXTENSION, ReadVerilog},
       {NETGEN_EXTENSION, ReadNetgenFile},
       {NULL, NULL}
     };

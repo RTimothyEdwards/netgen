@@ -9,11 +9,16 @@
 #define SIM_EXTENSION ".sim"
 #define SPICE_EXTENSION ".spice"
 #define SPICE_EXT2 ".spc"
-#define SPICE_EXT3 ".fspc"
+#define SPICE_EXT3 ".sp"
+#define SPICE_EXT4 ".spi"
+#define SPICE_EXT5 ".fspc"
+#define SPICE_EXT6 ".cir"
+#define SPICE_EXT7 ".ckt"
 #define NETGEN_EXTENSION ".ntg"
 #define CCODE_EXTENSION ".c.code"
 #define ESACAP_EXTENSION ".esa"
 #define VERILOG_EXTENSION ".v"
+#define SYS_VERILOG_EXTENSION ".sv"
 
 #define LINELENGTH 80
 
