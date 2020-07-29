@@ -2069,14 +2069,21 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   CurrentCell = NULL;
 
   if ((filenum = OpenParseFile(fname, *fnum)) < 0) {
-    char name[100];
 
-    SetExtension(name, fname, VERILOG_EXTENSION);
-    if ((filenum = OpenParseFile(name, *fnum)) < 0) {
-      Fprintf(stderr,"Error in Verilog file read: No file %s\n",name);
-      *fnum = filenum;
-      return NULL;
+    if (strchr(fname, '.') == NULL) {
+      char name[1024];
+      SetExtension(name, fname, VERILOG_EXTENSION);
+      if ((filenum = OpenParseFile(name, *fnum)) < 0) {
+        Fprintf(stderr, "Error in Verilog file read: No file %s\n", name);
+        *fnum = filenum;
+        return NULL;
+      }
     }    
+    else {
+       Fprintf(stderr, "Error in Verilog file read: No file %s\n", fname);
+       *fnum = filenum;
+       return NULL;
+    }
   }
 
   /* All Verilog file reading is case sensitive.  However:  if	*/
