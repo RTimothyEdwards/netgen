@@ -5882,7 +5882,7 @@ int ResolveAutomorphisms()
       /* convergence, and repeat.				*/
 
       E1 = E2 = EC->elements;
-      while (E1 != NULL) {
+      while (E1 != NULL && E2 != NULL) {
           while (E1->graph != Circuit1->file) E1 = E1->next;
           while (E2->graph != Circuit2->file) E2 = E2->next;
 	  Magic(newhash);
@@ -5919,7 +5919,7 @@ int ResolveAutomorphisms()
       /* convergence, and repeat.				*/
 
       N1 = N2 = NC->nodes;
-      while (N1 != NULL) {
+      while (N1 != NULL && N2 != NULL) {
           while (N1->graph != Circuit1->file) N1 = N1->next;
           while (N2->graph != Circuit2->file) N2 = N2->next;
 	  Magic(newhash);
