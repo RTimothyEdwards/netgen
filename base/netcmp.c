@@ -5841,21 +5841,20 @@ int ResolveAutomorphsByProperty()
 /*
  *-------------------------------------------------------------------------
  *
- * ResolveAutormorphisms --
+ * ResolveElementAutomorphisms --
  *
- * Arbitrarily equivalence one pair of elements within an automorphic class
+ * Apply arbitrary symmetry breaking to symmetric element lists, then
+ * iterate exhaustively to resolve all automorphisms.
  *
  * Return value is the same as VerifyMatching()
  *
  *-------------------------------------------------------------------------
  */
 
-int ResolveAutomorphisms()
+int ResolveElementAutomorphisms()
 {
   struct ElementClass *EC;
-  struct NodeClass *NC;
   struct Element *E;
-  struct Node *N;
   int C1, C2;
 
   for (EC = ElementClasses; EC != NULL; EC = EC->next) {
@@ -5891,9 +5890,37 @@ int ResolveAutomorphisms()
 	  E1 = E1->next;
 	  E2 = E2->next;
       }
-      goto converge;
     }
   }
+
+  FractureElementClass(&ElementClasses); 
+  FractureNodeClass(&NodeClasses); 
+  ExhaustiveSubdivision = 1;
+  while (!Iterate() && VerifyMatching() != -1); 
+  return(VerifyMatching());
+}
+
+/*
+ *-------------------------------------------------------------------------
+ *
+ * ResolveNodeAutomorphisms --
+ *
+ * Apply arbitrary symmetry breaking to symmetric node lists, then iterate
+ * exhaustively to resolve all automorphisms.  Normally, all automorphisms
+ * should be resolved by ResolveElementAutomorphisms().  It is likely true
+ * that this routine will never run, by definition.
+ *
+ * Return value is the same as VerifyMatching()
+ *
+ *-------------------------------------------------------------------------
+ *
+ */
+
+int ResolveNodeAutomorphisms()
+{
+  struct Node *N;
+  struct NodeClass *NC;
+  int C1, C2;
 
   for (NC = NodeClasses; NC != NULL; NC = NC->next) {
     struct Node *N1, *N2;
@@ -5928,16 +5955,37 @@ int ResolveAutomorphisms()
 	  N1 = N1->next;
 	  N2 = N2->next;
       }
-      goto converge;
     }
   }
 
- converge:
   FractureElementClass(&ElementClasses); 
   FractureNodeClass(&NodeClasses); 
   ExhaustiveSubdivision = 1;
   while (!Iterate() && VerifyMatching() != -1); 
   return(VerifyMatching());
+}
+
+/*
+ *-------------------------------------------------------------------------
+ *
+ * ResolveAutormorphisms --
+ *
+ * Arbitrarily equivalence one pair of elements within an automorphic class
+ *
+ * Return value is the same as VerifyMatching()
+ *
+ *-------------------------------------------------------------------------
+ */
+
+int ResolveAutomorphisms()
+{
+    int result;
+
+    result = ResolveElementAutomorphisms();
+    if (result != 0)
+	result = ResolveNodeAutomorphisms();
+
+    return result;
 }
 
 /*------------------------------------------------------*/
