@@ -5874,11 +5874,23 @@ int ResolveAutomorphisms()
     }
     if (C1 == C2 && C1 != 1) {
       unsigned long newhash;
-      Magic(newhash);
-      E1->hashval = newhash;
-      E2->hashval = newhash;
-      /* Diagnostic */
-      // Fprintf(stdout, "Equivalencing 1 element out of %d.\n", C2);
+
+      /* Do all of them at once. */
+      /* NOTE:  If this were to fail for some reason, it would	*/
+      /* probably be necessary to do this the original slow way	*/
+      /* which is to rehash one pair at a time and iterate to	*/
+      /* convergence, and repeat.				*/
+
+      E1 = E2 = EC->elements;
+      while (E1 != NULL) {
+          while (E1->graph != Circuit1->file) E1 = E1->next;
+          while (E2->graph != Circuit2->file) E2 = E2->next;
+	  Magic(newhash);
+	  E1->hashval = newhash;
+	  E2->hashval = newhash;
+	  E1 = E1->next;
+	  E2 = E2->next;
+      }
       goto converge;
     }
   }
@@ -5899,11 +5911,23 @@ int ResolveAutomorphisms()
     }
     if (C1 == C2 && C1 != 1) {
       unsigned long newhash;
-      Magic(newhash);
-      N1->hashval = newhash;
-      N2->hashval = newhash;
-      /* Diagnostic */
-      // Fprintf(stdout, "Equivalencing 1 node out of %d.\n", C2);
+
+      /* Do all of them at once */
+      /* NOTE:  If this were to fail for some reason, it would	*/
+      /* probably be necessary to do this the original slow way	*/
+      /* which is to rehash one pair at a time and iterate to	*/
+      /* convergence, and repeat.				*/
+
+      N1 = N2 = NC->nodes;
+      while (N1 != NULL) {
+          while (N1->graph != Circuit1->file) N1 = N1->next;
+          while (N2->graph != Circuit2->file) N2 = N2->next;
+	  Magic(newhash);
+	  N1->hashval = newhash;
+	  N2->hashval = newhash;
+	  N1 = N1->next;
+	  N2 = N2->next;
+      }
       goto converge;
     }
   }
