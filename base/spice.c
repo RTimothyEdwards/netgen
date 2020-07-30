@@ -1883,14 +1883,21 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
   CurrentCell = NULL;
 
   if ((filenum = OpenParseFile(fname, *fnum)) < 0) {
-    char name[100];
 
-    SetExtension(name, fname, SPICE_EXTENSION);
-    if ((filenum = OpenParseFile(name, *fnum)) < 0) {
-      Fprintf(stderr,"Error in SPICE file read: No file %s\n",name);
+    if (strrchr(fname, '.') == NULL) {
+      char name[1024];
+      SetExtension(name, fname, SPICE_EXTENSION);
+      if ((filenum = OpenParseFile(name, *fnum)) < 0) {
+        Fprintf(stderr, "Error in SPICE file read: No file %s\n", name);
+        *fnum = filenum;
+        return NULL;
+      }
+    }    
+    else {
+      Fprintf(stderr, "Error in SPICE file read: No file %s\n", fname);
       *fnum = filenum;
       return NULL;
-    }    
+    }
   }
 
   /* Make sure all SPICE file reading is case insensitive */

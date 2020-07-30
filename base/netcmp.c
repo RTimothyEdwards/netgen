@@ -5286,8 +5286,10 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
       obn1 = tp1;
    for (tp2 = ob2->next; (tp2 != NULL) && tp2->type > FIRSTPIN; tp2 = tp2->next)
       obn2 = tp2;
-   if (tp1 && (tp1->type == FIRSTPIN)) tp1 = NULL;	/* tp1 had no properties */
-   if (tp2 && (tp2->type == FIRSTPIN)) tp2 = NULL;	/* tp2 had no properties */
+   if (tp1 && ((tp1->type == FIRSTPIN) || (tp1->type == NODE)))
+      tp1 = NULL;	/* tp1 had no properties */
+   if (tp2 && ((tp2->type == FIRSTPIN) || (tp2->type == NODE)))
+      tp2 = NULL;	/* tp2 had no properties */
 
    /* Check if there are any properties to match */
 
@@ -5688,21 +5690,20 @@ int ResolveAutomorphsByPin()
     struct Node *N;
     int C1, C2;
     unsigned long newhash, orighash;
-    struct nlist *tc1, *tc2;
-    struct objlist *tob, *ob1, *ob2;
     int portnum;
+
+    /* Diagnostic */
+    Fprintf(stdout, "Resolving automorphisms by pin name.\n");
 
     for (NC = NodeClasses; NC != NULL; NC = NC->next) {
 	struct Node *N1, *N2;
 	C1 = C2 = 0;
 	N1 = N2 = NULL;
 	for (N = NC->nodes; N != NULL; N = N->next) {
-	    if (N->graph == Circuit1->file) {
+	    if (N->graph == Circuit1->file)
  		C1++;
-	    }
-	    else {
+	    else
 		C2++;
-	    }
 	}
 	if (C1 == C2 && C1 != 1) {
 
@@ -5714,7 +5715,6 @@ int ResolveAutomorphsByPin()
 	    orighash = NC->nodes->hashval;
 	    for (N1 = NC->nodes; N1 != NULL; N1 = N1->next) {
 		if (N1->hashval != orighash) continue;
-		ob1 = N1->object;
 		for (N2 = N1->next; N2 != NULL; N2 = N2->next) {
 		    if ((N2->graph != N1->graph) &&
 				(*matchfunc)(N2->object->name, N1->object->name)) {
@@ -5752,6 +5752,9 @@ int ResolveAutomorphsByProperty()
     int C1, C2, result, badmatch;
     unsigned long orighash, newhash;
 
+    /* Diagnostic */
+    Fprintf(stdout, "Resolving automorphisms by property value.\n");
+
     for (EC = ElementClasses; EC != NULL; EC = EC->next) {
 	struct Element *E1, *E2;
 	C1 = C2 = 0;
@@ -5788,7 +5791,6 @@ int ResolveAutomorphsByProperty()
 		badmatch = FALSE;
 		for (E2 = E1->next; E2 != NULL; E2 = E2->next) {
 		    if (E2->hashval != orighash) continue;
-		    if (E2->graph == E1->graph) continue;
 		    if (E1->graph == Circuit1->file) 
 			PropertyMatch(E1->object, E2->object, FALSE, FALSE, &result);
 		    else
@@ -5872,9 +5874,23 @@ int ResolveAutomorphisms()
     }
     if (C1 == C2 && C1 != 1) {
       unsigned long newhash;
-      Magic(newhash);
-      E1->hashval = newhash;
-      E2->hashval = newhash;
+
+      /* Do all of them at once. */
+      /* NOTE:  If this were to fail for some reason, it would	*/
+      /* probably be necessary to do this the original slow way	*/
+      /* which is to rehash one pair at a time and iterate to	*/
+      /* convergence, and repeat.				*/
+
+      E1 = E2 = EC->elements;
+      while (E1 != NULL) {
+          while (E1->graph != Circuit1->file) E1 = E1->next;
+          while (E2->graph != Circuit2->file) E2 = E2->next;
+	  Magic(newhash);
+	  E1->hashval = newhash;
+	  E2->hashval = newhash;
+	  E1 = E1->next;
+	  E2 = E2->next;
+      }
       goto converge;
     }
   }
@@ -5895,9 +5911,23 @@ int ResolveAutomorphisms()
     }
     if (C1 == C2 && C1 != 1) {
       unsigned long newhash;
-      Magic(newhash);
-      N1->hashval = newhash;
-      N2->hashval = newhash;
+
+      /* Do all of them at once */
+      /* NOTE:  If this were to fail for some reason, it would	*/
+      /* probably be necessary to do this the original slow way	*/
+      /* which is to rehash one pair at a time and iterate to	*/
+      /* convergence, and repeat.				*/
+
+      N1 = N2 = NC->nodes;
+      while (N1 != NULL) {
+          while (N1->graph != Circuit1->file) N1 = N1->next;
+          while (N2->graph != Circuit2->file) N2 = N2->next;
+	  Magic(newhash);
+	  N1->hashval = newhash;
+	  N2->hashval = newhash;
+	  N1 = N1->next;
+	  N2 = N2->next;
+      }
       goto converge;
     }
   }
@@ -7356,7 +7386,7 @@ int Compare(char *cell1, char *cell2)
 
   /* arbitrarily resolve automorphisms */
   Fprintf(stdout, "\n");
-  Fprintf(stdout, "Arbitrarily resolving automorphisms:\n");
+  Fprintf(stdout, "Resolving automorphisms by arbitrary symmetry breaking:\n");
   while ((automorphisms = ResolveAutomorphisms()) > 0) ;
   if (automorphisms == -1) {
     MatchFail(cell1, cell2);
