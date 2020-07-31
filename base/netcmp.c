@@ -5246,6 +5246,12 @@ void DumpNetworkAll(char *model, int file)
 /* NOTE:  ob1 must belong to Circuit1, and ob2 must belong to	*/
 /* Circuit2.  The calling procedure is responsble for ensuring	*/
 /* that this is true.						*/
+/*								*/
+/* NOTE:  This routine assumes that if file1 == file2 or if	*/
+/* file2 != Circuit1->graph, then "do_print" is FALSE.  It 	*/
+/* hard-codes "Circuit 1" and "Circuit 2" in most print		*/
+/* statements.  file1 == file2 only when checking properties	*/
+/* for symmetry breaking, where nothing is printed.		*/
 /*--------------------------------------------------------------*/
 
 #ifdef TCL_NETGEN
@@ -5253,8 +5259,9 @@ Tcl_Obj *
 #else
 void
 #endif
-PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
-		int do_list, int *retval)
+PropertyMatch(struct objlist *ob1, int file1,
+		struct objlist *ob2, int file2,
+		int do_print, int do_list, int *retval)
 {
    struct nlist *tc1, *tc2;
    struct objlist *tp1, *tp2, *obn1, *obn2;
@@ -5268,8 +5275,22 @@ PropertyMatch(struct objlist *ob1, struct objlist *ob2, int do_print,
    Tcl_Obj *proplist = NULL, *mpair, *mlist;
 #endif
 
-   tc1 = LookupCellFile(ob1->model.class, Circuit1->file);
-   tc2 = LookupCellFile(ob2->model.class, Circuit2->file);
+   tc1 = LookupCellFile(ob1->model.class, file1);
+   tc2 = LookupCellFile(ob2->model.class, file2);
+
+   if (tc1 == NULL || tc2 == NULL) {
+      if (tc1 == NULL)
+	 Fprintf(stdout, "Error:  Circuit %d device \"%s\" not found!\n",
+		    file1, ob1->model.class);
+      else
+	 Fprintf(stdout, "Error:  Circuit %d device \"%s\" not found!\n",
+		    file2, ob2->model.class);
+#ifdef TCL_NETGEN
+      return NULL;
+#else
+      return;
+#endif
+   }
 
    if (tc1->classhash != tc2->classhash) {
       *retval = -1;
@@ -5550,9 +5571,11 @@ PropertyCheck(struct ElementClass *EC, int do_print, int do_list, int *rval)
       E2 = Etmp;
    }
 #ifdef TCL_NETGEN
-   return PropertyMatch(E1->object, E2->object, do_print, do_list, rval);
+   return PropertyMatch(E1->object, E1->graph, E2->object, E2->graph,
+		do_print, do_list, rval);
 #else
-   PropertyMatch(E1->object, E2->object, do_print, do_list, rval);
+   PropertyMatch(E1->object, E1->graph, E2->object, E2->graph,
+		do_print, do_list, rval);
 #endif
 }
 
@@ -5791,10 +5814,8 @@ int ResolveAutomorphsByProperty()
 		badmatch = FALSE;
 		for (E2 = E1->next; E2 != NULL; E2 = E2->next) {
 		    if (E2->hashval != orighash) continue;
-		    if (E1->graph == Circuit1->file) 
-			PropertyMatch(E1->object, E2->object, FALSE, FALSE, &result);
-		    else
-			PropertyMatch(E2->object, E1->object, FALSE, FALSE, &result);
+		    PropertyMatch(E1->object, E1->graph, E2->object, E2->graph,
+			    FALSE, FALSE, &result);
 		    if (result == 0) {
 			E2->hashval = newhash;
 			if (E2->graph == E1->graph)
