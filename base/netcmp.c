@@ -6918,6 +6918,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       if (*(cover + i) == (char)0) {
 	 j = 0;
          for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
+	    char *name1, *name2;
+
 	    if (!IsPort(ob2)) break;
 
 	    bangptr2 = strrchr(ob2->name, '!');
@@ -6925,7 +6927,14 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       *bangptr2 = '\0';
 	    else bangptr2 = NULL;
 
-	    if ((*matchfunc)(ob1->name, ob2->name)) {
+	    name1 = ob1->name;
+	    name2 = ob2->name;
+
+	    /* Recognize proxy pins as matching */
+	    if (!strncmp(name1, "proxy", 5)) name1 +=5;
+	    if (!strncmp(name2, "proxy", 5)) name2 +=5;
+
+	    if ((*matchfunc)(name1, name2)) {
 	       ob2->model.port = i;		/* save order */
 	       *(cover + i) = (char)1;
 
@@ -7032,7 +7041,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
          obn->name = (char *)MALLOC(6 + strlen(ob2->name));
          sprintf(obn->name, "proxy%s", ob2->name);
          obn->type = UNKNOWN;
-         obn->model.port = -1;
+         // obn->model.port = -1;
          obn->instance.name = NULL;
          obn->node = -1;
 	 if (ob1 == tc1->cell) {
@@ -7101,6 +7110,22 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
          obn->model.port = (i - j);
          obn->instance.name = NULL;
          obn->node = -1;
+
+	 if (Debug == 0) {
+	    if (strcmp(ob1->name, "(no pins)")) {
+	       for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
+	       for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
+	       snprintf(ostr, left_col_end, "%s", ob1->name);
+	       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
+	       for (m = 0; m < right_col_end + 1; m++)
+		  if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+	       Fprintf(stdout, ostr);
+	    }
+	 }
+	 else {
+	    Fprintf(stderr, "No netlist match for cell %s pin %s\n",
+				tc1->name, ob1->name);
+	 }
 
 	 if (ob2 == tc2->cell) {
 	    obn->next = ob2;
