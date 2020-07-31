@@ -2094,6 +2094,11 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
      Printf("Warning:  A case-insensitive file has been read and so the	"
 		"verilog file must be treated case-insensitive to match.\n");
   }
+  else {
+     matchfunc = match;
+     matchintfunc = matchfile;
+     hashfunc = hash;
+  }
 
   InitializeHashTable(&verilogparams, OBJHASHSIZE);
   InitializeHashTable(&verilogdefs, OBJHASHSIZE);

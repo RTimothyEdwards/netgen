@@ -1900,10 +1900,19 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
     }
   }
 
-  /* Make sure all SPICE file reading is case insensitive */
-  matchfunc = matchnocase;
-  matchintfunc = matchfilenocase;
-  hashfunc = hashnocase;
+  /* Make sure all SPICE file reading is case insensitive   */
+  /* BUT if a verilog file was read before it, then it will */
+  /* be forced to be case sensitive, caveat end-user.	    */
+
+  if (matchfunc == match) {
+      Printf("Warning:  A case-sensitive file has been read and so the "
+                "SPICE netlist must be treated case-sensitive to match.\n");
+  }
+  else {
+      matchfunc = matchnocase;
+      matchintfunc = matchfilenocase;
+      hashfunc = hashnocase;
+  }
 
   InitializeHashTable(&spiceparams, OBJHASHSIZE);
 

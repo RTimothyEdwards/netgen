@@ -6692,7 +6692,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    struct NodeClass *NC;
    struct Node *N1, *N2;
    int i, j, k, m, a, b, swapped, numnodes, numorig;
-   int result = 1, haspins = 0;
+   int result = 1, haspins = 0, notempty = 0;
    int hasproxy1 = 0, hasproxy2 = 0;
    int needclean1 = 0, needclean2 = 0;
    char *ostr;
@@ -6857,12 +6857,15 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			/* has been left orphaned after flattening.  If	*/
 			/* disconnected, set its node number to -2.	*/
 
+			notempty = 0;
 			for (obt = ob1->next; obt; obt = obt->next) {
-			   if (obt->type >= FIRSTPIN)
+			   if (obt->type >= FIRSTPIN) {
+			      notempty = 1;
 			      if (obt->node == ob1->node)
 				 break;
+			   }
 			}
-			if (obt == NULL) {
+		        if ((obt == NULL) && (notempty == 1)) {
 			   ob1->node = -2;	// Will run this through cleanuppins
 			   needclean1 = 1;
 			}
@@ -6961,7 +6964,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* Find the end of the pin list in tc1, for adding proxy pins */
 
    for (ob1 = tc1->cell; ob1 != NULL; ob1 = ob1->next) {
-      if (ob1 && ob1->next && ob1->next->type != PORT)
+      if (ob1 && ((ob1->next && ob1->next->type != PORT) || ob1->next == NULL))
 	 break;
    }
    if (ob1 == NULL) ob1 = tc1->cell;	/* No ports */
@@ -7004,12 +7007,15 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 /* flattening instances has left a port with a	*/
 	 /* net number that doesn't connect to anything	*/
 
+         notempty = 0;
 	 for (obt = ob2->next; obt; obt = obt->next) {
-	    if (obt->type >= FIRSTPIN)
+	    if (obt->type >= FIRSTPIN) {
+               notempty = 1;
 	       if (obt->node == ob2->node)
 		  break;
+	    }
 	 }
-	 if (obt == NULL) {
+	 if ((obt == NULL) && (notempty == 1)) {
 	    ob2->node = -2;	// Will run this through cleanuppins
 	    needclean2 = 1;
 	    continue;
@@ -7047,7 +7053,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* Find the end of the pin list in tc2, for adding proxy pins */
 
    for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
-      if (ob2 && ob2->next && ob2->next->type != PORT)
+      if (ob2 && ((ob2->next && ob2->next->type != PORT) || ob2->next == NULL))
 	 break;
    }
    if (ob2 == NULL) ob2 = tc2->cell;	/* No ports */
@@ -7078,7 +7084,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 if (obn == NULL) ob1->node = -1;	/* Make disconnected */
       }
 
-      if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0) {
+      if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0
+		|| (ob1->node < 0 && tc1->class == CLASS_MODULE)) {
 
 	 /* Add a proxy pin to tc2 */
          obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
