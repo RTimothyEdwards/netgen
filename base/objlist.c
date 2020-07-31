@@ -289,7 +289,7 @@ static struct hashdict cell_dict;
 void InitCellHashTable(void)
 {
     hashfunc = hash;
-    matchfunc = match;
+    matchfunc = NULL;
     matchintfunc = matchfile;
     InitializeHashTable(&cell_dict, CELLHASHSIZE);
 }

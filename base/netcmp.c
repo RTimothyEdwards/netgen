@@ -5841,21 +5841,20 @@ int ResolveAutomorphsByProperty()
 /*
  *-------------------------------------------------------------------------
  *
- * ResolveAutormorphisms --
+ * ResolveElementAutomorphisms --
  *
- * Arbitrarily equivalence one pair of elements within an automorphic class
+ * Apply arbitrary symmetry breaking to symmetric element lists, then
+ * iterate exhaustively to resolve all automorphisms.
  *
  * Return value is the same as VerifyMatching()
  *
  *-------------------------------------------------------------------------
  */
 
-int ResolveAutomorphisms()
+int ResolveElementAutomorphisms()
 {
   struct ElementClass *EC;
-  struct NodeClass *NC;
   struct Element *E;
-  struct Node *N;
   int C1, C2;
 
   for (EC = ElementClasses; EC != NULL; EC = EC->next) {
@@ -5882,7 +5881,7 @@ int ResolveAutomorphisms()
       /* convergence, and repeat.				*/
 
       E1 = E2 = EC->elements;
-      while (E1 != NULL) {
+      while (E1 != NULL && E2 != NULL) {
           while (E1->graph != Circuit1->file) E1 = E1->next;
           while (E2->graph != Circuit2->file) E2 = E2->next;
 	  Magic(newhash);
@@ -5891,9 +5890,37 @@ int ResolveAutomorphisms()
 	  E1 = E1->next;
 	  E2 = E2->next;
       }
-      goto converge;
     }
   }
+
+  FractureElementClass(&ElementClasses); 
+  FractureNodeClass(&NodeClasses); 
+  ExhaustiveSubdivision = 1;
+  while (!Iterate() && VerifyMatching() != -1); 
+  return(VerifyMatching());
+}
+
+/*
+ *-------------------------------------------------------------------------
+ *
+ * ResolveNodeAutomorphisms --
+ *
+ * Apply arbitrary symmetry breaking to symmetric node lists, then iterate
+ * exhaustively to resolve all automorphisms.  Normally, all automorphisms
+ * should be resolved by ResolveElementAutomorphisms().  It is likely true
+ * that this routine will never run, by definition.
+ *
+ * Return value is the same as VerifyMatching()
+ *
+ *-------------------------------------------------------------------------
+ *
+ */
+
+int ResolveNodeAutomorphisms()
+{
+  struct Node *N;
+  struct NodeClass *NC;
+  int C1, C2;
 
   for (NC = NodeClasses; NC != NULL; NC = NC->next) {
     struct Node *N1, *N2;
@@ -5919,7 +5946,7 @@ int ResolveAutomorphisms()
       /* convergence, and repeat.				*/
 
       N1 = N2 = NC->nodes;
-      while (N1 != NULL) {
+      while (N1 != NULL && N2 != NULL) {
           while (N1->graph != Circuit1->file) N1 = N1->next;
           while (N2->graph != Circuit2->file) N2 = N2->next;
 	  Magic(newhash);
@@ -5928,16 +5955,37 @@ int ResolveAutomorphisms()
 	  N1 = N1->next;
 	  N2 = N2->next;
       }
-      goto converge;
     }
   }
 
- converge:
   FractureElementClass(&ElementClasses); 
   FractureNodeClass(&NodeClasses); 
   ExhaustiveSubdivision = 1;
   while (!Iterate() && VerifyMatching() != -1); 
   return(VerifyMatching());
+}
+
+/*
+ *-------------------------------------------------------------------------
+ *
+ * ResolveAutormorphisms --
+ *
+ * Arbitrarily equivalence one pair of elements within an automorphic class
+ *
+ * Return value is the same as VerifyMatching()
+ *
+ *-------------------------------------------------------------------------
+ */
+
+int ResolveAutomorphisms()
+{
+    int result;
+
+    result = ResolveElementAutomorphisms();
+    if (result != 0)
+	result = ResolveNodeAutomorphisms();
+
+    return result;
 }
 
 /*------------------------------------------------------*/
@@ -6644,7 +6692,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    struct NodeClass *NC;
    struct Node *N1, *N2;
    int i, j, k, m, a, b, swapped, numnodes, numorig;
-   int result = 1, haspins = 0;
+   int result = 1, haspins = 0, notempty = 0;
    int hasproxy1 = 0, hasproxy2 = 0;
    int needclean1 = 0, needclean2 = 0;
    char *ostr;
@@ -6809,12 +6857,15 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			/* has been left orphaned after flattening.  If	*/
 			/* disconnected, set its node number to -2.	*/
 
+			notempty = 0;
 			for (obt = ob1->next; obt; obt = obt->next) {
-			   if (obt->type >= FIRSTPIN)
+			   if (obt->type >= FIRSTPIN) {
+			      notempty = 1;
 			      if (obt->node == ob1->node)
 				 break;
+			   }
 			}
-			if (obt == NULL) {
+		        if ((obt == NULL) && (notempty == 1)) {
 			   ob1->node = -2;	// Will run this through cleanuppins
 			   needclean1 = 1;
 			}
@@ -6913,7 +6964,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* Find the end of the pin list in tc1, for adding proxy pins */
 
    for (ob1 = tc1->cell; ob1 != NULL; ob1 = ob1->next) {
-      if (ob1 && ob1->next && ob1->next->type != PORT)
+      if (ob1 && ((ob1->next && ob1->next->type != PORT) || ob1->next == NULL))
 	 break;
    }
    if (ob1 == NULL) ob1 = tc1->cell;	/* No ports */
@@ -6956,12 +7007,15 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 /* flattening instances has left a port with a	*/
 	 /* net number that doesn't connect to anything	*/
 
+         notempty = 0;
 	 for (obt = ob2->next; obt; obt = obt->next) {
-	    if (obt->type >= FIRSTPIN)
+	    if (obt->type >= FIRSTPIN) {
+               notempty = 1;
 	       if (obt->node == ob2->node)
 		  break;
+	    }
 	 }
-	 if (obt == NULL) {
+	 if ((obt == NULL) && (notempty == 1)) {
 	    ob2->node = -2;	// Will run this through cleanuppins
 	    needclean2 = 1;
 	    continue;
@@ -6999,7 +7053,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* Find the end of the pin list in tc2, for adding proxy pins */
 
    for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
-      if (ob2 && ob2->next && ob2->next->type != PORT)
+      if (ob2 && ((ob2->next && ob2->next->type != PORT) || ob2->next == NULL))
 	 break;
    }
    if (ob2 == NULL) ob2 = tc2->cell;	/* No ports */
@@ -7030,7 +7084,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 if (obn == NULL) ob1->node = -1;	/* Make disconnected */
       }
 
-      if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0) {
+      if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0
+		|| (ob1->node < 0 && tc1->class == CLASS_MODULE)) {
 
 	 /* Add a proxy pin to tc2 */
          obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
