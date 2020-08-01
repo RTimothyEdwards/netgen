@@ -801,7 +801,11 @@ void DescribeInstance(char *name, int file)
   {
     if (ob->node > nodemax) nodemax = ob->node;
     else if ((ob->node == -1) && (ob->model.port != PROXY)) {
-      if (!(tp->flags & CELL_PLACEHOLDER))
+
+      /* All black-box modules and placeholders by definition have all	*/
+      /* disconnected pins, so don't report those.			*/
+
+      if (!(tp->flags & CELL_PLACEHOLDER) && (tp->class != CLASS_MODULE))
       {
 	if (disconnectednodes == 0) Fprintf(stderr, "\n");
         disconnectednodes++;
