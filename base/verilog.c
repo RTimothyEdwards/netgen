@@ -1225,7 +1225,12 @@ skip_endmodule:
 		    lhs = LookupObject(nodename, CurrentCell);
 		    *aptr = '[';
 		}
-		else strcpy(noderoot, nexttok);
+		else {
+		    strcpy(noderoot, nexttok);
+		    /* Set LHS to the start of the vector */
+		    sprintf(nodename, "%s[%d]", nexttok, wb.start);
+		    lhs = LookupObject(nodename, CurrentCell);
+		}
 	    }
 	    else {
 		lhs = LookupObject(nexttok, CurrentCell);
@@ -1290,13 +1295,21 @@ skip_endmodule:
 			if (rhs != NULL) {
 			    Printf("Improper assignment;  left-hand side cannot "
 					"be parsed.\n");
-			    Printf("Right-hand side is \"%s\".\n", rhs->name);
+			    if (j != -1)
+			    	Printf("Right-hand side is \"%s\".\n", assignroot);
+			    else
+			    	Printf("Right-hand side is \"%s\".\n", rhs->name);
+			    Printf("Improper expression is \"%s\".\n", nexttok);
 			    break;
 			}
 			if (lhs != NULL) {
 			    Printf("Improper assignment;  right-hand side cannot "
 					"be parsed.\n");
-			    Printf("Left-hand side is \"%s\".\n", lhs->name);
+			    if (i != -1)
+			    	Printf("Left-hand side is \"%s\".\n", noderoot);
+			    else
+			    	Printf("Left-hand side is \"%s\".\n", lhs->name);
+			    Printf("Improper expression is \"%s\".\n", nexttok);
 			    /* Not parsable, probably behavioral verilog? */
 			    Printf("Module '%s' is not structural verilog, "
 				    "making black-box.\n", model);
