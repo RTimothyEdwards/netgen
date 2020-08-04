@@ -1867,7 +1867,7 @@ nextinst:
 		     if (is_bundle &&
 			    ((i == -1) ||
 			    ((wbb.start > wbb.end) && (i < wbb.end)) ||
-			    ((wbb.start < wbb.end) && (i > wbb.end)))) {
+			    ((wbb.start <= wbb.end) && (i > wbb.end)))) {
 		         if (bptr) *bptr = '[';
 
 			 netname = cptr + 1;
