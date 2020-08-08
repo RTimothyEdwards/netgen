@@ -7132,6 +7132,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
          obn->instance.name = NULL;
          obn->node = -1;
 
+#if 0
+	 /* Note:  This pin has already been accounted for */
 	 if (Debug == 0) {
 	    if (strcmp(ob1->name, "(no pins)")) {
 	       for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
@@ -7147,6 +7149,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    Fprintf(stderr, "No netlist match for cell %s pin %s\n",
 				tc1->name, ob1->name);
 	 }
+#endif
 
 	 if (ob2 == tc2->cell) {
 	    obn->next = ob2;
