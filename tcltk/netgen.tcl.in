@@ -501,6 +501,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       return
    }
    set properr {}
+   set pinsgood 0
    while {$endval != {}} {
       if {$dolist == 1} {
          netgen::run -list converge
@@ -546,6 +547,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 		equate classes "$fnum1 [lindex $endval 0]" \
 			 "$fnum2 [lindex $endval 1]"
 	    }
+	    set pinsgood $result
             netgen::log echo on
 	 }
 	 if {$uresult == 2} {lappend properr [lindex $endval 0]}
@@ -569,7 +571,11 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    netgen::log echo off
    puts stdout "Result: " nonewline
    netgen::log echo on
-   verify only
+   if {$pinsgood == 0} {
+      netgen::log put "The top level cell failed pin matching.\n"
+   } else {
+      verify only
+   }
    if {$properr != {}} {
       netgen::log put "The following cells had property errors: $properr\n"
    }
