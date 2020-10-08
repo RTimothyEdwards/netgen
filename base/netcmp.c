@@ -158,6 +158,9 @@ int right_col_end = 87;
 /* if TRUE, always partition ALL classes */
 int ExhaustiveSubdivision = 0;
 
+/* if TRUE, use fast symmetry breaking to resolve automorphisms */
+int FastSymmetryBreaking = 1;
+
 #ifdef TEST
 static void PrintElement_List(struct Element *E)
 {
@@ -5862,7 +5865,81 @@ int ResolveAutomorphsByProperty()
 /*
  *-------------------------------------------------------------------------
  *
- * ResolveElementAutomorphisms --
+ * ResolveAutormorphismsFull --
+ *
+ * Arbitrarily equivalence one pair of elements within an automorphic class
+ *
+ * Return value is the same as VerifyMatching()
+ *
+ *-------------------------------------------------------------------------
+ */
+
+int ResolveAutomorphismsFull()
+{
+  struct ElementClass *EC;
+  struct Element *E;
+  struct NodeClass *NC;
+  struct Node *N;
+  int C1, C2;
+
+  for (EC = ElementClasses; EC != NULL; EC = EC->next) {
+    struct Element *E1, *E2;
+    C1 = C2 = 0;
+    E1 = E2 = NULL;
+    for (E = EC->elements; E != NULL; E = E->next) {
+      if (E->graph == Circuit1->file) {
+	C1++;
+	E1 = E;
+      }
+      else {
+	C2++;
+	E2 = E;
+      }
+    }
+    if (C1 == C2 && C1 != 1) {
+      unsigned long newhash;
+      Magic(newhash);
+      E1->hashval = newhash;
+      E2->hashval = newhash;
+      goto converge;
+    }
+  }
+
+  for (NC = NodeClasses; NC != NULL; NC = NC->next) {
+    struct Node *N1, *N2;
+    C1 = C2 = 0;
+    N1 = N2 = NULL;
+    for (N = NC->nodes; N != NULL; N = N->next) {
+      if (N->graph == Circuit1->file) {
+	C1++;
+	N1 = N;
+      }
+      else {
+	C2++;
+	N2 = N;
+      }
+    }
+    if (C1 == C2 && C1 != 1) {
+      unsigned long newhash;
+      Magic(newhash);
+      N1->hashval = newhash;
+      N2->hashval = newhash;
+      goto converge;
+    }
+  }
+
+ converge:
+  FractureElementClass(&ElementClasses);
+  FractureNodeClass(&NodeClasses);
+  ExhaustiveSubdivision = 1;
+  while (!Iterate() && VerifyMatching() != -1);
+  return(VerifyMatching());
+}
+
+/*
+ *-------------------------------------------------------------------------
+ *
+ * ResolveElementAutomorphismsFast --
  *
  * Apply arbitrary symmetry breaking to symmetric element lists, then
  * iterate exhaustively to resolve all automorphisms.
@@ -5872,7 +5949,7 @@ int ResolveAutomorphsByProperty()
  *-------------------------------------------------------------------------
  */
 
-int ResolveElementAutomorphisms()
+int ResolveElementAutomorphismsFast()
 {
   struct ElementClass *EC;
   struct Element *E;
@@ -5924,7 +6001,7 @@ int ResolveElementAutomorphisms()
 /*
  *-------------------------------------------------------------------------
  *
- * ResolveNodeAutomorphisms --
+ * ResolveNodeAutomorphismsFast --
  *
  * Apply arbitrary symmetry breaking to symmetric node lists, then iterate
  * exhaustively to resolve all automorphisms.  Normally, all automorphisms
@@ -5937,7 +6014,7 @@ int ResolveElementAutomorphisms()
  *
  */
 
-int ResolveNodeAutomorphisms()
+int ResolveNodeAutomorphismsFast()
 {
   struct Node *N;
   struct NodeClass *NC;
@@ -5991,7 +6068,20 @@ int ResolveNodeAutomorphisms()
  *
  * ResolveAutormorphisms --
  *
- * Arbitrarily equivalence one pair of elements within an automorphic class
+ * Do symmetry breaking of automorphisms.  If FastSymmetryBreaking is
+ * False (not the default), then run ResolveAutomorphismsFull() (q.v.).
+ * Otherwise, run the fast symmetry breaking method:
+ *
+ * Arbitrarily equivalence all pairs of elements and nodes within all
+ * automorphic classes, and run to completion.  Note that this is a
+ * fast version of ResolveAutomorphismsFull(), and can run many orders
+ * of magnitude faster.  However, it can also produce an incorrect
+ * result, declaring a global mismatch where none exists.  In that
+ * case, the matching should be re-run with ResolveAutomorphismsFull().
+ *
+ * Some investigation needs to be done to determine if there is a way
+ * to execute faster symmetry breaking without the possibility of
+ * producing an incorrect result.
  *
  * Return value is the same as VerifyMatching()
  *
@@ -6002,9 +6092,12 @@ int ResolveAutomorphisms()
 {
     int result;
 
-    result = ResolveElementAutomorphisms();
+    if (FastSymmetryBreaking == 0)
+	return ResolveAutomorphismsFull();
+
+    result = ResolveElementAutomorphismsFast();
     if (result != 0)
-	result = ResolveNodeAutomorphisms();
+	result = ResolveNodeAutomorphismsFast();
 
     return result;
 }
@@ -7454,7 +7547,8 @@ static void handler(int sig)
 /*----------------------------------------------------------------------*/
 /* Note that this cover-all routine is not called from the Tcl/Tk	*/
 /* version, which replaces it with the script "lvs".			*/
-/* return 1 if the two are identical.  Try to resolve automorphisms.	*/
+/* return 1 if the two are identical.  Try to resolve automorphisms	*/
+/* using the original "full" symmetry breaking algorithm.		*/
 /*----------------------------------------------------------------------*/
 
 int Compare(char *cell1, char *cell2)

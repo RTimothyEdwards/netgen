@@ -94,6 +94,7 @@ int _netcmp_ignore(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_permute(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_property(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_exhaustive(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
+int _netcmp_symmetry(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_restart(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_global(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
 int _netcmp_convert(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
@@ -244,6 +245,9 @@ Command netcmp_cmds[] = {
 	{"exhaustive",		_netcmp_exhaustive,
 		"\n   "
 		"toggle exhaustive subdivision"},
+	{"symmetry",		_netcmp_symmetry,
+		"[fast|full]\n   "
+		"apply method for symmetry breaking"},
 	{"restart",		_netcmp_restart,
 		"\n   "
 		"start over (reset data structures)"},
@@ -3973,6 +3977,48 @@ _netcmp_permute(ClientData clientData,
 }
 
 /*------------------------------------------------------*/
+/* Function name: _netcmp_symmetry			*/
+/* Syntax: netgen::symmetry [fast|full]			*/
+/* Formerly: x						*/
+/* Results:						*/
+/* Side Effects:					*/
+/*------------------------------------------------------*/
+
+int
+_netcmp_symmetry(ClientData clientData,
+    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+   char *fastfull[] = {
+      "fast", "full", NULL
+   };
+   enum OptionIdx {
+      FAST_IDX, FULL_IDX
+   };
+   int result, index;
+
+   if (objc == 1)
+      index = -1;
+   else {
+      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)fastfull,
+		"option", 0, &index) != TCL_OK)
+         return TCL_ERROR;
+   }
+
+   switch(index) {
+      case FAST_IDX:
+	 FastSymmetryBreaking = TRUE;
+	 break;
+      case FULL_IDX:
+	 FastSymmetryBreaking = FALSE;
+	 break;
+   }
+   Printf("Symmetry breaking method: %s.\n", 
+	     FastSymmetryBreaking ? "FAST" : "FULL");
+
+   return TCL_OK;
+}
+
+/*------------------------------------------------------*/
 /* Function name: _netcmp_exhaustive			*/
 /* Syntax: netgen::exhaustive [on|off]			*/
 /* Formerly: x						*/
@@ -3993,7 +4039,7 @@ _netcmp_exhaustive(ClientData clientData,
    int result, index;
 
    if (objc == 1)
-      index = YES_IDX;
+      index = -1;
    else {
       if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)yesno,
 		"option", 0, &index) != TCL_OK)
