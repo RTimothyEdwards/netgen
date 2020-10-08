@@ -929,7 +929,7 @@ void ToggleDebug(void)
 void DescribeCell(char *name, int detail)
 {
   Printf("Cell: %s contains %d instances, %d nodes and %d ports\n", name, 
-	 NumberOfInstances(name),  RenumberNodes(name), NumberOfPorts(name));
+	 NumberOfInstances(name),  RenumberNodes(name), NumberOfPorts(name, -1));
   PrintEmbeddingTree(stdout,name,detail);
 }
 

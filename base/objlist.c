@@ -1112,13 +1112,17 @@ void FreeObjectAndHash(struct objlist *ob, struct nlist *ptr)
 
 /***************  GENERAL UTILITIES ****************************/
 
-int NumberOfPorts(char *cellname)
+int NumberOfPorts(char *cellname, int file)
 {
   struct nlist *tp;
   struct objlist *ob;
   int ports;
 
-  tp = LookupCell(cellname);
+  if (file == -1)
+    tp = LookupCell(cellname);
+  else
+    tp = LookupCellFile(cellname, file);
+
   if (tp == NULL) return(0);
   ports = 0;
   for (ob = tp->cell; ob != NULL; ob = ob->next)

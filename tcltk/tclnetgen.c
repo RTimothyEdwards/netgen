@@ -1532,23 +1532,24 @@ int
 _netgen_model(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-   struct nlist *tp;
+   struct nlist *tp, *tp2;
    char *model, *retclass;
    unsigned char class;
    int fnum = -1;
-   int result, index, nports;
+   int result, index, nports, nports2;
 
    char *modelclasses[] = {
       "undefined", "nmos", "pmos", "pnp", "npn",
       "resistor", "capacitor", "diode",
       "inductor", "module", "blackbox", "xline",
-      "moscap", "mosfet", "bjt", "subcircuit", NULL
+      "moscap", "mosfet", "bjt", "subcircuit", "copy",
+      NULL
    };
    enum OptionIdx {
       UNDEF_IDX,  NMOS_IDX, PMOS_IDX, PNP_IDX, NPN_IDX,
       RES_IDX, CAP_IDX, DIODE_IDX, INDUCT_IDX,
       MODULE_IDX, BLACKBOX_IDX, XLINE_IDX, MOSCAP_IDX,
-      MOSFET_IDX, BJT_IDX, SUBCKT_IDX
+      MOSFET_IDX, BJT_IDX, SUBCKT_IDX, COPY_IDX
    };
 
    if (objc != 3 && objc != 2) {
@@ -1580,7 +1581,7 @@ _netgen_model(ClientData clientData,
 
    if (objc == 3) {
       model = Tcl_GetString(objv[2]);
-      nports = NumberOfPorts(model);
+      nports = NumberOfPorts(model, fnum);
 
       if (Tcl_GetIndexFromObj(interp, objv[2], (CONST84 char **)modelclasses,
 		"class", 0, &index) != TCL_OK) {
@@ -1644,6 +1645,40 @@ _netgen_model(ClientData clientData,
 	    break;
 	 case SUBCKT_IDX:
 	    class = CLASS_SUBCKT;
+	    break;
+	 case COPY_IDX:
+	    /* "copy" is not a class, but indicates that the cell,  */
+	    /* if undefined or a module, should have its class	    */
+	    /* taken from the other circuit, if that circuit has a  */
+	    /* cell of the same name.				    */
+	    if (Circuit1 == NULL || Circuit2 == NULL) {
+		Tcl_SetResult(interp, "Circuits have not been queued for comparison.",
+			NULL);
+		return TCL_ERROR;
+	    }
+	    if (tp == Circuit1) {
+		tp2 = LookupCellFile(tp->name, Circuit2->file);
+		nports2 = NumberOfPorts(tp2->name, Circuit2->file);
+	    }
+	    else if (tp == Circuit2) {
+		tp2 = LookupCellFile(tp->name, Circuit1->file);
+		nports2 = NumberOfPorts(tp2->name, Circuit1->file);
+	    }
+	    else {
+		Tcl_SetResult(interp, "The referenced netlist is not being compared.",
+			NULL);
+		return TCL_ERROR;
+	    }
+	    /* Should a non-matching number of ports be considered a fatal error? */
+	    // if (nports2 != nports) {
+	    //	Tcl_SetResult(interp, "The number of ports for this cell does not "
+	    //		"match between netlists.", NULL);
+	    //	return TCL_ERROR;
+	    // }
+
+	    class = tp2->class;
+	    /* To do (maybe): Rename tp ports to match tp2? */
+
 	    break;
       }
       tp->class = class;
