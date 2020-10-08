@@ -907,7 +907,7 @@ void PrintLeavesInCell(char *cellname, int filenum)
   np->dumped = 1;
 
   if (np->class != CLASS_SUBCKT) {
-    Printf("%s; %d ports; Primitive.\n", cellname, NumberOfPorts(cellname));
+    Printf("%s; %d ports; Primitive.\n", cellname, NumberOfPorts(cellname, filenum));
     return;
   }
 
@@ -920,7 +920,7 @@ void PrintLeavesInCell(char *cellname, int filenum)
       am_a_leaf = 0;
     }
 
-  if (am_a_leaf) Printf("%s; %d ports\n", cellname, NumberOfPorts(cellname));
+  if (am_a_leaf) Printf("%s; %d ports\n", cellname, NumberOfPorts(cellname, filenum));
   return;
 }
 

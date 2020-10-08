@@ -242,7 +242,7 @@ extern void FreeObjectAndHash(struct objlist *ob, struct nlist *ptr);
 extern void FreePorts(char *cellname);
 extern struct IgnoreList *ClassIgnore;
 
-extern int NumberOfPorts(char *cellname);
+extern int NumberOfPorts(char *cellname, int file);
 extern struct objlist *InstanceNumber(struct nlist *tp, int inst);
 
 extern struct objlist *List(char *list_template);
