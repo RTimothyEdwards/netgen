@@ -4,4 +4,6 @@
 # all of its config scripts in a different directory than the configure
 # script itself.
 
-( CFLAGS="-g" ; export CFLAGS ; cd scripts ; ./configure "$@" )
+export CFLAGS="$CFLAGS -g"
+cd scripts
+exec ./configure "$@"
