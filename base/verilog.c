@@ -556,6 +556,33 @@ void CleanupModule() {
 
    if (CurrentCell == NULL) return;
 
+   struct objlist *myLastPort, *object_it, *myNextObject;
+   myLastPort = NULL;
+   for ( object_it = CurrentCell->cell; object_it && object_it->type <= 0; object_it = myNextObject ) {
+       myNextObject = object_it->next;
+       if ( ! myNextObject )  // end of list
+           continue;
+
+       if ( myLastPort == NULL ) {
+           if ( object_it->type == PORT ) {
+               myLastPort = object_it;  // port at begining of list
+               myNextObject = object_it;  // otherwise skips one
+           }
+           else if ( myNextObject->type == PORT ) {
+               object_it->next = myNextObject->next;
+               myNextObject->next = CurrentCell->cell;
+               CurrentCell->cell = myNextObject;
+               myLastPort = myNextObject;
+           }
+       }
+       else if ( myNextObject->type == PORT ) {
+           object_it->next = myNextObject->next;
+           myNextObject->next = myLastPort->next;
+           myLastPort->next = myNextObject;
+           myLastPort = myNextObject;
+       }
+   }
+
    for (sobj = CurrentCell->cell; sobj; sobj = sobj->next)
       if (sobj->node > maxnode)
 	 maxnode = sobj->node + 1;
@@ -1946,7 +1973,8 @@ nextinst:
 		  sprintf(localnet, "_noconnect_%d_", localcount++);
 		  Node(localnet);
 		  join(localnet, obptr->name);
-		  Fprintf(stderr, "Note:  Implicit pin %s\n", obpinname);
+		  Fprintf(stderr, "Note:  Implicit pin %s in instance %s of %s in cell %s\n",
+                          obpinname, locinst, modulename, CurrentCell->name);
 	       }
 	       else if (GetBus(scan->net, &wb) == 0) {
 		   char *bptr2;
