@@ -2470,7 +2470,8 @@ void CopyProperties(struct objlist *obj_to, struct objlist *obj_from)
       kvcur->value.ival = 0;
 
       obj_to->instance.props = kvcopy;
-      obj_to->model.class = strsave(obj_from->model.class);
+      if (obj_from->model.class)
+         obj_to->model.class = strsave(obj_from->model.class);
    }
 }
 
