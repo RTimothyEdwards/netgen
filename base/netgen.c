@@ -3584,8 +3584,8 @@ int CombineSeries(char *model, int file)
 
 	    /* Excise the 2nd instance.  instlist[i][1] remains as the	*/
 	    /* only pointer to it.					*/
-            for (obp = instlist[i][0]; obp->next->type > FIRSTPIN ||
-			obp->next->type == PROPERTY; obp = obp->next);
+            for (obp = instlist[i][0]; obp->next && (obp->next->type > FIRSTPIN ||
+			obp->next->type == PROPERTY); obp = obp->next);
             for (ob2 = obp; ob2 && ob2->next != instlist[i][1]; ob2 = ob2->next);
 
 	    /* Device may have been moved by the above code.  If so, look for	*/
