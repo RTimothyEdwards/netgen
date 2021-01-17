@@ -65,6 +65,15 @@ extern void AssignCircuits(char *name1, int file1, char *name2, int file2);
 /* flatten.c */
 extern int PrematchLists(char *, int, char *, int);
 
+/* verilog.c */
+struct cellstack {
+	char *cellname;
+	struct cellstack *next;
+};
+
+void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
+	int blackbox);
+
 /* Define (enumerate) various device classes, largely based on SPICE	*/
 /* model types, mixed with some ext/sim types.				*/
 
