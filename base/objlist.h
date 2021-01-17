@@ -192,9 +192,8 @@ struct Permutation {
     struct Permutation *next;
 };
 
-#define OBJHASHSIZE 997 /* the size of the object and instance hash lists */
+#define OBJHASHSIZE 42073 /* the size of the object and instance hash lists */
                         /* prime numbers are good choices as hash sizes */
-                        /* 101 is a good number for IBMPC */
 
 /* cell definition for hash table */
 /* NOTE: "file" must come first for the hash matching by name and file */
