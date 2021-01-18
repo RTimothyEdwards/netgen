@@ -632,11 +632,6 @@ void CleanupModule() {
 /* Structure for stacking nested module definitions	*/
 /*------------------------------------------------------*/
 
-struct cellstack {
-   char *cellname;
-   struct cellstack *next;
-};
-
 /* Forward declarations */
 extern void IncludeVerilog(char *, int, struct cellstack **, int);
 

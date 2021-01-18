@@ -474,15 +474,6 @@ void CleanupSubcell() {
 }
 
 /*------------------------------------------------------*/
-/* Structure for stacking nested subcircuit definitions */
-/*------------------------------------------------------*/
-
-struct cellstack {
-   char *cellname;
-   struct cellstack *next;
-};
-
-/*------------------------------------------------------*/
 /* Push a subcircuit name onto the stack		*/
 /*------------------------------------------------------*/
 
