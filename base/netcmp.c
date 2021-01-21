@@ -6715,24 +6715,32 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
        firstpin = ob;
        while (tob && (tob->type == PORT || tob->type == UNKNOWN)) {
 	  if (tob->type == UNKNOWN) {
-	     obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
-	     obn->name = (char *)MALLOC(strlen(firstpin->instance.name)
+	     /* ??? Do not do anything with (no pins) entries */
+	     if (strcmp(tob->name, "proxy(no pins)")) {
+		obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
+		obn->name = (char *)MALLOC(strlen(firstpin->instance.name)
 			+ strlen(tob->name) + 2);
-	     sprintf(obn->name, "%s/%s", firstpin->instance.name, tob->name);
-	     obn->instance.name = strsave(firstpin->instance.name);
-	     obn->model.class = strsave(tc->name);
-	     obn->type = i++;
-	     obn->node = numnodes++;
-	     obn->next = ob;	// Splice into object list
-	     lob->next = obn;
-	     lob = obn;
+		sprintf(obn->name, "%s/%s", firstpin->instance.name, tob->name);
+		obn->instance.name = strsave(firstpin->instance.name);
+		obn->model.class = strsave(tc->name);
+		obn->type = i++;
+		obn->node = numnodes++;
+		obn->next = ob;	// Splice into object list
+		lob->next = obn;
+		lob = obn;
 
-	     // Hash the new pin record for "LookupObject()"
-	     HashPtrInstall(obn->name, obn, &(ptr->objdict));
+		// Hash the new pin record for "LookupObject()"
+		HashPtrInstall(obn->name, obn, &(ptr->objdict));
 
-	     if (tob == tc->cell) {
-		// Rehash the instance in instdict
-		HashPtrInstall(firstpin->instance.name, firstpin, &(ptr->instdict));
+		if (tob == tc->cell) {
+		    // Rehash the instance in instdict
+		    HashPtrInstall(firstpin->instance.name, firstpin, &(ptr->instdict));
+		}
+	     }
+	     else {
+		lob = ob;
+		ob->type = i++;
+		ob = ob->next;
 	     }
 	  }
 	  else if (ob == NULL) {
