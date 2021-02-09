@@ -865,6 +865,17 @@ skip_ends:
       }
     }
 
+    /* Ignore anything in a .CONTROL ... .ENDC block */
+    else if (matchnocase(nexttok, ".CONTROL")) {
+	while (1) {
+	    SpiceSkipNewLine();
+	    SkipTok(NULL);
+	    if (EndParseFile()) break;
+	    if (matchnocase(nexttok, ".ENDC"))
+	       break;
+	}
+    }
+
     // Blackbox (library) mode---parse only subcircuits and models;
     // ignore all components.
 
