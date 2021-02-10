@@ -1660,7 +1660,8 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     while (ecomp != NULL) {
 	if ((ecomp->num1 != ecomp->num2) && (ecomp->cell1 != NULL) &&
 			((ecomp->cell1->class == CLASS_RES) ||
-			(ecomp->cell1->class == CLASS_VSOURCE))) {
+			(ecomp->cell1->class == CLASS_VSOURCE) ||
+			(ecomp->cell1->class == CLASS_ISOURCE))) {
 	    int node1 = -1, node2 = -1;
 	    lob = NULL;
 	    for (ob1 = tc1->cell; ob1; ) {
@@ -1709,11 +1710,16 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 						tsub1->name,
 						tc1->name);
 
-					/* merge node of endpoints */
-					for (ob2 = tc1->cell; ob2; ob2 = ob2->next) {
-					    if (ob2->node == node2)
-						ob2->node = node1;
-					}
+					/* A current source is an open, while a	    */
+					/* resistor or voltage source is a short.   */
+
+					if (ecomp->cell1->class != CLASS_ISOURCE) {
+					    /* merge node of endpoints */
+					    for (ob2 = tc1->cell; ob2; ob2 = ob2->next) {
+						if (ob2->node == node2)
+						    ob2->node = node1;
+					    }
+					}	
 
 					/* snip, snip.  Excise this device */
 					if (lob == NULL) {
@@ -1765,7 +1771,8 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 
 	if ((ecomp->num1 != ecomp->num2) && (ecomp->cell2 != NULL) &&
 			((ecomp->cell2->class == CLASS_RES) ||
-			(ecomp->cell2->class == CLASS_VSOURCE))) {
+			(ecomp->cell2->class == CLASS_VSOURCE) ||
+			(ecomp->cell2->class == CLASS_ISOURCE))) {
 	    int node1 = -1, node2 = -1;
 	    lob = NULL;
 	    for (ob2 = tc2->cell; ob2; ) {
@@ -1815,9 +1822,11 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 						tc2->name);
 
 					/* merge node of endpoints */
-					for (ob1 = tc2->cell; ob1; ob1 = ob1->next) {
-					    if (ob1->node == node2)
-						ob1->node = node1;
+					if (ecomp->cell2->class != CLASS_ISOURCE) {
+					    for (ob1 = tc2->cell; ob1; ob1 = ob1->next) {
+						if (ob1->node == node2)
+						    ob1->node = node1;
+					    }
 					}
 
 					/* snip, snip.  Excise this device */
