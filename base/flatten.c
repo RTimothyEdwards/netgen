@@ -253,7 +253,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 {
   struct objlist *ParentParams;
   struct objlist *ParentProps;
-  struct objlist *NextObj;
+  struct objlist *NextObj, *LastObj, *prepp;
   struct objlist *ChildObjList;
   struct nlist *ThisCell;
   struct  nlist *ChildCell;
@@ -296,21 +296,35 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   while (notdone) {
     notdone = 0;
     ParentParams = ThisCell->cell;
+    LastObj = NULL;
+
     for (ParentParams = ThisCell->cell; ParentParams != NULL;
-	 ParentParams = NextObj) {
+		ParentParams = NextObj) {
       if (Debug) Printf("Parent = %s, type = %d\n",
 			ParentParams->name, ParentParams->type);
       NextObj = ParentParams->next;
-      if (ParentParams->type != FIRSTPIN) continue;
-      if (!(*matchfunc)(ParentParams->model.class, instance)) continue;
+      if (ParentParams->type != FIRSTPIN) {
+	  LastObj = ParentParams;
+	  continue;
+      }
+      if (!(*matchfunc)(ParentParams->model.class, instance)) {
+	  LastObj = ParentParams;
+	  continue;
+      }
 
       ChildCell = LookupCellFile(ParentParams->model.class, ThisCell->file);
       if (Debug)
 	 Printf(" Flattening instance: %s, primitive = %s\n",
 			ParentParams->instance.name, (ChildCell->class == 
 			CLASS_SUBCKT) ? "no" : "yes");
-      if (ChildCell->class != CLASS_SUBCKT) continue;
-      if (ChildCell == ThisCell) continue;	// Avoid infinite loop
+      if (ChildCell->class != CLASS_SUBCKT) {
+	   LastObj = ParentParams;
+	   continue;
+      }
+      if (ChildCell == ThisCell) {
+	   LastObj = ParentParams;
+	   continue;	// Avoid infinite loop
+      }
 
       /* Does the parent cell have properties?  If so, save a pointer to them */
       for (ParentProps = ParentParams->next; ParentProps &&
@@ -373,10 +387,10 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	  }
 
 	/* in pathological cases, the lengths of the port lists may
-           change.  This is an error, but that is no reason to allow
-           the code to core dump.  We avoid this by placing a 
-           superfluous check on ob2->type
-        */
+         * change.  This is an error, but that is no reason to allow
+         * the code to core dump.  We avoid this by placing a 
+         * superfluous check on ob2->type
+         */
 
 	  if (ob2 != NULL)
 	    ob2 = ob2->next;
@@ -497,10 +511,21 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	   for (ob2 = ChildObjList; ob2 && ob2->next != NULL; ob2 = ob2->next) ;
          }
          else {
-	   /* find ParentParams in ThisCell list */
-	   for (ob2 = ThisCell->cell; ob2 && ob2->next != ParentParams; ob2=ob2->next); 
+	   /* find ParentParams in ThisCell list.  In most cases, LastObj   */
+	   /* should be pointing to it.					    */
+	   if (LastObj && (LastObj->next == ParentParams)) {
+	       ob2 = LastObj;
+	   }
+	   else {
+	      for (ob2 = LastObj; ob2 && ob2->next != ParentParams; ob2=ob2->next); 
+	      if (ob2 == NULL) {
+		 /* It should not happen that LastObj is ahead of ParentParams	*/
+		 /* but just in case, this long loop will find it.		*/
+	         for (ob2 = ThisCell->cell; ob2 && ob2->next != ParentParams; ob2=ob2->next); 
+	      }
+	   }
 	   if (ob2)
-	      for (ob2->next = ChildObjList; ob2->next != NULL; ob2 = ob2->next) ;
+	         for (ob2->next = ChildObjList; ob2->next != NULL; ob2 = ob2->next) ;
          }
          /* now, ob2 is last element in child list, so skip and reclaim parent */
 

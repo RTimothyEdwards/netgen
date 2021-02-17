@@ -3132,6 +3132,9 @@ int remove_group_tags(struct objlist *ob)
 /* If the device has permutable pins, then duplicate hashes are made	*/
 /* for each permutation.						*/
 /*									*/
+/* If the device has isolated (unconnected) pins, then treat them as	*/
+/* all belonging to the same net for the purpose of parallel merging.	*/
+/*									*/
 /* Return the number of devices merged.					*/
 /*----------------------------------------------------------------------*/
 
