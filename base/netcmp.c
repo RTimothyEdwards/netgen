@@ -6715,18 +6715,31 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
        firstpin = ob;
        while (tob && (tob->type == PORT || tob->type == UNKNOWN)) {
 	  if (tob->type == UNKNOWN) {
-	     /* ??? Do not do anything with (no pins) entries */
+	     /* Do not do anything with (no pins) entries (in the reference cell) */
 	     if (strcmp(tob->name, "proxy(no pins)")) {
-		obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
-		obn->name = (char *)MALLOC(strlen(firstpin->instance.name)
-			+ strlen(tob->name) + 2);
-		sprintf(obn->name, "%s/%s", firstpin->instance.name, tob->name);
-		obn->instance.name = strsave(firstpin->instance.name);
-		obn->model.class = strsave(tc->name);
+		/* But if the target cell instance has proxy(no pins), then reuse
+		 * the record and modify it.
+		 */
+	        if (!strcmp(ob->name, "proxy(no pins)")) {
+		   obn = ob;
+		   FREE(ob->name);
+		   obn->name = (char *)MALLOC(strlen(ob->instance.name)
+				+ strlen(tob->name) + 2);
+		   sprintf(obn->name, "%s/%s", ob->instance.name, tob->name);
+		   ob = obn->next;
+		}
+		else {
+		   obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
+		   obn->name = (char *)MALLOC(strlen(firstpin->instance.name)
+				+ strlen(tob->name) + 2);
+		   sprintf(obn->name, "%s/%s", firstpin->instance.name, tob->name);
+		   obn->instance.name = strsave(firstpin->instance.name);
+		   obn->model.class = strsave(tc->name);
+		   obn->next = ob;	// Splice into object list
+		   lob->next = obn;
+		}
 		obn->type = i++;
 		obn->node = numnodes++;
-		obn->next = ob;	// Splice into object list
-		lob->next = obn;
 		lob = obn;
 
 		// Hash the new pin record for "LookupObject()"

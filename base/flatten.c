@@ -1161,9 +1161,10 @@ int UniquePins(char *name, int filenum)
 struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
 {
    struct nlist *ptr;
-   struct objlist *ob, *obt, *lob, *nob, *firstpin;
+   struct objlist *ob, *obt, *lob, *nob, *firstpin, *pob;
    struct nlist *tc = (struct nlist *)clientdata;
    int pinnum;
+   char *saveinst = NULL;
 
    ptr = (struct nlist *)(p->ptr);
    if (tc->file != ptr->file) return NULL;
@@ -1211,13 +1212,44 @@ struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
 	        }
 
 		FREE(ob->name);
-		if (ob->instance.name != NULL) FREE(ob->instance.name);
+		if (ob->instance.name != NULL) {
+		    /* Keep a copy of the instance name (see below) */
+		    if (saveinst != NULL) FREE(saveinst);
+		    saveinst = ob->instance.name;
+		}
 		if (ob->model.class != NULL) FREE(ob->model.class);
 		FREE(ob);
 	     }
 	     else {
-		lob = ob;
-		ob->type = pinnum++;	// Renumber pins in order
+		if ((ob->type == PROPERTY) && (pinnum == 1))
+		{
+		    /* If this happens, then all the pins got removed,
+		     * and there is probably something very much wrong
+		     * with the setup.  However, to keep netgen from
+		     * blowing up, add back a "proxy(no pins)" record
+		     * in front; otherwise we'd have an orphaned
+		     * property record.
+		     */
+		    pob = GetObject();
+		    pob->name = (char *)MALLOC(15);
+		    sprintf(pob->name, "proxy(no pins)");
+		    pob->model.class = strsave(ob->model.class);
+		    if (saveinst != NULL)
+			pob->instance.name = strsave(saveinst);
+		    else
+			/* This should never happen */
+			pob->instance.name = strsave("error");
+		    pob->type = pinnum++;
+		    pob->node = -1;
+		    pob->next = ob;
+		    lob->next = pob;
+		    lob = ob;
+		}
+		else
+		{
+		    lob = ob;
+		    ob->type = pinnum++;	// Renumber pins in order
+		}
 	     }
 	     ob = nob;
 	     obt = obt->next;
@@ -1228,6 +1260,8 @@ struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
 	     HashPtrInstall(firstpin->instance.name, firstpin, &(ptr->instdict));
       }
    }
+
+   if (saveinst != NULL) FREE(saveinst);
    return NULL;		/* Keep the search going */
 }
 
