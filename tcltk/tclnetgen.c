@@ -246,8 +246,7 @@ Command netcmp_cmds[] = {
 		"\n   "
 		"toggle exhaustive subdivision"},
 	{"symmetry",		_netcmp_symmetry,
-		"[fast|full]\n   "
-		"apply method for symmetry breaking"},
+		"(deprecated)"},
 	{"restart",		_netcmp_restart,
 		"\n   "
 		"start over (reset data structures)"},
@@ -3982,39 +3981,14 @@ _netcmp_permute(ClientData clientData,
 /* Formerly: x						*/
 /* Results:						*/
 /* Side Effects:					*/
+/* Notes:  Deprecated, retained for compatibility.	*/
 /*------------------------------------------------------*/
 
 int
 _netcmp_symmetry(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-   char *fastfull[] = {
-      "fast", "full", NULL
-   };
-   enum OptionIdx {
-      FAST_IDX, FULL_IDX
-   };
-   int result, index;
-
-   if (objc == 1)
-      index = -1;
-   else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)fastfull,
-		"option", 0, &index) != TCL_OK)
-         return TCL_ERROR;
-   }
-
-   switch(index) {
-      case FAST_IDX:
-	 FastSymmetryBreaking = TRUE;
-	 break;
-      case FULL_IDX:
-	 FastSymmetryBreaking = FALSE;
-	 break;
-   }
-   Printf("Symmetry breaking method: %s.\n", 
-	     FastSymmetryBreaking ? "FAST" : "FULL");
-
+   Printf("Symmetry breaking method has been deprecated.\n");
    return TCL_OK;
 }
 
