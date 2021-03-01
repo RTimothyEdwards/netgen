@@ -382,9 +382,6 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       } elseif {$arg == "-blackbox"} {
 	 puts stdout "Treating empty subcircuits as black-box cells"
 	 netgen::model blackbox on
-      } elseif {$arg == "-full"} {
-	 puts stdout "Using full symmetry breaking method"
-	 netgen::symmetry full
       }
    }
 
