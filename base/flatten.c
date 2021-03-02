@@ -193,17 +193,19 @@ void flattenCell(char *name, int file)
 	if (Debug) Printf("Renaming %s to %s\n", tmp->name, tmpstr);
 	FreeString(tmp->name);
 	tmp->name = strsave(tmpstr);
-#if OLDPREFIX
-	sprintf(tmpstr, "%s%s%s", ParentParams->instance.name, SEPARATOR,
-		tmp->instance.name);
-#else
-	strcpy(tmpstr+prefixlength,tmp->instance.name);
-#endif
-	FreeString(tmp->instance.name);
-	tmp->instance.name = strsave(tmpstr);
 	HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
-	if (tmp->type == FIRSTPIN) 
-	  HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
+	if ((tmp->type != NODE) && (tmp->instance.name != NULL)) {
+#if OLDPREFIX
+	   sprintf(tmpstr, "%s%s%s", ParentParams->instance.name, SEPARATOR,
+		    tmp->instance.name);
+#else
+	   strcpy(tmpstr+prefixlength,tmp->instance.name);
+#endif
+	   FreeString(tmp->instance.name);
+	   tmp->instance.name = strsave(tmpstr);
+	   if (tmp->type == FIRSTPIN) 
+	      HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
+        }
       }
 
       /* splice instance out of parent */
@@ -470,17 +472,19 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	if (Debug) Printf("Renaming %s to %s\n", tmp->name, tmpstr);
 	FreeString(tmp->name);
 	tmp->name = strsave(tmpstr);
-#if OLDPREFIX
-	sprintf(tmpstr, "%s%s%s", ParentParams->instance.name, SEPARATOR,
-		tmp->instance.name);
-#else
-	strcpy(tmpstr+prefixlength,tmp->instance.name);
-#endif
-	FreeString(tmp->instance.name);
-	tmp->instance.name = strsave(tmpstr);
 	HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
-	if (tmp->type == FIRSTPIN) 
-	  HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
+	if ((tmp->type != NODE) && (tmp->instance.name != NULL)) {
+#if OLDPREFIX
+	   sprintf(tmpstr, "%s%s%s", ParentParams->instance.name, SEPARATOR,
+		    tmp->instance.name);
+#else
+	   strcpy(tmpstr+prefixlength,tmp->instance.name);
+#endif
+	   FreeString(tmp->instance.name);
+	   tmp->instance.name = strsave(tmpstr);
+	   if (tmp->type == FIRSTPIN) 
+	      HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
+        }
       }
 
       /* Do property inheritance */

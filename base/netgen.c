@@ -1337,7 +1337,7 @@ void Node(char *name)
 	tp->name = strsave(name);
 	tp->type = NODE;  /* internal node type */
 	tp->model.class = NULL;
-	tp->instance.name = NULL;
+	tp->instance.flags = 0;
 	tp->node = -1;  /* null node */
 	tp->next = NULL;
 	AddToCurrentCell (tp);
@@ -3217,7 +3217,11 @@ int CombineParallel(char *model, int file)
 	 
 	 for (ob2 = ob; ob2 && (ob2->type > FIRSTPIN || ob2 == ob); ob2 = ob2->next) {
 	    if ((ob2->node >= 0) && (nodecount[ob2->node] == 1))
+	    {
+	       nob = (tp->nodename_cache)[ob2->node];
+	       nob->instance.flags = NO_CONNECT;
 	       strcat(pptr, "_nc");
+	    }
 	    else
 	       sprintf(pptr, "_%d", ob2->node);
 	    pptr += strlen(pptr);
