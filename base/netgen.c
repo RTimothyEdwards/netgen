@@ -3149,6 +3149,7 @@ int CombineParallel(char *model, int file)
    size_t pcnt;
    int i, dcnt = 0, hastag;
    char *pstr, *p2str, *pptr;
+   int *nodecount;
    struct valuelist *kv;
 
    if ((tp = LookupCellFile(model, file)) == NULL) {
@@ -3157,6 +3158,17 @@ int CombineParallel(char *model, int file)
    }
 
    InitializeHashTable(&devdict, OBJHASHSIZE);
+
+   /* Make one pass to count the number of times each node number is	*/
+   /* used.  This list indicates which pins are no-connects, so they	*/
+   /* can be treated as equivalent for the purpose of parallelization.	*/
+
+   nodecount = (int *)CALLOC((tp->nodename_cache_maxnodenum + 1), sizeof(int));
+   for (ob = tp->cell; ob; ob = ob->next) {
+      if (ob->node >= 0)
+         if (ob->type != NODE)
+	     nodecount[ob->node]++;
+   }
 
    lob = NULL;
    for (ob = tp->cell; ob; ) {
@@ -3204,7 +3216,10 @@ int CombineParallel(char *model, int file)
 	 pptr += pstr - (char *)2;
 	 
 	 for (ob2 = ob; ob2 && (ob2->type > FIRSTPIN || ob2 == ob); ob2 = ob2->next) {
-	    sprintf(pptr, "_%d", ob2->node);
+	    if ((ob->node >= 0) && (nodecount[ob->node] == 1))
+	       strcat(pptr, "_nc");
+	    else
+	       sprintf(pptr, "_%d", ob2->node);
 	    pptr += strlen(pptr);
 	 }
 
@@ -3240,11 +3255,26 @@ int CombineParallel(char *model, int file)
 		for (ob2 = ob; ob2 && (ob2->type > FIRSTPIN || ob2 == ob);
 				ob2 = ob2->next) {
 		    if (ob2 == pob1)
-		        sprintf(pptr, "_%d", pob2->node);
+		    {
+	     		if ((pob2->node >= 0) && (nodecount[pob2->node] == 1))
+	       		   strcat(pptr, "_nc");
+			else
+		           sprintf(pptr, "_%d", pob2->node);
+		    }
 		    else if (ob2 == pob2)
-		        sprintf(pptr, "_%d", pob1->node);
+		    {
+	     		if ((pob1->node >= 0) && (nodecount[pob1->node] == 1))
+	       		   strcat(pptr, "_nc");
+			else
+		           sprintf(pptr, "_%d", pob1->node);
+		    }
 		    else
-		        sprintf(pptr, "_%d", ob2->node);
+		    {
+	     		if ((ob2->node >= 0) && (nodecount[ob2->node] == 1))
+	       		   strcat(pptr, "_nc");
+			else
+		           sprintf(pptr, "_%d", ob2->node);
+		    }
 		    pptr += strlen(pptr);
 		}
 		HashPtrInstall(p2str, ob, &devdict);
@@ -3368,6 +3398,7 @@ int CombineParallel(char *model, int file)
    if (dcnt > 0) {
       Fprintf(stdout, "Class %s:  Merged %d devices.\n", model, dcnt);
    }
+   FREE(nodecount);
    return dcnt;
 }
 

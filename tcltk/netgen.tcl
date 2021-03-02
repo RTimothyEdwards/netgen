@@ -21,9 +21,9 @@ foreach i $nlist {
 }
 
 # -lazy option not needed if stubs libraries are handled correctly
-# load -lazy TCL_DIR/tclnetgenSHDLIB_EXT
+# load -lazy /usr/local/lib/netgen/tcl/tclnetgen.so
 
-load TCL_DIR/tclnetgenSHDLIB_EXT
+load /usr/local/lib/netgen/tcl/tclnetgen.so
 
 #----------------------------------------------------------------
 # Convert LVS list result into a JSON file 
@@ -382,6 +382,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       } elseif {$arg == "-blackbox"} {
 	 puts stdout "Treating empty subcircuits as black-box cells"
 	 netgen::model blackbox on
+      } elseif {$arg == "-full"} {
+	 puts stdout "Using full symmetry breaking method"
+	 netgen::symmetry full
       }
    }
 

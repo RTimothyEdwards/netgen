@@ -7,7 +7,6 @@ extern struct nlist *Circuit1;
 extern struct nlist *Circuit2;
 
 extern int ExhaustiveSubdivision;
-extern int FastSymmetryBreaking;
 
 extern int left_col_end;
 extern int right_col_end;
