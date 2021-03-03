@@ -3417,9 +3417,15 @@ _netcmp_property(ClientData clientData,
 	    GlobalParallelNone = FALSE;
 	    SetParallelCombine(TRUE);
 	}
+	else if (!strcmp(Tcl_GetString(objv[2]), "connected")) {
+	    GlobalParallelOpen = FALSE;
+	}
+	else if (!strcmp(Tcl_GetString(objv[2]), "open")) {
+	    GlobalParallelOpen = TRUE;
+	}
 	else {
-	    Tcl_SetResult(interp, "Bad option, should be property parallel none|all",
-			NULL);
+	    Tcl_SetResult(interp, "Bad option, should be property parallel "
+			"none|all|connected", NULL);
 	    return TCL_ERROR;
 	}
 	return TCL_OK;

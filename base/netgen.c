@@ -50,6 +50,7 @@ int NextNode;
 int Composition = NONE;
 int QuickSearch = 0;
 int GlobalParallelNone = FALSE;
+int GlobalParallelOpen = TRUE;
 
 int AddToExistingDefinition = 0;  /* default: overwrite cell when reopened */
 
@@ -3164,10 +3165,13 @@ int CombineParallel(char *model, int file)
    /* can be treated as equivalent for the purpose of parallelization.	*/
 
    nodecount = (int *)CALLOC((tp->nodename_cache_maxnodenum + 1), sizeof(int));
-   for (ob = tp->cell; ob; ob = ob->next) {
-      if (ob->node >= 0)
-         if (ob->type != NODE)
-	     nodecount[ob->node]++;
+
+   if (GlobalParallelOpen) {
+      for (ob = tp->cell; ob; ob = ob->next) {
+         if (ob->node >= 0)
+            if (ob->type != NODE)
+	       nodecount[ob->node]++;
+      }
    }
 
    lob = NULL;
