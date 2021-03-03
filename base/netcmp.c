@@ -5360,6 +5360,32 @@ PropertyMatch(struct objlist *ob1, int file1,
 #endif
    }
 
+   /* WIP---Check for no-connect pins in merged devices on both sides.	*/
+   /* Both sides should either have no-connects marked, or neither.	*/
+   /* (Permutable pins may need to be handled correctly. . .		*/
+   for (tp1 = ob1, tp2 = ob2; (tp1 != NULL) && tp1->type >= FIRSTPIN &&
+	    (tp2 != NULL) && tp2->type >= FIRSTPIN; tp1 = tp1->next, tp2 = tp2->next)
+   {
+      struct objlist *node1, *node2;
+
+      node1 = Circuit1->nodename_cache[tp1->node];
+      node2 = Circuit2->nodename_cache[tp2->node];
+
+      if (node1->instance.flags != node2->instance.flags)
+      {
+	 Fprintf(stdout, "  Parallelized instances disagree on pin connections.\n");
+	 Fprintf(stdout, "    Circuit1 instance %s pin %s connections are %s (%d)\n",
+		    tp1->instance.name, node1->name,
+		    (node1->instance.flags == 0) ? "tied together" : "no connects",
+		    node1->instance.flags);
+	 Fprintf(stdout, "    Circuit2 instance %s pin %s connections are %s (%d)\n",
+		    tp2->instance.name, node2->name,
+		    (node2->instance.flags == 0) ? "tied together" : "no connects",
+		    node2->instance.flags);
+	 mismatches++;
+      }
+   }
+
    // Attempt to organize devices by series and parallel combination
    if (t1type == PROPERTY && t2type == PROPERTY)
       PropertySortAndCombine(obn1, tc1, obn2, tc2);

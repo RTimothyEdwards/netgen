@@ -28,6 +28,8 @@
 
 #define PROXY (0)		/* Used in model.port record of ports */
 
+#define NO_CONNECT	1	/* Use in object list to flag an isolated net */
+
 /* Lists of device properties.  Order is defined at the time of	*/
 /* the cell definition; values are sorted at the time instances	*/
 /* are read.							*/
@@ -160,6 +162,7 @@ struct objlist {
   union {
      char *name;		/* unique name for the instance, or */
 				/* (string) value of property for properties */
+     int  flags;		/* Used by NODE type to flag isolated net */
      struct valuelist *props;	/* Property record */
   } instance;
   int node;		/* the electrical node number of the port/node/pin */

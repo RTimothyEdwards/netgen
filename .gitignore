@@ -12,3 +12,5 @@ scripts/config.status
 *~
 *.log
 UPDATE_ME
+tcltk/netgen.sh
+tcltk/netgen.tcl
