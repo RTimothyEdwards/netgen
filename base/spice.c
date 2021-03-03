@@ -1186,7 +1186,7 @@ skip_ends:
            else if (CountPorts(model, filenum) != 2) {
 	      /* Modeled device:  Make sure it has the right number of ports */
 	      Fprintf(stderr, "Device \"%s\" has wrong number of ports for a "
-			"resistor.\n");
+			"resistor.\n", model);
 	      goto baddevice;
            }
 	   usemodel = 1;
