@@ -5363,13 +5363,21 @@ PropertyMatch(struct objlist *ob1, int file1,
    /* WIP---Check for no-connect pins in merged devices on both sides.	*/
    /* Both sides should either have no-connects marked, or neither.	*/
    /* (Permutable pins may need to be handled correctly. . .		*/
+
    for (tp1 = ob1, tp2 = ob2; (tp1 != NULL) && tp1->type >= FIRSTPIN &&
 	    (tp2 != NULL) && tp2->type >= FIRSTPIN; tp1 = tp1->next, tp2 = tp2->next)
    {
       struct objlist *node1, *node2;
 
-      node1 = Circuit1->nodename_cache[tp1->node];
-      node2 = Circuit2->nodename_cache[tp2->node];
+      if (file1 == Circuit1->file)
+	 node1 = Circuit1->nodename_cache[tp1->node];
+      else
+	 node1 = Circuit2->nodename_cache[tp1->node];
+
+      if (file2 == Circuit1->file)
+         node2 = Circuit1->nodename_cache[tp2->node];
+      else
+         node2 = Circuit2->nodename_cache[tp2->node];
 
       if (node1->instance.flags != node2->instance.flags)
       {
