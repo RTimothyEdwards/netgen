@@ -1143,6 +1143,323 @@ Tcl_Obj *ListElementClasses(int legal)
 
 /* 
  *---------------------------------------------------------------------
+ *
+ * Sort the fanout lists of two formatted list entries so that they
+ * are as well aligned as they can be made, practically.  The matching
+ * is ad hoc as it does not affect LVS results but only how the results
+ * are organized and presented in the output.
+ *
+ *---------------------------------------------------------------------
+ */
+
+void
+SortFanoutLists(nlist1, nlist2)
+    struct FormattedList *nlist1, *nlist2;
+{
+    struct hashdict f1hash, f2hash;
+    int f1, f2, total;
+    struct FanoutList temp;
+    int *matched;
+    char pinname[1024], pinnameA[1024], pinnameB[1024];
+
+    InitializeHashTable(&f1hash, OBJHASHSIZE);
+    InitializeHashTable(&f2hash, OBJHASHSIZE);
+
+    if (nlist1->fanout < nlist2->fanout) {
+    	matched = (int *)CALLOC(nlist2->fanout, sizeof(int));
+	total = 0;
+
+    	for (f2 = 0; f2 < nlist2->fanout; f2++) {
+	    sprintf(pinname, "%s/%s", nlist2->flist[f2].model,
+			nlist2->flist[f2].name);
+	    HashPtrInstall(pinname, (void *)((long)f2 + 1), &f2hash);
+	}
+
+	for (f1 = 0; f1 < nlist1->fanout; f1++) {
+	    sprintf(pinname, "%s/%s", nlist1->flist[f1].model,
+			nlist1->flist[f1].name);
+	    f2 = (int)(long)HashLookup(pinname, &f2hash);
+	    if (f2 != 0) {
+	    	f2 -= 1;
+		matched[f1] = -1;
+		total++;
+	    	if (f2 != f1) {
+		    temp = nlist2->flist[f2];
+		    nlist2->flist[f2] = nlist2->flist[f1];
+		    nlist2->flist[f1] = temp;
+	    	    sprintf(pinnameA, "%s/%s", nlist2->flist[f1].model,
+				nlist2->flist[f1].name);
+	    	    sprintf(pinnameB, "%s/%s", nlist2->flist[f2].model,
+				nlist2->flist[f2].name);
+		    HashPtrInstall(pinnameA, (void *)((long)f1 + 1), &f2hash);
+		    HashPtrInstall(pinnameB, (void *)((long)f2 + 1), &f2hash);
+		}
+	    }
+	}
+
+	/* To do: If full pin names don't match, match by model name only */
+    }
+    else {
+    	matched = (int *)CALLOC(nlist1->fanout, sizeof(int));
+	total = 0;
+
+    	for (f1 = 0; f1 < nlist1->fanout; f1++) {
+	    sprintf(pinname, "%s/%s", nlist1->flist[f1].model,
+			nlist1->flist[f1].name);
+	    HashPtrInstall(pinname, (void *)((long)f1 + 1), &f1hash);
+	}
+
+	for (f2 = 0; f2 < nlist2->fanout; f2++) {
+	    sprintf(pinname, "%s/%s", nlist2->flist[f2].model,
+			nlist2->flist[f2].name);
+	    f1 = (int)(long)HashLookup(pinname, &f1hash);
+	    if (f1 != 0) {
+	    	f1 -= 1;
+		matched[f2] = -1;
+		total++;
+	    	if (f1 != f2) {
+		    temp = nlist1->flist[f1];
+		    nlist1->flist[f1] = nlist1->flist[f2];
+		    nlist1->flist[f2] = temp;
+	    	    sprintf(pinnameA, "%s/%s", nlist1->flist[f1].model,
+				nlist1->flist[f1].name);
+	    	    sprintf(pinnameB, "%s/%s", nlist1->flist[f2].model,
+				nlist1->flist[f2].name);
+		    HashPtrInstall(pinnameA, (void *)((long)f1 + 1), &f1hash);
+		    HashPtrInstall(pinnameB, (void *)((long)f2 + 1), &f1hash);
+		}
+	    }
+	}
+
+	/* To do:  If full pin names don't match, match by model name only */
+    }
+
+    FREE(matched);
+    HashKill(&f1hash);
+    HashKill(&f2hash);
+}
+
+/* 
+ *---------------------------------------------------------------------
+ *
+ * Determine the match between two entries in a bad node fragment
+ * according to an ad hoc metric of how many fanout entries are
+ * the same between the two.  This is not used to match circuits
+ * for LVS, but is used to sort the dump of unmatched nets generated
+ * for an unmatched subcell, so that the end-user is not presented
+ * with a list in a confusingly arbitrary order.
+ *
+ * Score is normalized to 100.
+ * If a model/pin has an equivalent on the other size, add 1
+ * If a model/pin equivalent has the same count, add 1
+ * Total values and normalize to a 100 score for an exact match.
+ *
+ *---------------------------------------------------------------------
+ */
+
+int
+NodeMatchScore(nlist1, nlist2)
+    struct FormattedList *nlist1, *nlist2;
+{
+    struct hashdict f1hash, f2hash;
+    char pinname[1024];
+    int f1, f2, maxfanout;
+    int score = 0;
+
+    InitializeHashTable(&f1hash, OBJHASHSIZE);
+    InitializeHashTable(&f2hash, OBJHASHSIZE);
+
+    if (nlist1->fanout < nlist2->fanout) {
+    	for (f2 = 0; f2 < nlist2->fanout; f2++) {
+	    sprintf(pinname, "%s/%s", nlist2->flist[f2].model,
+			nlist2->flist[f2].name);
+	    HashPtrInstall(pinname, (void *)((long)f2 + 1), &f2hash);
+	}
+
+	for (f1 = 0; f1 < nlist1->fanout; f1++) {
+	    sprintf(pinname, "%s/%s", nlist1->flist[f1].model,
+			nlist1->flist[f1].name);
+	    f2 = (int)(long)HashLookup(pinname, &f2hash);
+	    if (f2 != 0) {
+	    	f2 -= 1;
+		score++;
+		if (nlist1->flist[f1].count == nlist2->flist[f2].count)
+		    score++;
+	    }
+	}
+    }
+    else {
+    	for (f1 = 0; f1 < nlist1->fanout; f1++) {
+	    sprintf(pinname, "%s/%s", nlist1->flist[f1].model,
+			nlist1->flist[f1].name);
+	    HashPtrInstall(pinname, (void *)((long)f1 + 1), &f1hash);
+	}
+
+	for (f2 = 0; f2 < nlist2->fanout; f2++) {
+	    sprintf(pinname, "%s/%s", nlist2->flist[f2].model,
+			nlist2->flist[f2].name);
+	    f1 = (int)(long)HashLookup(pinname, &f1hash);
+	    if (f1 != 0) {
+	    	f1 -= 1;
+		score++;
+		if (nlist2->flist[f2].count == nlist1->flist[f1].count)
+		    score++;
+	    }
+	}
+    }
+
+    HashKill(&f1hash);
+    HashKill(&f2hash);
+
+    maxfanout = (nlist1->fanout < nlist2->fanout) ? nlist2->fanout : nlist1->fanout;
+    score = (50 * score) / maxfanout;
+
+    return score;
+}
+
+/* 
+ *---------------------------------------------------------------------
+ *
+ * Sort node list 2 to match the entries in list 1, to the extent
+ * possible.  Exact name matching is preferred, followed by matching
+ * of the largest percentage of components.  
+ *
+ *---------------------------------------------------------------------
+ */
+
+void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
+    struct FormattedList **nlists1, **nlists2;
+    int n1max, n2max;
+{
+    struct FormattedList *temp;
+    int n1, n2;
+    int *matched, total, best, ibest;
+
+    struct hashdict n1hash, n2hash;
+
+    InitializeHashTable(&n1hash, OBJHASHSIZE);
+    InitializeHashTable(&n2hash, OBJHASHSIZE);
+
+    if (n1max < n2max) {
+    	matched = (int *)CALLOC(n2max, sizeof(int));
+	total = 0;
+
+    	for (n2 = 0; n2 < n2max; n2++)
+	    HashPtrInstall(nlists2[n2]->name, (void *)((long)n2 + 1), &n2hash);
+
+	/* Match by name */
+    	for (n1 = 0; n1 < n1max; n1++) {
+	    n2 = (int)(long)HashLookup(nlists1[n1]->name, &n2hash);
+	    if (n2 != 0) {
+	    	n2 -= 1;
+		matched[n1] = -1;
+		total++;
+	    	if (n2 != n1) {
+		    temp = nlists2[n2];
+		    nlists2[n2] = nlists2[n1];
+		    nlists2[n1] = temp;
+		    HashPtrInstall(nlists2[n1]->name, (void *)((long)n1 + 1), &n2hash);
+		    HashPtrInstall(nlists2[n2]->name, (void *)((long)n2 + 1), &n2hash);
+		    SortFanoutLists(nlists1[n1], nlists2[n1]);
+		}
+	    }
+	}
+
+	/* For all nets that didn't match by name, match by content */
+#if 0
+	/* This is ifdef'd out because the improvement in the presentation
+	 * of the output is minimal, but the amount of computation is huge.
+	 * There are numerous ways to optimize this.
+	 */
+	if (total < n1max) {
+    	    for (n1 = 0; n1 < n1max; n1++) {
+		if (matched[n1] != -1) {
+		    best = 0;
+		    ibest = -1;
+		    for (n2 = 0; n2 < n2max; n2++) {
+			if (matched[n2] != -1) {
+			    matched[n2] = NodeMatchScore(nlists1[n1], nlists2[n2]);
+			    if (matched[n2] > best) {
+				best = matched[n2];
+				ibest = n2;
+			    }
+		 	}
+		    }
+		    if (ibest >= 0) {
+		       matched[n1] = -1;
+		       temp = nlists2[ibest];
+		       nlists2[ibest] = nlists2[n1];
+		       nlists2[n1] = temp;
+		       SortFanoutLists(nlists1[n1], nlists2[n1]);
+		    }
+		}
+	    }
+	}
+#endif
+    }
+    else {
+    	matched = (int *)CALLOC(n1max, sizeof(int));
+	total = 0;
+
+        for (n1 = 0; n1 < n1max; n1++)
+	    HashPtrInstall(nlists1[n1]->name, (void *)((long)n1 + 1), &n1hash);
+
+        for (n2 = 0; n2 < n2max; n2++) {
+	    n1 = (int)(long)HashLookup(nlists2[n2]->name, &n1hash);
+	    if (n1 != 0) {
+	    	n1 -= 1;
+		matched[n2] = -1;
+		total++;
+	    	if (n1 != n2) {
+		    temp = nlists1[n1];
+		    nlists1[n1] = nlists1[n2];
+		    nlists1[n2] = temp;
+		    HashPtrInstall(nlists1[n1]->name, (void *)((long)n1 + 1), &n1hash);
+		    HashPtrInstall(nlists1[n2]->name, (void *)((long)n2 + 1), &n1hash);
+		    SortFanoutLists(nlists2[n2], nlists1[n2]);
+		}
+	    }
+	}
+	/* For all nets that didn't match by name, match by content */
+#if 0
+	/* This is ifdef'd out because the improvement in the presentation
+	 * of the output is minimal, but the amount of computation is huge.
+	 * There are numerous ways to optimize this.
+	 */
+	if (total < n2max) {
+    	    for (n2 = 0; n2 < n2max; n2++) {
+		if (matched[n2] != -1) {
+		    best = 0;
+		    ibest = -1;
+		    for (n1 = 0; n1 < n1max; n1++) {
+			if (matched[n1] != -1) {
+			    matched[n1] = NodeMatchScore(nlists2[n2], nlists1[n1]);
+			    if (matched[n1] > best) {
+				best = matched[n1];
+				ibest = n1;
+			    }
+		 	}
+		    }
+		    if (ibest >= 0) {
+		       matched[n2] = -1;
+		       temp = nlists1[ibest];
+		       nlists1[ibest] = nlists1[n2];
+		       nlists1[n2] = temp;
+		       SortFanoutLists(nlists2[n2], nlists1[n2]);
+		    }
+		}
+	    }
+	}
+#endif
+    }
+
+    FREE(matched);
+    HashKill(&n1hash);
+    HashKill(&n2hash);
+}
+
+/* 
+ *---------------------------------------------------------------------
  *---------------------------------------------------------------------
  */
 
@@ -1219,8 +1536,9 @@ void FormatIllegalElementClasses()
 	   n2++;
 	}
       }
-      Fprintf(stdout, "\n");
+      SortUnmatchedLists(elist1, elist2, n1, n2);
 
+      Fprintf(stdout, "\n");
       for (n = 0; n < ((n1 > n2) ? n1 : n2); n++) {
 	 if (n != 0) {
 	    for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
@@ -1522,6 +1840,12 @@ void FormatIllegalNodeClasses()
   ostr = CALLOC(right_col_end + 2, sizeof(char));
   found = 0;
 
+  /* 
+   * To do: match net names across partitions, to make it much clearer how
+   * two nets are mismatched, when they have been dropped into different
+   * partitions.
+   */
+
   for (nscan = NodeClasses; nscan != NULL; nscan = nscan->next)
     if (!(nscan->legalpartition)) {
       struct Node *N;
@@ -1574,8 +1898,9 @@ void FormatIllegalNodeClasses()
 	   n2++;
 	}
       }
-      Fprintf(stdout, "\n");
+      SortUnmatchedLists(nlists1, nlists2, n1, n2);
 
+      Fprintf(stdout, "\n");
       for (n = 0; n < ((n1 > n2) ? n1 : n2); n++) {
 	 if (n != 0) {
             for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
@@ -5363,13 +5688,21 @@ PropertyMatch(struct objlist *ob1, int file1,
    /* WIP---Check for no-connect pins in merged devices on both sides.	*/
    /* Both sides should either have no-connects marked, or neither.	*/
    /* (Permutable pins may need to be handled correctly. . .		*/
+
    for (tp1 = ob1, tp2 = ob2; (tp1 != NULL) && tp1->type >= FIRSTPIN &&
 	    (tp2 != NULL) && tp2->type >= FIRSTPIN; tp1 = tp1->next, tp2 = tp2->next)
    {
       struct objlist *node1, *node2;
 
-      node1 = Circuit1->nodename_cache[tp1->node];
-      node2 = Circuit2->nodename_cache[tp2->node];
+      if (file1 == Circuit1->file)
+	 node1 = Circuit1->nodename_cache[tp1->node];
+      else
+	 node1 = Circuit2->nodename_cache[tp1->node];
+
+      if (file2 == Circuit1->file)
+         node2 = Circuit1->nodename_cache[tp2->node];
+      else
+         node2 = Circuit2->nodename_cache[tp2->node];
 
       if (node1->instance.flags != node2->instance.flags)
       {

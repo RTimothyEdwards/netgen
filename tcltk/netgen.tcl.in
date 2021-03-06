@@ -352,7 +352,7 @@ proc netgen::convert_to_json {filename lvs_final} {
    close $fjson
 }
 
-#----------------------------------------------------------------
+#-----------------------------------------------------------------------
 # Define the "lvs" command as a way of calling the netgen options
 # for standard compare, essentially the same as the old "netcomp"
 # standalone program.
@@ -361,14 +361,20 @@ proc netgen::convert_to_json {filename lvs_final} {
 # although if the cells have not been read in yet, then the
 # original syntax of filename or {filename cellname} is required.
 #
-# "args" is passed to verify and may therefore contain only the
-# value "-list" or nothing.  If "-list", then output is returned
-# as a nested list.
-#----------------------------------------------------------------
+# "args" may be "-list", "-json", or "-blackbox".
+#    "-list" returns output as a nested list.
+#    "-json" creates a .json-format output file in addition to stdout.
+#    "-blackbox" treats empty cells as black-box entries.
+#    "-noflatten={list}" is a list of cells not to flatten if mismatched.
+#    i.e., the cells are expected to match and any mismatch cannot be
+#    expected to be resolved by flattening the contents of the mismatched
+#    cells.
+#-----------------------------------------------------------------------
 
 proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    set dolist 0
    set dojson 0
+   set noflat {}
    foreach arg $args {
       if {$arg == "-list"} {
 	 puts stdout "Generating list result"
@@ -382,6 +388,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       } elseif {$arg == "-blackbox"} {
 	 puts stdout "Treating empty subcircuits as black-box cells"
 	 netgen::model blackbox on
+      } elseif {[string first "-noflatten=" $arg] == 0} {
+	 set noflat [string trim [string range $arg 11 end] \"\{\}]
+	 puts stdout "Will not flatten these subcells: $noflat"
       }
    }
 
@@ -501,6 +510,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       return
    }
    set properr {}
+   set matcherr {}
    set pinsgood 0
    while {$endval != {}} {
       if {$dolist == 1} {
@@ -529,9 +539,30 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 
 	    # Flatten the non-matching subcircuit (but not the top-level cells)
             if {[netgen::print queue] != {}} {
-	       netgen::log put "  Flattening non-matched subcircuits $endval"
-	       netgen::flatten class "[lindex $endval 0] $fnum1"
-	       netgen::flatten class "[lindex $endval 1] $fnum2"
+	       if {([lsearch $noflat [lindex $endval 0]] == -1) &&
+			([lsearch $noflat [lindex $endval 1]] == -1)} {
+	           netgen::log put "  Flattening non-matched subcircuits $endval"
+	           netgen::flatten class "[lindex $endval 0] $fnum1"
+	           netgen::flatten class "[lindex $endval 1] $fnum2"
+	       } else {
+	           netgen::log put "  Continuing with black-boxed subcircuits $endval"
+		   lappend matcherr [lindex $endval 0]
+	           # Match pins
+                   netgen::log echo off
+	           if {$dolist == 1} {
+		       set result [equate -list -force pins "$fnum1 [lindex $endval 0]" \
+				"$fnum2 [lindex $endval 1]"]
+	           } else {
+		       set result [equate -force pins "$fnum1 [lindex $endval 0]" \
+				"$fnum2 [lindex $endval 1]"]
+	           }
+	           if {$result != 0} {
+		       equate classes "$fnum1 [lindex $endval 0]" \
+			        "$fnum2 [lindex $endval 1]"
+	           }
+	           set pinsgood $result
+                   netgen::log echo on
+	       }
 	    }
 	 } else {
 	    # Match pins
@@ -554,9 +585,32 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       } else {
 	 # Flatten the non-matching subcircuit (but not the top-level cells)
          if {[netgen::print queue] != {}} {
-	    netgen::log put "  Flattening non-matched subcircuits $endval"
-	    netgen::flatten class "[lindex $endval 0] $fnum1"
-	    netgen::flatten class "[lindex $endval 1] $fnum2"
+	    if {([lsearch $noflat [lindex $endval 1]] == -1) &&
+		    ([lsearch $noflat [lindex $endval 1]] == -1)} {
+	       netgen::log put "  Flattening non-matched subcircuits $endval"
+	       netgen::flatten class "[lindex $endval 0] $fnum1"
+	       netgen::flatten class "[lindex $endval 1] $fnum2"
+	    } else {
+	       netgen::log put "  Continuing with black-boxed subcircuits $endval"
+	       lappend matcherr [lindex $endval 0]
+	       netgen::log put "  Continuing with black-boxed subcircuits $endval"
+	       lappend matcherr [lindex $endval 0]
+	       # Match pins
+               netgen::log echo off
+	       if {$dolist == 1} {
+		   set result [equate -list -force pins "$fnum1 [lindex $endval 0]" \
+			    "$fnum2 [lindex $endval 1]"]
+	       } else {
+		   set result [equate -force pins "$fnum1 [lindex $endval 0]" \
+			    "$fnum2 [lindex $endval 1]"]
+	       }
+	       if {$result != 0} {
+		   equate classes "$fnum1 [lindex $endval 0]" \
+			    "$fnum2 [lindex $endval 1]"
+	       }
+	       set pinsgood $result
+               netgen::log echo on
+	    }
 	 }
       }
       netgen::log echo off
@@ -578,6 +632,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    }
    if {$properr != {}} {
       netgen::log put "The following cells had property errors: $properr\n"
+   }
+   if {$matcherr != {}} {
+      netgen::log put "The following subcells failed to match: $matcherr\n"
    }
    if {$dolog} {
       netgen::log end

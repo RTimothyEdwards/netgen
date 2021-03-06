@@ -2827,11 +2827,13 @@ _netcmp_equate(ClientData clientData,
    char *name1 = NULL, *name2 = NULL, *optstart;
    struct nlist *tp1, *tp2, *SaveC1, *SaveC2;
    struct objlist *ob1, *ob2;
+   struct ElementClass *saveEclass = NULL;
+   struct NodeClass *saveNclass = NULL;
    int file1, file2;
-   int i, l1, l2, ltest, lent, dolist = 0;
+   int i, l1, l2, ltest, lent, dolist = 0, doforce = 0;
    Tcl_Obj *tobj1, *tobj2, *tobj3;
 
-   if (objc > 1) {
+   while (objc > 1) {
       optstart = Tcl_GetString(objv[1]);
       if (*optstart == '-') optstart++;
       if (!strcmp(optstart, "list")) {
@@ -2839,6 +2841,13 @@ _netcmp_equate(ClientData clientData,
 	 objv++;
 	 objc--;
       }
+      else if (!strcmp(optstart, "force")) {
+	 doforce = 1;
+	 objv++;
+	 objc--;
+      }
+      else
+	 break;
    }
 
    if ((objc != 2) && (objc != 4) && (objc != 6)) {
@@ -2996,6 +3005,12 @@ _netcmp_equate(ClientData clientData,
 	 break;
 
       case PINS_IDX:
+	 if ((ElementClasses != NULL) && (doforce == TRUE)) {
+	    saveEclass = ElementClasses;
+	    saveNclass = NodeClasses;
+	    ElementClasses = NULL;
+	    NodeClasses = NULL;
+	 }
 	 if ((ElementClasses == NULL) && (auto_blackbox == FALSE)) {
 	    if (CurrentCell == NULL) {
 		Fprintf(stderr, "Equate elements:  no current cell.\n");
@@ -3058,6 +3073,12 @@ _netcmp_equate(ClientData clientData,
 	    /* Recover temporarily set global variables (see above) */
 	    Circuit1 = SaveC1;
 	    Circuit2 = SaveC2;
+
+	    /* Recover ElementClasses if forcing pins on mismatched circuits */
+	    if (doforce == TRUE) {
+	       ElementClasses = saveEclass;
+	       NodeClasses = saveNclass;
+	    }
 	 }
 	 break;
 
@@ -3417,9 +3438,15 @@ _netcmp_property(ClientData clientData,
 	    GlobalParallelNone = FALSE;
 	    SetParallelCombine(TRUE);
 	}
+	else if (!strcmp(Tcl_GetString(objv[2]), "connected")) {
+	    GlobalParallelOpen = FALSE;
+	}
+	else if (!strcmp(Tcl_GetString(objv[2]), "open")) {
+	    GlobalParallelOpen = TRUE;
+	}
 	else {
-	    Tcl_SetResult(interp, "Bad option, should be property parallel none|all",
-			NULL);
+	    Tcl_SetResult(interp, "Bad option, should be property parallel "
+			"none|all|connected", NULL);
 	    return TCL_ERROR;
 	}
 	return TCL_OK;

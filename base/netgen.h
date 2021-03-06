@@ -149,6 +149,7 @@ extern int NoOutput;      /* set this to 1 to disable stdout output */
 extern int Composition;	  /* direction of composition */
 extern int UnixWildcards; /* TRUE if *,?,{},[] only; false if full REGEXP */
 extern int GlobalParallelNone;	/* If TRUE, don't parallel combine any cells */
+extern int GlobalParallelOpen;	/* If TRUE, parallel combine cells w/no-connects */
 /* magic internal flag to restrict searches to recently placed cells */
 extern int QuickSearch;
 /* does re"CellDef"ing a cell add to it or overwrite it??? */
