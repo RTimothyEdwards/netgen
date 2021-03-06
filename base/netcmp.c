@@ -1166,19 +1166,19 @@ SortFanoutLists(nlist1, nlist2)
     InitializeHashTable(&f2hash, OBJHASHSIZE);
 
     if (nlist1->fanout < nlist2->fanout) {
-    	matched = CALLOC(nlist2->fanout, sizeof(int));
+    	matched = (int *)CALLOC(nlist2->fanout, sizeof(int));
 	total = 0;
 
     	for (f2 = 0; f2 < nlist2->fanout; f2++) {
 	    sprintf(pinname, "%s/%s", nlist2->flist[f2].model,
 			nlist2->flist[f2].name);
-	    HashPtrInstall(pinname, (void *)(f2 + 1), &f2hash);
+	    HashPtrInstall(pinname, (void *)((long)f2 + 1), &f2hash);
 	}
 
 	for (f1 = 0; f1 < nlist1->fanout; f1++) {
 	    sprintf(pinname, "%s/%s", nlist1->flist[f1].model,
 			nlist1->flist[f1].name);
-	    f2 = (int)HashLookup(pinname, &f2hash);
+	    f2 = (int)(long)HashLookup(pinname, &f2hash);
 	    if (f2 != 0) {
 	    	f2 -= 1;
 		matched[f1] = -1;
@@ -1191,8 +1191,8 @@ SortFanoutLists(nlist1, nlist2)
 				nlist2->flist[f1].name);
 	    	    sprintf(pinnameB, "%s/%s", nlist2->flist[f2].model,
 				nlist2->flist[f2].name);
-		    HashPtrInstall(pinnameA, (void *)(f1 + 1), &f2hash);
-		    HashPtrInstall(pinnameB, (void *)(f2 + 1), &f2hash);
+		    HashPtrInstall(pinnameA, (void *)((long)f1 + 1), &f2hash);
+		    HashPtrInstall(pinnameB, (void *)((long)f2 + 1), &f2hash);
 		}
 	    }
 	}
@@ -1200,19 +1200,19 @@ SortFanoutLists(nlist1, nlist2)
 	/* To do: If full pin names don't match, match by model name only */
     }
     else {
-    	matched = CALLOC(nlist1->fanout, sizeof(int));
+    	matched = (int *)CALLOC(nlist1->fanout, sizeof(int));
 	total = 0;
 
     	for (f1 = 0; f1 < nlist1->fanout; f1++) {
 	    sprintf(pinname, "%s/%s", nlist1->flist[f1].model,
 			nlist1->flist[f1].name);
-	    HashPtrInstall(pinname, (void *)(f1 + 1), &f1hash);
+	    HashPtrInstall(pinname, (void *)((long)f1 + 1), &f1hash);
 	}
 
 	for (f2 = 0; f2 < nlist2->fanout; f2++) {
 	    sprintf(pinname, "%s/%s", nlist2->flist[f2].model,
 			nlist2->flist[f2].name);
-	    f1 = (int)HashLookup(pinname, &f1hash);
+	    f1 = (int)(long)HashLookup(pinname, &f1hash);
 	    if (f1 != 0) {
 	    	f1 -= 1;
 		matched[f2] = -1;
@@ -1225,8 +1225,8 @@ SortFanoutLists(nlist1, nlist2)
 				nlist1->flist[f1].name);
 	    	    sprintf(pinnameB, "%s/%s", nlist1->flist[f2].model,
 				nlist1->flist[f2].name);
-		    HashPtrInstall(pinnameA, (void *)(f1 + 1), &f1hash);
-		    HashPtrInstall(pinnameB, (void *)(f2 + 1), &f1hash);
+		    HashPtrInstall(pinnameA, (void *)((long)f1 + 1), &f1hash);
+		    HashPtrInstall(pinnameB, (void *)((long)f2 + 1), &f1hash);
 		}
 	    }
 	}
@@ -1273,13 +1273,13 @@ NodeMatchScore(nlist1, nlist2)
     	for (f2 = 0; f2 < nlist2->fanout; f2++) {
 	    sprintf(pinname, "%s/%s", nlist2->flist[f2].model,
 			nlist2->flist[f2].name);
-	    HashPtrInstall(pinname, (void *)(f2 + 1), &f2hash);
+	    HashPtrInstall(pinname, (void *)((long)f2 + 1), &f2hash);
 	}
 
 	for (f1 = 0; f1 < nlist1->fanout; f1++) {
 	    sprintf(pinname, "%s/%s", nlist1->flist[f1].model,
 			nlist1->flist[f1].name);
-	    f2 = (int)HashLookup(pinname, &f2hash);
+	    f2 = (int)(long)HashLookup(pinname, &f2hash);
 	    if (f2 != 0) {
 	    	f2 -= 1;
 		score++;
@@ -1292,13 +1292,13 @@ NodeMatchScore(nlist1, nlist2)
     	for (f1 = 0; f1 < nlist1->fanout; f1++) {
 	    sprintf(pinname, "%s/%s", nlist1->flist[f1].model,
 			nlist1->flist[f1].name);
-	    HashPtrInstall(pinname, (void *)(f1 + 1), &f1hash);
+	    HashPtrInstall(pinname, (void *)((long)f1 + 1), &f1hash);
 	}
 
 	for (f2 = 0; f2 < nlist2->fanout; f2++) {
 	    sprintf(pinname, "%s/%s", nlist2->flist[f2].model,
 			nlist2->flist[f2].name);
-	    f1 = (int)HashLookup(pinname, &f1hash);
+	    f1 = (int)(long)HashLookup(pinname, &f1hash);
 	    if (f1 != 0) {
 	    	f1 -= 1;
 		score++;
@@ -1341,15 +1341,15 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
     InitializeHashTable(&n2hash, OBJHASHSIZE);
 
     if (n1max < n2max) {
-    	matched = CALLOC(n2max, sizeof(int));
+    	matched = (int *)CALLOC(n2max, sizeof(int));
 	total = 0;
 
     	for (n2 = 0; n2 < n2max; n2++)
-	    HashPtrInstall(nlists2[n2]->name, (void *)(n2 + 1), &n2hash);
+	    HashPtrInstall(nlists2[n2]->name, (void *)((long)n2 + 1), &n2hash);
 
 	/* Match by name */
     	for (n1 = 0; n1 < n1max; n1++) {
-	    n2 = (int)HashLookup(nlists1[n1]->name, &n2hash);
+	    n2 = (int)(long)HashLookup(nlists1[n1]->name, &n2hash);
 	    if (n2 != 0) {
 	    	n2 -= 1;
 		matched[n1] = -1;
@@ -1358,8 +1358,8 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
 		    temp = nlists2[n2];
 		    nlists2[n2] = nlists2[n1];
 		    nlists2[n1] = temp;
-		    HashPtrInstall(nlists2[n1]->name, (void *)(n1 + 1), &n2hash);
-		    HashPtrInstall(nlists2[n2]->name, (void *)(n2 + 1), &n2hash);
+		    HashPtrInstall(nlists2[n1]->name, (void *)((long)n1 + 1), &n2hash);
+		    HashPtrInstall(nlists2[n2]->name, (void *)((long)n2 + 1), &n2hash);
 		    SortFanoutLists(nlists1[n1], nlists2[n1]);
 		}
 	    }
@@ -1398,14 +1398,14 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
 #endif
     }
     else {
-    	matched = CALLOC(n1max, sizeof(int));
+    	matched = (int *)CALLOC(n1max, sizeof(int));
 	total = 0;
 
         for (n1 = 0; n1 < n1max; n1++)
-	    HashPtrInstall(nlists1[n1]->name, (void *)(n1 + 1), &n1hash);
+	    HashPtrInstall(nlists1[n1]->name, (void *)((long)n1 + 1), &n1hash);
 
         for (n2 = 0; n2 < n2max; n2++) {
-	    n1 = (int)HashLookup(nlists2[n2]->name, &n1hash);
+	    n1 = (int)(long)HashLookup(nlists2[n2]->name, &n1hash);
 	    if (n1 != 0) {
 	    	n1 -= 1;
 		matched[n2] = -1;
@@ -1414,8 +1414,8 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
 		    temp = nlists1[n1];
 		    nlists1[n1] = nlists1[n2];
 		    nlists1[n2] = temp;
-		    HashPtrInstall(nlists1[n1]->name, (void *)(n1 + 1), &n1hash);
-		    HashPtrInstall(nlists1[n2]->name, (void *)(n2 + 1), &n1hash);
+		    HashPtrInstall(nlists1[n1]->name, (void *)((long)n1 + 1), &n1hash);
+		    HashPtrInstall(nlists1[n2]->name, (void *)((long)n2 + 1), &n1hash);
 		    SortFanoutLists(nlists2[n2], nlists1[n2]);
 		}
 	    }
