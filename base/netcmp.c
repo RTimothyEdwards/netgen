@@ -6913,7 +6913,7 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 		/* But if the target cell instance has proxy(no pins), then reuse
 		 * the record and modify it.
 		 */
-	        if (!strcmp(ob->name, "proxy(no pins)")) {
+	        if (ob && !strcmp(ob->name, "proxy(no pins)")) {
 		   obn = ob;
 		   FREE(ob->name);
 		   obn->name = (char *)MALLOC(strlen(ob->instance.name)
