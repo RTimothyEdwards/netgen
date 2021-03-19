@@ -395,15 +395,21 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	 # braces.
 	 if {![catch {file exists $value}]} {
 	    if {![catch {open $value r} fnf]} {
-		while {[gets $fnf line] >= 0} {
-		    lappend noflat $line
-		}
-		close $fnf
+	       while {[gets $fnf line] >= 0} {
+		  if {[lindex $line 0] != "#"} {
+		     foreach cell $line {
+		    	lappend noflat $cell
+		     }
+		  }
+	       }
+	       close $fnf
 	    } else {
 	       puts stderr "Cannot open file $value for reading cell list."
 	    }
 	 } else {
 	    set noflat [string trim $value \"\{\}]
+	 }
+	 if {[llength $noflat] > 0} {
 	    puts stdout "Will not flatten these subcells: $noflat"
 	 }
       }
