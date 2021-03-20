@@ -389,8 +389,29 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	 puts stdout "Treating empty subcircuits as black-box cells"
 	 netgen::model blackbox on
       } elseif {[string first "-noflatten=" $arg] == 0} {
-	 set noflat [string trim [string range $arg 11 end] \"\{\}]
-	 puts stdout "Will not flatten these subcells: $noflat"
+	 set value [string range $arg 11 end]
+	 # If argument is a filename then read the list of cells from it;
+	 # otherwise, argument is the list of files itself in quotes or
+	 # braces.
+	 if {![catch {file exists $value}]} {
+	    if {![catch {open $value r} fnf]} {
+	       while {[gets $fnf line] >= 0} {
+		  if {[lindex $line 0] != "#"} {
+		     foreach cell $line {
+		    	lappend noflat $cell
+		     }
+		  }
+	       }
+	       close $fnf
+	    } else {
+	       puts stderr "Cannot open file $value for reading cell list."
+	    }
+	 } else {
+	    set noflat [string trim $value \"\{\}]
+	 }
+	 if {[llength $noflat] > 0} {
+	    puts stdout "Will not flatten these subcells: $noflat"
+	 }
       }
    }
 

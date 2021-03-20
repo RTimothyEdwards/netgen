@@ -319,7 +319,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	 Printf(" Flattening instance: %s, primitive = %s\n",
 			ParentParams->instance.name, (ChildCell->class == 
 			CLASS_SUBCKT) ? "no" : "yes");
-      if (ChildCell->class != CLASS_SUBCKT) {
+      if ((ChildCell->class != CLASS_SUBCKT) && (ChildCell->class != CLASS_MODULE)) {
 	   LastObj = ParentParams;
 	   continue;
       }
