@@ -3632,12 +3632,21 @@ int CombineSeries(char *model, int file)
 
 	    /* Device may have been moved by the above code.  If so, look for	*/
 	    /* it from the beginning of the list. */
-	    if (ob2 == NULL)
-               for (ob2 = tp->cell; ob2->next != instlist[i][1]; ob2 = ob2->next);
-
-	    for (obs = ob2->next; obs->next && (obs->next->type > FIRSTPIN
+	    if ((ob2 == NULL) && (tp->cell == instlist[i][1]))
+	    {
+	       ob2 = tp->cell;
+	       for (obs = ob2; obs->next && (obs->next->type > FIRSTPIN
 			|| obs->next->type == PROPERTY); obs = obs->next);
-	    ob2->next = obs->next;
+	       tp->cell = obs->next;
+	    }
+	    else
+	    {
+	       if (ob2 == NULL)
+                  for (ob2 = tp->cell; ob2->next != instlist[i][1]; ob2 = ob2->next);
+	       for (obs = ob2->next; obs->next && (obs->next->type > FIRSTPIN
+			|| obs->next->type == PROPERTY); obs = obs->next);
+	       ob2->next = obs->next;
+	    }
 	    if (obs->next) obs->next = NULL;	// Terminate 2nd instance record
 
 	    /* If 1st device has unbalanced 'open' records, then add 'close'	*/
