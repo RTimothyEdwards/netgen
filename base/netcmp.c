@@ -4120,7 +4120,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 }
 	 else {
 	    kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
-	    if (kl && (kl->merge & MERGE_S_CRIT)) {
+	    if (kl && (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))) {
 		if (vl->type == PROP_INTEGER)
 		   cval = (double)vl->value.ival;
 		else
@@ -4136,6 +4136,9 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
       else if (merge_type == MERGE_S_PAR) {
 	 proplist[i].value = cval / (double)sval;
 	 sl->value.ival = 1;
+      }
+      else {
+	 proplist[i].value = (double)0;
       }
       proplist[i].idx = i;
       proplist[i].ob = obp;
@@ -4269,8 +4272,9 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 }
          kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
 	 if (kl == NULL) continue;		/* Ignored property */
-         if (kl->merge & MERGE_P_CRIT) {
+         if (kl->merge & MERGE_P_CRIT)
 	    has_crit = TRUE;
+	 else if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR)) {
 	    if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
 		  	(kl->type != vl->type))
 		PromoteProperty(kl, vl);
@@ -4282,6 +4286,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 			+ (double)vl->value.string[1] / 10.0;
 	    else
 	        cval = vl->value.dval;
+
 	    merge_type = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
 	 }
       }
@@ -4292,6 +4297,9 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
       else if (merge_type == MERGE_P_PAR) {
 	 proplist[i].value = cval / (double)mval;
 	 if (ml) ml->value.ival = 1;
+      }
+      else {
+	 proplist[i].value = (double)0;
       }
       proplist[i].idx = i;
       proplist[i].ob = obp;
@@ -4340,6 +4348,9 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 else if (merge_type == MERGE_P_PAR) {
 	    proplist[i].value = cval / (double)mval;
             if (ml) ml->value.ival = 1;
+	 }
+	 else {
+	    proplist[i].value = 0;
 	 }
          obp = obp->next;
       }
