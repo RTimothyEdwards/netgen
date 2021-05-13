@@ -3166,7 +3166,16 @@ int CombineParallel(char *model, int file)
 
    nodecount = (int *)CALLOC((tp->nodename_cache_maxnodenum + 1), sizeof(int));
 
-   if (GlobalParallelOpen) {
+   /* Do not combine open connections on top level cells.  The situation */
+   /* where it is meant to optimize run time, namely large digital	 */
+   /* standard cell layouts, will generally have ports and not be run on */
+   /* the top level cell, while a small analog circuit might.  A	 */
+   /* combination of running on the top level and a difference between	 */
+   /* individual devices in one netlist vs. fingered devices in the	 */
+   /* can cause parallelizing devices with similar "no-connect" pins to	 */
+   /* produce incorrect results.					 */
+
+   if (GlobalParallelOpen && !(tp->flags & CELL_TOP)) {
       for (ob = tp->cell; ob; ob = ob->next) {
          if (ob->node >= 0)
             if (ob->type != NODE)
