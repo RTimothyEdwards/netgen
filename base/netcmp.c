@@ -4262,17 +4262,15 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    obn = ob1->next;
    for (i = 0; i < idx1; i++) obn = obn->next;
 
-   // Create a structure of length (run) to hold critical property
-   // value and index.  Then sort that list, then use the sorted
-   // indexes to sort the actual property linked list.
-
-   // If there is no critical property listed, then it is still better
-   // to sort on any random property than on no properties.  Note that
-   // this can (and should!) be made better by sorting on *all*
-   // properties, not just the first.  Otherwise, circuit 1 can have, e.g.,
-   // parallel transistors with W=1, L=1 and W=1, L=2 while circuit two
-   // has W=1, L=2 and W=1, L=1 and property matching will fail because
-   // sorting was done on W only.
+   /* Create a structure of length (run) to hold critical property
+    * value and index.  Then sort that list, then use the sorted
+    * indexes to sort the actual property linked list.
+    *
+    * If there is no critical property listed, then it will sort on
+    * M first, and any additive property second, or any property at
+    * all if no additive property was found.  It is doubtful that any
+    * use case requires more than two properties for sorting.
+    */
 
    proplist = (propsort *)MALLOC(run * sizeof(propsort));
 
