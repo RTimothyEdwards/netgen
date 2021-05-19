@@ -239,7 +239,8 @@ int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
 	if (kl != NULL) {
 	    switch(kl->type) {
 		case PROP_STRING:
-		    result = ConvertStringToFloat(kl->pdefault.string, dval);
+		    if (kl->pdefault.string != NULL)
+			result = ConvertStringToFloat(kl->pdefault.string, dval);
 		    break;
 		case PROP_DOUBLE:
 		case PROP_VALUE:
@@ -268,529 +269,514 @@ int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
 /* single value, then replace the property type.		*/
 /*--------------------------------------------------------------*/
 
-int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
+int ReduceOneExpression(struct valuelist *kv, struct objlist *parprops,
         struct nlist *parent, int glob) {
 
     struct tokstack *expstack, *stackptr, *lptr, *nptr;
-    struct valuelist *kv;
     struct property *kl = NULL;
     char *estr, *tstr, *sstr;
-    int toktype, functype, i, result, modified, numlast, savetok;
+    int toktype, functype, result, modified, numlast, savetok;
     double dval;
 
-    if (instprop == NULL) return 0;	// Nothing to do
-    if (instprop->type != PROPERTY) return -1;	// Shouldn't happen
+    if (kv->type == PROP_EXPRESSION)
+	expstack = kv->value.stack;
 
-    for (i = 0;; i++) {
+    else if (kv->type == PROP_STRING) {
 
-	kv = &(instprop->instance.props[i]);
-	switch (kv->type) {
-	    case PROP_ENDLIST:
-		break;
+	/* Compile the string into an expression stack */
+	expstack = NULL;
+	estr = kv->value.string;
+	tstr = estr;
 
-	    case PROP_INTEGER:
-	    case PROP_DOUBLE:
-	    case PROP_VALUE:
-		continue;
-
-	    case PROP_EXPRESSION:
-		expstack = kv->value.stack;
-		break;
-
-	    case PROP_STRING:
-
-		expstack = NULL;
-		estr = kv->value.string;
-		tstr = estr;
-
-		numlast = 0;
-		while (*tstr != '\0') {
-		    switch(*tstr) {
+	numlast = 0;
+	while (*tstr != '\0') {
+	    switch(*tstr) {
 		    
-			case '+':
-			    if (numlast == 0) {
-				/* This is part of a number */
-				dval = strtod(estr, &sstr);
-				if (sstr > estr && sstr > tstr) {
-			            tstr = sstr - 1;
-			            numlast = 1;
-				}
-				break;
-			    }
-			    /* Not a number, so must be arithmetic */
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_PLUS, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
+		case '+':
+		    if (numlast == 0) {
+			/* This is part of a number */
+			dval = strtod(estr, &sstr);
+			if (sstr > estr && sstr > tstr) {
+		            tstr = sstr - 1;
+		            numlast = 1;
+			}
+			break;
+		    }
+		    /* Not a number, so must be arithmetic */
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    PushTok(TOK_PLUS, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
 
-			case '-':
-			    if (numlast == 0) {
-				/* This is part of a number */
-				dval = strtod(estr, &sstr);
-				if (sstr > estr && sstr > tstr) {
-				    tstr = sstr - 1;
-				    numlast = 1;
-				}
-				break;
-			    }
-			    /* Not a number, so must be arithmetic */
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_MINUS, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case '1': case '2': case '3': case '4': case '5':
-			case '6': case '7': case '8': case '9': case '0':
-			    /* Numerical value.  Use strtod() to capture */
-			    if (numlast == 1) break;
-			    dval = strtod(estr, &sstr);
-			    if (sstr > estr && sstr > tstr) {
-				tstr = sstr - 1;
-				numlast = 1;
-			    }
-			    break;
-
-			case '/':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_DIVIDE, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case '*':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_MULTIPLY, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case '(':
-			    *tstr = '\0';
-
-			    /* Check for predefined function keywords */
-
-			    if (!strcmp(estr, "IF")) {
-				PushTok(TOK_FUNC_IF, NULL, &expstack);
-			    }
-			    else {
-			        /* Treat as a parenthetical grouping */
-
-			        result = TokGetValue(estr, parent, parprops,
-					glob, &dval);
-			        if (result == 1)
-				    PushTok(TOK_DOUBLE, &dval, &expstack);
-			        else if (result == -1)
-				    PushTok(TOK_STRING, estr, &expstack);
-			        PushTok(TOK_FUNC_OPEN, NULL, &expstack);
-			    }
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case ')':
-			    *tstr = '\0';
-
-			    if (expstack == NULL) break;
-			    savetok = expstack->toktype;
-
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-
-			    switch (savetok) {
-				case TOK_FUNC_THEN:
-				    PushTok(TOK_FUNC_ELSE, NULL, &expstack);
-				    break;
-				default:
-				    PushTok(TOK_FUNC_CLOSE, NULL, &expstack);
-				    break;
-			    }
+		case '-':
+		    if (numlast == 0) {
+			/* This is part of a number */
+			dval = strtod(estr, &sstr);
+			if (sstr > estr && sstr > tstr) {
+			    tstr = sstr - 1;
 			    numlast = 1;
-			    estr = tstr + 1;
+			}
+			break;
+		    }
+		    /* Not a number, so must be arithmetic */
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    PushTok(TOK_MINUS, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case '1': case '2': case '3': case '4': case '5':
+		case '6': case '7': case '8': case '9': case '0':
+		    /* Numerical value.  Use strtod() to capture */
+		    if (numlast == 1) break;
+		    dval = strtod(estr, &sstr);
+		    if (sstr > estr && sstr > tstr) {
+			tstr = sstr - 1;
+			numlast = 1;
+		    }
+		    break;
+
+		case '/':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    PushTok(TOK_DIVIDE, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case '*':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    PushTok(TOK_MULTIPLY, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case '(':
+		    *tstr = '\0';
+
+		    /* Check for predefined function keywords */
+
+		    if (!strcmp(estr, "IF")) {
+			PushTok(TOK_FUNC_IF, NULL, &expstack);
+		    }
+		    else {
+		        /* Treat as a parenthetical grouping */
+
+		        result = TokGetValue(estr, parent, parprops,
+				glob, &dval);
+		        if (result == 1)
+			    PushTok(TOK_DOUBLE, &dval, &expstack);
+		        else if (result == -1)
+			    PushTok(TOK_STRING, estr, &expstack);
+		        PushTok(TOK_FUNC_OPEN, NULL, &expstack);
+		    }
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case ')':
+		    *tstr = '\0';
+
+		    if (expstack == NULL) break;
+		    savetok = expstack->toktype;
+
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+
+		    switch (savetok) {
+			case TOK_FUNC_THEN:
+			    PushTok(TOK_FUNC_ELSE, NULL, &expstack);
 			    break;
-
-			case '\'':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_SGL_QUOTE, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case '"':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_DBL_QUOTE, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case '{':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    PushTok(TOK_GROUP_OPEN, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case '}':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    PushTok(TOK_GROUP_CLOSE, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 1;
-			    break;
-
-			case '!':
-			    if (*(tstr + 1) == '=') {
-				*tstr = '\0';
-				result = TokGetValue(estr, parent, parprops,
-					glob, &dval);
-				if (result == 1)
-				    PushTok(TOK_DOUBLE, &dval, &expstack);
-				else if (result == -1)
-				    PushTok(TOK_STRING, estr, &expstack);
-				PushTok(TOK_NE, NULL, &expstack);
-			    }
-			    numlast = 0;
-			    break;
-
-			case '=':
-			    if (*(tstr + 1) == '=') {
-	 			*tstr = '\0';
-	 			result = TokGetValue(estr, parent, parprops,
-						glob, &dval);
-	 			if (result == 1)
-				    PushTok(TOK_DOUBLE, &dval, &expstack);
-	 			else if (result == -1)
-				    PushTok(TOK_STRING, estr, &expstack);
-				PushTok(TOK_EQ, NULL, &expstack);
-				numlast = 0;
-			    }
-			    break;
-
-			case '>':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-
-			    if (*(tstr + 1) == '=') {
-				PushTok(TOK_GE, NULL, &expstack);
-				tstr++;
-			    }
-			    else
-				PushTok(TOK_GT, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case '<':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-
-			    if (*(tstr + 1) == '=') {
-				PushTok(TOK_LE, NULL, &expstack);
-				tstr++;
-			    }
-			    else
-				PushTok(TOK_LT, NULL, &expstack);
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
-			case ',':
-			    *tstr = '\0';
-			    result = TokGetValue(estr, parent, parprops, glob, &dval);
-			    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-			    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
-			    if (expstack == NULL) break;
-			    lptr = expstack;
-			    while (lptr->next) {
-				lptr = lptr->next;
-				if (lptr->toktype == TOK_FUNC_THEN) {
-				    PushTok(TOK_FUNC_ELSE, NULL, &expstack);
-				    break;
-				}
-				else if (lptr->toktype == TOK_FUNC_IF) {
-				    PushTok(TOK_FUNC_THEN, NULL, &expstack);
-				    break;
-				}
-			    }
-			    estr = tstr + 1;
-			    numlast = 0;
-			    break;
-
 			default:
+			    PushTok(TOK_FUNC_CLOSE, NULL, &expstack);
 			    break;
 		    }
-		    tstr++;
-		}
-		result = TokGetValue(estr, parent, parprops, glob, &dval);
-		if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
-		else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    numlast = 1;
+		    estr = tstr + 1;
+		    break;
 
-		FREE(kv->value.string);
-		kv->value.stack = expstack;
-		kv->type = PROP_EXPRESSION;
-		break;
+		case '\'':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    PushTok(TOK_SGL_QUOTE, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case '"':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    PushTok(TOK_DBL_QUOTE, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case '{':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    PushTok(TOK_GROUP_OPEN, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case '}':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    PushTok(TOK_GROUP_CLOSE, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 1;
+		    break;
+
+		case '!':
+		    if (*(tstr + 1) == '=') {
+			*tstr = '\0';
+			result = TokGetValue(estr, parent, parprops,
+				glob, &dval);
+			if (result == 1)
+			    PushTok(TOK_DOUBLE, &dval, &expstack);
+			else if (result == -1)
+			    PushTok(TOK_STRING, estr, &expstack);
+			PushTok(TOK_NE, NULL, &expstack);
+		    }
+		    numlast = 0;
+		    break;
+
+		case '=':
+		    if (*(tstr + 1) == '=') {
+ 			*tstr = '\0';
+ 			result = TokGetValue(estr, parent, parprops,
+					glob, &dval);
+ 			if (result == 1)
+			    PushTok(TOK_DOUBLE, &dval, &expstack);
+ 			else if (result == -1)
+			    PushTok(TOK_STRING, estr, &expstack);
+			PushTok(TOK_EQ, NULL, &expstack);
+			numlast = 0;
+		    }
+		    break;
+
+		case '>':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+
+		    if (*(tstr + 1) == '=') {
+			PushTok(TOK_GE, NULL, &expstack);
+			tstr++;
+		    }
+		    else
+			PushTok(TOK_GT, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case '<':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+
+		    if (*(tstr + 1) == '=') {
+			PushTok(TOK_LE, NULL, &expstack);
+			tstr++;
+		    }
+		    else
+			PushTok(TOK_LT, NULL, &expstack);
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		case ',':
+		    *tstr = '\0';
+		    result = TokGetValue(estr, parent, parprops, glob, &dval);
+		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
+		    if (expstack == NULL) break;
+		    lptr = expstack;
+		    while (lptr->next) {
+			lptr = lptr->next;
+			if (lptr->toktype == TOK_FUNC_THEN) {
+			    PushTok(TOK_FUNC_ELSE, NULL, &expstack);
+			    break;
+			}
+			else if (lptr->toktype == TOK_FUNC_IF) {
+			    PushTok(TOK_FUNC_THEN, NULL, &expstack);
+			    break;
+			}
+		    }
+		    estr = tstr + 1;
+		    numlast = 0;
+		    break;
+
+		default:
+		    break;
+	    }
+	    tstr++;
 	}
+	result = TokGetValue(estr, parent, parprops, glob, &dval);
+	if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+	else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 
-	// Find the beginning of the expression, which is the bottom of
-	// the stack.
-	for (stackptr = kv->value.stack; stackptr != NULL &&
+	FREE(kv->value.string);
+	kv->value.stack = expstack;
+	kv->type = PROP_EXPRESSION;
+    }
+
+    /* Find the beginning of the expression, which is the bottom of
+     * the stack.
+     */
+
+    for (stackptr = kv->value.stack; stackptr != NULL &&
 			stackptr->next != NULL; stackptr = stackptr->next);
 
-	// For each pass, start at the bottom and work forward
-	expstack = stackptr;
+    /* For each pass, start at the bottom and work forward. */
+    expstack = stackptr;
 
-	modified = 1;
-	while (modified) {
-	    double dval1, dval2;
+    modified = 1;
+    while (modified) {
+	double dval1, dval2;
 
-	    modified = 0;
+	modified = 0;
 
-	    // Reduce conditionals
+	// Reduce conditionals
 
-	    for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
-		switch (stackptr->toktype) {
-		    case TOK_LE:
-		    case TOK_LT:
-		    case TOK_GE:
-		    case TOK_GT:
-		    case TOK_EQ:
-		    case TOK_NE:
-			lptr = stackptr->last;
-			nptr = stackptr->next;
-			if (lptr && nptr && (lptr->toktype == TOK_DOUBLE) &&
+	for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
+	    switch (stackptr->toktype) {
+		case TOK_LE:
+		case TOK_LT:
+		case TOK_GE:
+		case TOK_GT:
+		case TOK_EQ:
+		case TOK_NE:
+		    lptr = stackptr->last;
+		    nptr = stackptr->next;
+		    if (lptr && nptr && (lptr->toktype == TOK_DOUBLE) &&
 					(nptr->toktype == TOK_DOUBLE)) {
 			    
-			    switch (stackptr->toktype) {
-				case TOK_LE:
-				    if (nptr->data.dvalue <= lptr->data.dvalue) {
-					stackptr->data.dvalue = 1.0;
-				    }
-				    else {
-					stackptr->data.dvalue = 0.0;
-				    }
-				    break;
-				case TOK_LT:
-				    if (nptr->data.dvalue < lptr->data.dvalue) {
-					stackptr->data.dvalue = 1.0;
-				    }
-				    else {
-					stackptr->data.dvalue = 0.0;
-				    }
-				    break;
-				case TOK_GE:
-				    if (nptr->data.dvalue >= lptr->data.dvalue) {
-					stackptr->data.dvalue = 1.0;
-				    }
-				    else {
-					stackptr->data.dvalue = 0.0;
-				    }
-				    break;
-				case TOK_GT:
-				    if (nptr->data.dvalue > lptr->data.dvalue) {
-					stackptr->data.dvalue = 1.0;
-				    }
-				    else {
-					stackptr->data.dvalue = 0.0;
-				    }
-				    break;
-				case TOK_EQ:
-				    if (nptr->data.dvalue == lptr->data.dvalue) {
-					stackptr->data.dvalue = 1.0;
-				    }
-				    else {
-					stackptr->data.dvalue = 0.0;
-				    }
-				    break;
-				case TOK_NE:
-				    if (nptr->data.dvalue != lptr->data.dvalue) {
-					stackptr->data.dvalue = 1.0;
-				    }
-				    else {
-					stackptr->data.dvalue = 0.0;
-				    }
-				    break;
-			    }
-			    modified = 1;
-			    stackptr->toktype = TOK_DOUBLE;
-			    stackptr->last = lptr->last;
-			    if (lptr->last) lptr->last->next = stackptr;
-			    else kv->value.stack = stackptr;
-			    stackptr->next = nptr->next;
-			    if (nptr->next) nptr->next->last = stackptr;
-			    if (expstack == nptr) expstack = stackptr;
-
-			    FREE(nptr);
-			    FREE(lptr);
+			switch (stackptr->toktype) {
+			    case TOK_LE:
+				if (nptr->data.dvalue <= lptr->data.dvalue) {
+				    stackptr->data.dvalue = 1.0;
+				}
+				else {
+				    stackptr->data.dvalue = 0.0;
+				}
+				break;
+			    case TOK_LT:
+				if (nptr->data.dvalue < lptr->data.dvalue) {
+				    stackptr->data.dvalue = 1.0;
+				}
+				else {
+				    stackptr->data.dvalue = 0.0;
+				}
+				break;
+			    case TOK_GE:
+				if (nptr->data.dvalue >= lptr->data.dvalue) {
+				    stackptr->data.dvalue = 1.0;
+				}
+				else {
+				    stackptr->data.dvalue = 0.0;
+				}
+				break;
+			    case TOK_GT:
+				if (nptr->data.dvalue > lptr->data.dvalue) {
+				    stackptr->data.dvalue = 1.0;
+				}
+				else {
+				    stackptr->data.dvalue = 0.0;
+				}
+				break;
+			    case TOK_EQ:
+				if (nptr->data.dvalue == lptr->data.dvalue) {
+				    stackptr->data.dvalue = 1.0;
+				}
+				else {
+				    stackptr->data.dvalue = 0.0;
+				}
+				break;
+			    case TOK_NE:
+				if (nptr->data.dvalue != lptr->data.dvalue) {
+				    stackptr->data.dvalue = 1.0;
+				}
+				else {
+				    stackptr->data.dvalue = 0.0;
+				}
+				break;
 			}
-		}
+			modified = 1;
+			stackptr->toktype = TOK_DOUBLE;
+			stackptr->last = lptr->last;
+			if (lptr->last) lptr->last->next = stackptr;
+			else kv->value.stack = stackptr;
+			stackptr->next = nptr->next;
+			if (nptr->next) nptr->next->last = stackptr;
+			if (expstack == nptr) expstack = stackptr;
+
+			FREE(nptr);
+			FREE(lptr);
+		    }
 	    }
+	}
 
-	    // Reduce IF(a,b,c)
+	// Reduce IF(a,b,c)
 
-	    for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
-		struct tokstack *ifptr, *thenptr;
-		if (stackptr->toktype == TOK_FUNC_IF) {
-		    ifptr = stackptr->last;
-		    if (ifptr->toktype == TOK_DOUBLE) {
-			stackptr->toktype = TOK_FUNC_OPEN;
-			if (ifptr->data.dvalue == 0.0) {
-			    /* Keep ELSE value, remove IF and THEN */
-			    for (thenptr = ifptr; thenptr->toktype !=
+	for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
+	    struct tokstack *ifptr, *thenptr;
+	    if (stackptr->toktype == TOK_FUNC_IF) {
+		ifptr = stackptr->last;
+		if (ifptr->toktype == TOK_DOUBLE) {
+		    stackptr->toktype = TOK_FUNC_OPEN;
+		    if (ifptr->data.dvalue == 0.0) {
+			/* Keep ELSE value, remove IF and THEN */
+			for (thenptr = ifptr; thenptr->toktype !=
 					TOK_FUNC_ELSE; ) {
-				lptr = thenptr->last;
-				nptr = thenptr->next;
-				lptr->next = nptr;
-				nptr->last = lptr;
-				if (thenptr->toktype == TOK_STRING)
-				    FREE(thenptr->data.string);
-				FREE(thenptr);
-				thenptr = lptr;
-			    }
-			    /* Free the TOK_FUNC_ELSE record */
 			    lptr = thenptr->last;
 			    nptr = thenptr->next;
 			    lptr->next = nptr;
 			    nptr->last = lptr;
+			    if (thenptr->toktype == TOK_STRING)
+				FREE(thenptr->data.string);
 			    FREE(thenptr);
-			    modified = 1;
+			    thenptr = lptr;
 			}
-			else {
-			    /* Keep THEN value, remove IF and ELSE */
-			    /* Free the conditional result value record */
-			    lptr = ifptr->last;
-			    nptr = ifptr->next;
-			    lptr->next = nptr;
-			    nptr->last = lptr;
-			    FREE(ifptr);
-			    thenptr = nptr;
+			/* Free the TOK_FUNC_ELSE record */
+			lptr = thenptr->last;
+			nptr = thenptr->next;
+			lptr->next = nptr;
+			nptr->last = lptr;
+			FREE(thenptr);
+			modified = 1;
+		    }
+		    else {
+			/* Keep THEN value, remove IF and ELSE */
+			/* Free the conditional result value record */
+			lptr = ifptr->last;
+			nptr = ifptr->next;
+			lptr->next = nptr;
+			nptr->last = lptr;
+			FREE(ifptr);
+			thenptr = nptr;
 
-			    /* Free the TOK_FUNC_THEN record */
-			    lptr = thenptr->last;
-			    nptr = thenptr->next;
-			    lptr->next = nptr;
-			    nptr->last = lptr;
-			    FREE(thenptr);
+			/* Free the TOK_FUNC_THEN record */
+			lptr = thenptr->last;
+			nptr = thenptr->next;
+			lptr->next = nptr;
+			nptr->last = lptr;
+			FREE(thenptr);
 
-			    /* Free to end of IF block */
-			    for (thenptr = nptr->last; thenptr->toktype !=
+			/* Free to end of IF block */
+			for (thenptr = nptr->last; thenptr->toktype !=
 					TOK_FUNC_CLOSE; ) {
-				lptr = thenptr->last;
-				nptr = thenptr->next;
-				lptr->next = nptr;
-				nptr->last = lptr;
-				if (thenptr->toktype == TOK_STRING)
-				    FREE(thenptr->data.string);
-				FREE(thenptr);
-				thenptr = lptr;
-			    }
-			    modified = 1;
+			    lptr = thenptr->last;
+			    nptr = thenptr->next;
+			    lptr->next = nptr;
+			    nptr->last = lptr;
+			    if (thenptr->toktype == TOK_STRING)
+				FREE(thenptr->data.string);
+			    FREE(thenptr);
+			    thenptr = lptr;
 			}
+			modified = 1;
 		    }
 		}
 	    }
+	}
 		 
-	    // Reduce (value) * (value) and (value) / (value)
+	// Reduce (value) * (value) and (value) / (value)
 
-	    for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
-		switch (stackptr->toktype) {
-		    case TOK_MULTIPLY:
-		    case TOK_DIVIDE:
-			lptr = stackptr->last;
-			nptr = stackptr->next;
-			if (lptr && nptr && (lptr->toktype == TOK_DOUBLE) &&
+	for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
+	    switch (stackptr->toktype) {
+		case TOK_MULTIPLY:
+		case TOK_DIVIDE:
+		    lptr = stackptr->last;
+		    nptr = stackptr->next;
+		    if (lptr && nptr && (lptr->toktype == TOK_DOUBLE) &&
 					(nptr->toktype == TOK_DOUBLE)) {
 
-			    if (stackptr->toktype == TOK_MULTIPLY)
-				stackptr->data.dvalue = nptr->data.dvalue *
+			if (stackptr->toktype == TOK_MULTIPLY)
+			    stackptr->data.dvalue = nptr->data.dvalue *
 					lptr->data.dvalue;
-			    else
-				stackptr->data.dvalue = nptr->data.dvalue /
+			else
+			    stackptr->data.dvalue = nptr->data.dvalue /
 					lptr->data.dvalue;
 
-			    modified = 1;
-			    stackptr->toktype = TOK_DOUBLE;
-			    stackptr->last = lptr->last;
-			    if (lptr->last) lptr->last->next = stackptr;
-			    else kv->value.stack = stackptr;
-			    stackptr->next = nptr->next;
-			    if (nptr->next) nptr->next->last = stackptr;
-			    if (expstack == nptr) expstack = stackptr;
+			modified = 1;
+			stackptr->toktype = TOK_DOUBLE;
+			stackptr->last = lptr->last;
+			if (lptr->last) lptr->last->next = stackptr;
+			else kv->value.stack = stackptr;
+			stackptr->next = nptr->next;
+			if (nptr->next) nptr->next->last = stackptr;
+			if (expstack == nptr) expstack = stackptr;
 
-			    FREE(nptr);
-			    FREE(lptr);
-			}
-		}
+			FREE(nptr);
+			FREE(lptr);
+		    }
 	    }
+	}
 
-	    // Reduce (value) + (value) and (value) - (value)
+	// Reduce (value) + (value) and (value) - (value)
 
-	    for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
-		switch (stackptr->toktype) {
-		    case TOK_PLUS:
-		    case TOK_MINUS:
-			lptr = stackptr->last;
-			nptr = stackptr->next;
-			if (lptr && nptr && (lptr->toktype == TOK_DOUBLE) &&
+	for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
+	    switch (stackptr->toktype) {
+		case TOK_PLUS:
+		case TOK_MINUS:
+		    lptr = stackptr->last;
+		    nptr = stackptr->next;
+		    if (lptr && nptr && (lptr->toktype == TOK_DOUBLE) &&
 					(nptr->toktype == TOK_DOUBLE)) {
 
-			    if (stackptr->toktype == TOK_PLUS)
-				stackptr->data.dvalue = nptr->data.dvalue +
+			if (stackptr->toktype == TOK_PLUS)
+			    stackptr->data.dvalue = nptr->data.dvalue +
 					lptr->data.dvalue;
-			    else
-				stackptr->data.dvalue = nptr->data.dvalue -
+			else
+			    stackptr->data.dvalue = nptr->data.dvalue -
 					lptr->data.dvalue;
 
-			    modified = 1;
-			    stackptr->toktype = TOK_DOUBLE;
-			    stackptr->last = lptr->last;
-			    if (lptr->last) lptr->last->next = stackptr;
-			    else kv->value.stack = stackptr;
-			    stackptr->next = nptr->next;
-			    if (nptr->next) nptr->next->last = stackptr;
-			    if (expstack == nptr) expstack = stackptr;
+			modified = 1;
+			stackptr->toktype = TOK_DOUBLE;
+			stackptr->last = lptr->last;
+			if (lptr->last) lptr->last->next = stackptr;
+			else kv->value.stack = stackptr;
+			stackptr->next = nptr->next;
+			if (nptr->next) nptr->next->last = stackptr;
+			if (expstack == nptr) expstack = stackptr;
 
-			    FREE(nptr);
-			    FREE(lptr);
-			}
-		}
+			FREE(nptr);
+			FREE(lptr);
+		    }
 	    }
+	}
 
-	    // Reduce {value}, (value), and 'value'
+	// Reduce {value}, (value), and 'value'
 
-	    for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
-		switch (stackptr->toktype) {
-		    case TOK_DOUBLE:
-			lptr = stackptr->last;
-			nptr = stackptr->next;
-			if (lptr && nptr &&
+	for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
+	    switch (stackptr->toktype) {
+		case TOK_DOUBLE:
+		    lptr = stackptr->last;
+		    nptr = stackptr->next;
+		    if (lptr && nptr &&
 				(((nptr->toktype == TOK_FUNC_OPEN) &&
 					(lptr->toktype == TOK_FUNC_CLOSE)) ||
 				((nptr->toktype == TOK_GROUP_OPEN) &&
@@ -800,75 +786,103 @@ int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
 				((nptr->toktype == TOK_SGL_QUOTE) &&
 					(lptr->toktype == TOK_SGL_QUOTE)))) {
 
-			    modified = 1;
-			    stackptr->last = lptr->last;
-			    if (lptr->last) lptr->last->next = stackptr;
-			    else kv->value.stack = stackptr;
-			    stackptr->next = nptr->next;
-			    if (nptr->next) nptr->next->last = stackptr;
-			    if (expstack == nptr) expstack = stackptr;
+			modified = 1;
+			stackptr->last = lptr->last;
+			if (lptr->last) lptr->last->next = stackptr;
+			else kv->value.stack = stackptr;
+			stackptr->next = nptr->next;
+			if (nptr->next) nptr->next->last = stackptr;
+			if (expstack == nptr) expstack = stackptr;
 
-			    FREE(nptr);
-			    FREE(lptr);
-			}
-			break;
-		}
+			FREE(nptr);
+			FREE(lptr);
+		    }
+		    break;
 	    }
+	}
 
-	    // Replace value if string can be substituted with a number
+	// Replace value if string can be substituted with a number
 
-	    for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
-		switch (stackptr->toktype) {
-		    case TOK_STRING:
-			result = TokGetValue(stackptr->data.string, parent,
+	for (stackptr = expstack; stackptr != NULL; stackptr = stackptr->last) {
+	    switch (stackptr->toktype) {
+		case TOK_STRING:
+		    result = TokGetValue(stackptr->data.string, parent,
 				parprops, glob, &dval);
-			if (result == 1) {
-			    stackptr->toktype = TOK_DOUBLE;
-			    FREE(stackptr->data.string);
-			    stackptr->data.dvalue = dval;
-			    modified = 1;
-			}
-			break;
-		}
+		    if (result == 1) {
+			stackptr->toktype = TOK_DOUBLE;
+			FREE(stackptr->data.string);
+			stackptr->data.dvalue = dval;
+			modified = 1;
+		    }
+		    break;
 	    }
 	}
-
-	// Replace the expression with the reduced expression or
-	// value.
-
-	expstack = kv->value.stack;	// Now pointing at the end
-
-	if (expstack && expstack->next == NULL) {
-	    if (expstack->toktype == TOK_DOUBLE) {
-		kv->type = PROP_DOUBLE;
-		kv->value.dval = expstack->data.dvalue;
-	    }
-	    else if (expstack->toktype == TOK_STRING) {
-		kv->type = PROP_STRING;
-		kv->value.string = strsave(expstack->data.string);
-	    }
-	}
-	else {
-	    // Still an expression;  do nothing
-	}
-
-	// Free up the stack if it's not being used
-
-	if (kv->type != PROP_EXPRESSION)
-	{
-	    while (expstack != NULL) {
-		nptr = expstack->next;
-		if (expstack->toktype == TOK_STRING)
-		    FREE(expstack->data.string);
-		FREE(expstack);
-		expstack = nptr;
-	    }
-	}
-
-        if (kv->type == PROP_ENDLIST)
-	    break;
     }
 
+    // Replace the expression with the reduced expression or
+    // value.
+
+    expstack = kv->value.stack;	    // Now pointing at the end
+
+    if (expstack && expstack->next == NULL) {
+	if (expstack->toktype == TOK_DOUBLE) {
+	    kv->type = PROP_DOUBLE;
+	    kv->value.dval = expstack->data.dvalue;
+	}
+	else if (expstack->toktype == TOK_STRING) {
+	    kv->type = PROP_STRING;
+	    kv->value.string = strsave(expstack->data.string);
+	}
+    }
+    else {
+	// Still an expression;  do nothing
+    }
+
+    // Free up the stack if it's not being used
+
+    if (kv->type != PROP_EXPRESSION)
+    {
+	while (expstack != NULL) {
+	    nptr = expstack->next;
+	    if (expstack->toktype == TOK_STRING)
+		FREE(expstack->data.string);
+	    FREE(expstack);
+	    expstack = nptr;
+	}
+    }
+
+    return 0;
+}
+
+/*----------------------------------------------------------------------*/
+/* Wrapper around the above routine, to reduce all expressions in a	*/
+/* property list.							*/
+/*----------------------------------------------------------------------*/
+
+int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
+        struct nlist *parent, int glob) {
+
+    struct valuelist *kv;
+    int i;
+
+    if (instprop == NULL) return 0;	// Nothing to do
+    if (instprop->type != PROPERTY) return -1;	// Shouldn't happen
+
+    for (i = 0;; i++) {
+	kv = &(instprop->instance.props[i]);
+	if (kv->type == PROP_ENDLIST) break;
+	switch (kv->type)
+	{
+	    case PROP_INTEGER:
+	    case PROP_DOUBLE:
+	    case PROP_VALUE:
+		continue;
+
+	    default:
+		ReduceOneExpression(kv, parprops, parent, glob);
+		break;
+	}
+    }
     return 0;
 }
 
@@ -2163,9 +2177,13 @@ int SetPropertyDefault(struct property *prop, struct valuelist *vl)
 /* to integers, and strings that are not numbers must be left as	*/
 /* strings. Return 1 if the property was promoted successfully, and 0	*/
 /* if no promotion was possible, and -1 if passed a bad argument.	*/
+/*									*/
+/* NOTE: Arguments ob and tc are only used in the case of evaluating	*/
+/* an expression, used to generate a derived property.			*/
 /*----------------------------------------------------------------------*/
 
-int PromoteProperty(struct property *prop, struct valuelist *vl)
+int PromoteProperty(struct property *prop, struct valuelist *vl,
+	    struct objlist *ob, struct nlist *tc)
 {
     char tstr[256];
     int ival, result;
@@ -2174,6 +2192,9 @@ int PromoteProperty(struct property *prop, struct valuelist *vl)
     if (prop == NULL || vl == NULL) return -1;
     if (prop->type == vl->type) return 1;	/* Nothing to do */
     result = 0;
+    if (prop->type == PROP_EXPRESSION) {
+	ReduceOneExpression(vl, ob, tc, FALSE);
+    }
     switch (prop->type) {
 	case PROP_STRING:
 	    switch (vl->type) {

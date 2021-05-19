@@ -3343,10 +3343,10 @@ _netcmp_property(ClientData clientData,
     int result, index, idx2;
 
     char *suboptions[] = {
-	"integer", "double", "value", "string", NULL
+	"integer", "double", "value", "string", "expression", NULL
     };
     enum SubOptionIdx {
-	INTEGER_IDX, DOUBLE_IDX, VALUE_IDX, STRING_IDX
+	INTEGER_IDX, DOUBLE_IDX, VALUE_IDX, STRING_IDX, EXPRESSION_IDX
     };
 
     /* Note: "merge" has been deprecated, but kept for backwards compatibility.	*/
@@ -3734,6 +3734,11 @@ _netcmp_property(ClientData clientData,
 					    return TCL_ERROR;
 			 		PropertyString(tp->name, fnum,
 						Tcl_GetString(tobj1), ival, NULL);
+					break;
+				case EXPRESSION_IDX:
+			 		PropertyString(tp->name, fnum,
+						Tcl_GetString(tobj1), 0,
+						Tcl_GetString(tobj3));
 					break;
 			    }
 			    break;

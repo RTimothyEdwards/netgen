@@ -4298,7 +4298,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 else if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR)) {
 	    if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
 		  	(kl->type != vl->type))
-		PromoteProperty(kl, vl);
+		PromoteProperty(kl, vl, obp, tp1);
 	    if (vl->type == PROP_INTEGER) {
 	        tval = (double)vl->value.ival;
 	        tslop = (double)kl->slop.ival;
@@ -4827,12 +4827,12 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	       else if (vl == NULL || vl2 == NULL) {
 		  if (vl == NULL) {
 		     if (kl->type != vlist[p][j]->type)
-			PromoteProperty(kl, vl2);
+			PromoteProperty(kl, vl2, ob2, tp);
 		     vl = &dfltvl;
 		  }
 		  else {
 		     if (kl->type != vlist[p][i]->type)
-			PromoteProperty(kl, vl);
+			PromoteProperty(kl, vl, ob2, tp);
 		     vl2 = &dfltvl;
 		  }
 		  dfltvl.type = kl->type;
@@ -5307,8 +5307,8 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
       }
 
       /* Promote properties as necessary to make sure they all match */
-      if (kl1->type != vl1->type) PromoteProperty(kl1, vl1);
-      if (kl2->type != vl2->type) PromoteProperty(kl2, vl2);
+      if (kl1->type != vl1->type) PromoteProperty(kl1, vl1, tc1, tp1);
+      if (kl2->type != vl2->type) PromoteProperty(kl2, vl2, tc2, tp2);
 
       /* If kl1 and kl2 types differ, choose one type to target. Prefer	*/
       /* double if either type is double, otherwise string.		*/
@@ -5328,8 +5328,8 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
       else
 	 klt = kl1;
 
-      if (vl2->type != klt->type) PromoteProperty(klt, vl2);
-      if (vl1->type != klt->type) PromoteProperty(klt, vl1);
+      if (vl2->type != klt->type) PromoteProperty(klt, vl2, tc2, tp2);
+      if (vl1->type != klt->type) PromoteProperty(klt, vl1, tc1, tp1);
 
       if (vl1->type != vl2->type) {
 	 if (do_print && (vl1->type != vl2->type)) {

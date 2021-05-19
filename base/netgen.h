@@ -43,7 +43,8 @@ extern int  PropertyMerge(char *name, int fnum, char *key, int merge_type,
 		int merge_mask);
 extern void ResolveProperties(char *name1, int file1, char *name2, int file2);
 extern void CopyProperties(struct objlist *obj_to, struct objlist *obj_from);
-extern int PromoteProperty(struct property *, struct valuelist *);
+extern int PromoteProperty(struct property *, struct valuelist *,
+		struct objlist *, struct nlist *);
 extern int SetPropertyDefault(struct property *, struct valuelist *);
 extern struct objlist *LinkProperties(char *model, struct keyvalue *topptr);
 extern int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
