@@ -2457,8 +2457,7 @@ _netcmp_run(ClientData clientData,
 	       automorphisms = ResolveAutomorphsByProperty();
 	       if (automorphisms == 0)
 	          Fprintf(stdout, "Netlists match uniquely.\n");
-	       else {
-
+	       else if (automorphisms > 0) {
 	          // Next, attempt to resolve automorphisms uniquely by
 	          // using the pin names
 		  automorphisms = ResolveAutomorphsByPin();
@@ -2466,14 +2465,17 @@ _netcmp_run(ClientData clientData,
 
 	       if (automorphisms == 0)
 	          Fprintf(stdout, "Netlists match uniquely.\n");
-	       else
+	       else if (automorphisms > 0) {
 	          // Anything left is truly indistinguishable
 	          Fprintf(stdout, "Netlists match with %d symmetr%s.\n",
 				automorphisms, (automorphisms == 1) ? "y" : "ies");
 
-	       while ((automorphisms = ResolveAutomorphisms()) > 0);
-	       if (automorphisms == -1) Fprintf(stdout, "Netlists do not match.\n");
-		  else Fprintf(stdout, "Circuits match correctly.\n");
+		  while ((automorphisms = ResolveAutomorphisms()) > 0);
+	       }
+	       if (automorphisms == -1)
+		  Fprintf(stdout, "Netlists do not match.\n");
+	       else
+		  Fprintf(stdout, "Circuits match correctly.\n");
 	    }
 	    if (PropertyErrorDetected) {
 	       Fprintf(stdout, "There were property errors.\n");
