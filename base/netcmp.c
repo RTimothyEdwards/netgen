@@ -4058,24 +4058,33 @@ int series_optimize(struct objlist *ob1, struct nlist *tp1, int idx1,
 }
 
 typedef struct _propsort {
-    double value;
+    double value;   /* Primary sorting value */
+    double avalue;  /* Secondary sorting value */
+    double slop;    /* Delta for accepting equality */
     int idx;
     unsigned char flags;
     struct objlist *ob;
 } propsort;
 
 /*--------------------------------------------------------------*/
-/* Property sorting routine used by qsort()			*/
+/* Property sorting routine used by qsort().  Sorts on "value"	*/
+/* unless the "value" for the two entries differs by less than	*/
+/* "slop", in which case the entries are sorted on "avalue".	*/
 /*--------------------------------------------------------------*/
 
 static int compsort(const void *p1, const void *p2)
 {
     propsort *s1, *s2;
+    double smax;
 
     s1 = (propsort *)p1;
     s2 = (propsort *)p2;
 
-    return (s1->value > s2->value) ? 1 : 0;
+    smax = fmax(s1->slop, s2->slop);
+    if (fabs(s1->value - s2->value) <= smax)
+       return (s1->avalue > s2->avalue) ? 1 : 0;
+    else
+       return (s1->value > s2->value) ? 1 : 0;
 }
 
 /*--------------------------------------------------------------*/
@@ -4094,7 +4103,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    struct property *kl;
    struct valuelist *vl, *sl;
    int i, p, sval, merge_type;
-   double cval;
+   double cval, slop;
 
    obn = ob1->next;
    for (i = 0; i < idx1; i++) obn = obn->next;
@@ -4107,7 +4116,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 
    obp = obn;
    sval = 1;
-   cval = 0.0;
+   cval = slop = 0.0;
    for (i = 0; i < run; i++) {
       merge_type = MERGE_NONE;
       for (p = 0;; p++) {
@@ -4121,24 +4130,35 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 else {
 	    kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
 	    if (kl && (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))) {
-		if (vl->type == PROP_INTEGER)
+		if (vl->type == PROP_INTEGER) {
 		   cval = (double)vl->value.ival;
-		else
+		   slop = (double)kl->slop.ival;
+		}
+		else {
 		   cval = vl->value.dval;
+		   slop = kl->slop.dval;
+		}
 	 	merge_type = kl->merge & (MERGE_S_ADD | MERGE_S_PAR);
 	    }
 	 }
       }
       if (merge_type == MERGE_S_ADD) {
 	 proplist[i].value = cval * (double)sval;
+         proplist[i].slop = slop;
+         proplist[i].avalue = 0;
 	 sl->value.ival = 1;
       }
       else if (merge_type == MERGE_S_PAR) {
 	 proplist[i].value = cval / (double)sval;
+         proplist[i].slop = slop;
+         proplist[i].avalue = 0;
 	 sl->value.ival = 1;
       }
       else {
+	 /* Components which declare no series addition method stay unsorted */
 	 proplist[i].value = (double)0;
+	 proplist[i].avalue = (double)0;
+         proplist[i].slop = (double)1E-6;
       }
       proplist[i].idx = i;
       proplist[i].ob = obp;
@@ -4236,32 +4256,31 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    struct property *kl;
    struct valuelist *vl, *ml;
    int i, p, mval, merge_type, has_crit = FALSE;
-   char *subs_crit = NULL;
-   double cval;
+   char c, *subs_crit = NULL;
+   double cval, tval, aval, slop, tslop;
 
    obn = ob1->next;
    for (i = 0; i < idx1; i++) obn = obn->next;
 
-   // Create a structure of length (run) to hold critical property
-   // value and index.  Then sort that list, then use the sorted
-   // indexes to sort the actual property linked list.
-
-   // If there is no critical property listed, then it is still better
-   // to sort on any random property than on no properties.  Note that
-   // this can (and should!) be made better by sorting on *all*
-   // properties, not just the first.  Otherwise, circuit 1 can have, e.g.,
-   // parallel transistors with W=1, L=1 and W=1, L=2 while circuit two
-   // has W=1, L=2 and W=1, L=1 and property matching will fail because
-   // sorting was done on W only.
+   /* Create a structure of length (run) to hold critical property
+    * value and index.  Then sort that list, then use the sorted
+    * indexes to sort the actual property linked list.
+    *
+    * If there is no critical property listed, then it will sort on
+    * M first, and any additive property second, or any property at
+    * all if no additive property was found.  It is doubtful that any
+    * use case requires more than two properties for sorting.
+    */
 
    proplist = (propsort *)MALLOC(run * sizeof(propsort));
 
    obp = obn;
    mval = 1;
-   cval = 0.0;
+   cval = aval = slop = 0.0;
    for (i = 0; i < run; i++) {
       merge_type = MERGE_NONE;
       ml = NULL;
+      c = (char)0;
       for (p = 0;; p++) {
 	 vl = &(obp->instance.props[p]);
 	 if (vl->type == PROP_ENDLIST) break;
@@ -4277,83 +4296,70 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 else if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR)) {
 	    if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
 		  	(kl->type != vl->type))
-		PromoteProperty(kl, vl);
-	    if (vl->type == PROP_INTEGER)
-	        cval = (double)vl->value.ival;
-	    else if (vl->type == PROP_STRING)
+		PromoteProperty(kl, vl, obp, tp1);
+	    if (vl->type == PROP_INTEGER) {
+	        tval = (double)vl->value.ival;
+	        tslop = (double)kl->slop.ival;
+	    }
+	    else if (vl->type == PROP_STRING) {
 		/* This is unlikely---no method to merge string properties! */
-		cval = (double)vl->value.string[0]
+		tval = (double)vl->value.string[0]
 			+ (double)vl->value.string[1] / 10.0;
-	    else
-	        cval = vl->value.dval;
+	        tslop = (double)0;
+	    }
+	    else {
+	        tval = vl->value.dval;
+	        tslop = kl->slop.dval;
+	    }
 
-	    merge_type = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
+	    if (merge_type == MERGE_NONE)
+	    {
+	       merge_type = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
+	       cval = tval;
+	       slop = tslop;
+	    }
+	    else {
+	       if ((c == (char)0) || (toupper(vl->key[0]) > c)) {
+		  c = toupper(vl->key[0]);
+		  aval = tval;
+	       }
+	    }
 	 }
+	 else {
+	    if ((c == (char)0) || (toupper(vl->key[0]) > c)) {
+	       if (vl->type == PROP_INTEGER) {
+	           aval = (double)vl->value.ival;
+	           c = toupper(vl->key[0]);
+	       }
+	       else if (vl->type == PROP_DOUBLE) {
+	           aval = vl->value.dval;
+	           c = toupper(vl->key[0]);
+	       }
+	    }
+         }
       }
       if (merge_type == MERGE_P_ADD) {
 	 proplist[i].value = cval * (double)mval;
+	 proplist[i].avalue = aval;
+	 proplist[i].slop = tslop;
 	 if (ml) ml->value.ival = 1;
       }
       else if (merge_type == MERGE_P_PAR) {
 	 proplist[i].value = cval / (double)mval;
+	 proplist[i].avalue = aval;
+	 proplist[i].slop = tslop;
 	 if (ml) ml->value.ival = 1;
       }
       else {
-	 proplist[i].value = (double)0;
+	 /* If there are no additive values, then sort first by M   */
+	 /* and second by aval					    */
+	 proplist[i].value = (double)mval;
+	 proplist[i].avalue = aval;
+	 proplist[i].slop = (double)0;
       }
       proplist[i].idx = i;
       proplist[i].ob = obp;
       obp = obp->next;
-   }
-
-   if (has_crit == FALSE) {
-      /* If no critical property was specified, then choose the first one found */
-      /* and recalculate all the proplist values.				*/
-      mval = 1;
-      obp = obn;
-      ml = NULL;
-      merge_type = MERGE_NONE;
-      for (i = 0; i < run; i++) {
-         for (p = 0;; p++) {
-	    vl = &(obp->instance.props[p]);
-	    if (vl->type == PROP_ENDLIST) break;
-	    if (vl->key == NULL) continue;
-            if ((*matchfunc)(vl->key, "M")) {
-	        mval = vl->value.ival;
-		ml = vl;
-	    }
-            kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
-	    if (kl == NULL) continue;		/* Ignored property */
-	    if (subs_crit == NULL)
-		subs_crit = vl->key;
-	    if ((subs_crit != NULL) && (*matchfunc)(vl->key, subs_crit)) {
-	       if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
-		  	(kl->type != vl->type))
-		  PromoteProperty(kl, vl);
-	       if (vl->type == PROP_INTEGER)
-	           cval = (double)vl->value.ival;
-	       else if (vl->type == PROP_STRING)
-		   /* In case property is non-numeric, sort by dictionary order */
-		   cval = (double)vl->value.string[0]
-			+ (double)vl->value.string[1] / 10.0;
-	       else
-	           cval = vl->value.dval;
-	       merge_type = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
-	    }
-         }
-         if (merge_type == MERGE_P_ADD) {
-	    proplist[i].value = cval * (double)mval;
-            if (ml) ml->value.ival = 1;
-	 }
-	 else if (merge_type == MERGE_P_PAR) {
-	    proplist[i].value = cval / (double)mval;
-            if (ml) ml->value.ival = 1;
-	 }
-	 else {
-	    proplist[i].value = 0;
-	 }
-         obp = obp->next;
-      }
    }
 
    obn = obp;	/* Link from last property */
@@ -4819,12 +4825,12 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	       else if (vl == NULL || vl2 == NULL) {
 		  if (vl == NULL) {
 		     if (kl->type != vlist[p][j]->type)
-			PromoteProperty(kl, vl2);
+			PromoteProperty(kl, vl2, ob2, tp);
 		     vl = &dfltvl;
 		  }
 		  else {
 		     if (kl->type != vlist[p][i]->type)
-			PromoteProperty(kl, vl);
+			PromoteProperty(kl, vl, ob2, tp);
 		     vl2 = &dfltvl;
 		  }
 		  dfltvl.type = kl->type;
@@ -4846,7 +4852,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	       }
 
 	       // Additive properties do not need to be matched, since
-	       // they can be combined.  Critical paroperties must be
+	       // they can be combined.  Critical properties must be
 	       // matched.  Properties with no merge behavior must match.
 
 	       ctype = clist[p][i];
@@ -5299,8 +5305,8 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
       }
 
       /* Promote properties as necessary to make sure they all match */
-      if (kl1->type != vl1->type) PromoteProperty(kl1, vl1);
-      if (kl2->type != vl2->type) PromoteProperty(kl2, vl2);
+      if (kl1->type != vl1->type) PromoteProperty(kl1, vl1, tc1, tp1);
+      if (kl2->type != vl2->type) PromoteProperty(kl2, vl2, tc2, tp2);
 
       /* If kl1 and kl2 types differ, choose one type to target. Prefer	*/
       /* double if either type is double, otherwise string.		*/
@@ -5320,8 +5326,8 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
       else
 	 klt = kl1;
 
-      if (vl2->type != klt->type) PromoteProperty(klt, vl2);
-      if (vl1->type != klt->type) PromoteProperty(klt, vl1);
+      if (vl2->type != klt->type) PromoteProperty(klt, vl2, tc2, tp2);
+      if (vl1->type != klt->type) PromoteProperty(klt, vl1, tc1, tp1);
 
       if (vl1->type != vl2->type) {
 	 if (do_print && (vl1->type != vl2->type)) {
@@ -6207,6 +6213,7 @@ int ResolveAutomorphsByProperty()
 			if ((E2->graph != E1->graph) && (E2->hashval == newhash)) {
 			    E2->hashval = orighash;
 			    C2--;
+			    if (C2 == C1) break;
 			}
 		    }
 		}
@@ -6215,6 +6222,7 @@ int ResolveAutomorphsByProperty()
 			if ((E2->graph == E1->graph) && (E2->hashval == newhash)) {
 			    E2->hashval = orighash;
 			    C1--;
+			    if (C1 == C2) break;
 			}
 		    }
 		}

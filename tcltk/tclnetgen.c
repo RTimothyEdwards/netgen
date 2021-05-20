@@ -2457,8 +2457,7 @@ _netcmp_run(ClientData clientData,
 	       automorphisms = ResolveAutomorphsByProperty();
 	       if (automorphisms == 0)
 	          Fprintf(stdout, "Netlists match uniquely.\n");
-	       else {
-
+	       else if (automorphisms > 0) {
 	          // Next, attempt to resolve automorphisms uniquely by
 	          // using the pin names
 		  automorphisms = ResolveAutomorphsByPin();
@@ -2466,14 +2465,17 @@ _netcmp_run(ClientData clientData,
 
 	       if (automorphisms == 0)
 	          Fprintf(stdout, "Netlists match uniquely.\n");
-	       else
+	       else if (automorphisms > 0) {
 	          // Anything left is truly indistinguishable
 	          Fprintf(stdout, "Netlists match with %d symmetr%s.\n",
 				automorphisms, (automorphisms == 1) ? "y" : "ies");
 
-	       while ((automorphisms = ResolveAutomorphisms()) > 0);
-	       if (automorphisms == -1) Fprintf(stdout, "Netlists do not match.\n");
-		  else Fprintf(stdout, "Circuits match correctly.\n");
+		  while ((automorphisms = ResolveAutomorphisms()) > 0);
+	       }
+	       if (automorphisms == -1)
+		  Fprintf(stdout, "Netlists do not match.\n");
+	       else
+		  Fprintf(stdout, "Circuits match correctly.\n");
 	    }
 	    if (PropertyErrorDetected) {
 	       Fprintf(stdout, "There were property errors.\n");
@@ -3341,10 +3343,10 @@ _netcmp_property(ClientData clientData,
     int result, index, idx2;
 
     char *suboptions[] = {
-	"integer", "double", "value", "string", NULL
+	"integer", "double", "value", "string", "expression", NULL
     };
     enum SubOptionIdx {
-	INTEGER_IDX, DOUBLE_IDX, VALUE_IDX, STRING_IDX
+	INTEGER_IDX, DOUBLE_IDX, VALUE_IDX, STRING_IDX, EXPRESSION_IDX
     };
 
     /* Note: "merge" has been deprecated, but kept for backwards compatibility.	*/
@@ -3732,6 +3734,11 @@ _netcmp_property(ClientData clientData,
 					    return TCL_ERROR;
 			 		PropertyString(tp->name, fnum,
 						Tcl_GetString(tobj1), ival, NULL);
+					break;
+				case EXPRESSION_IDX:
+			 		PropertyString(tp->name, fnum,
+						Tcl_GetString(tobj1), 0,
+						Tcl_GetString(tobj3));
 					break;
 			    }
 			    break;
