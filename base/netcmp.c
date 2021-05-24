@@ -4851,22 +4851,6 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		  }
 	       }
 
-	       // Additive properties do not need to be matched, since
-	       // they can be combined.  Critical properties must be
-	       // matched.  Properties with no merge behavior must match.
-
-	       ctype = clist[p][i];
-	       if (!(ctype & MERGE_S_CRIT)) {
-	          if ((series == TRUE) && (ctype & (MERGE_S_ADD | MERGE_S_PAR))) {
-		     pmatch++;
-		     continue;
-		  }
-	          if ((series == FALSE) && (ctype & (MERGE_P_ADD | MERGE_P_PAR))) {
-		     pmatch++;
-		     continue;
-	          }
-	       }
-
 	       switch(vl->type) {
 		  case PROP_DOUBLE:
 		  case PROP_VALUE:
