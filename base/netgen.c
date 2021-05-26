@@ -1593,6 +1593,12 @@ char *Cell(char *inststr, char *model, ...)
     if (IsPort(tp2)) portnum++;
     tp2 = tp2->next;
   }
+
+  /* Automatically ignore any cell that has no ports (e.g., logo art) */
+  if (portnum == 0) {
+    Printf("Class '%s' has no pins and so will be ignored.\n", model);
+    return NULL;
+  }
 	
   /* now generate lists of nodes using variable length parameter list */
   va_start(ap, model);
