@@ -867,10 +867,10 @@ struct FormattedList *FormatBadNodeFragment(struct Node *N)
       ob = pins[i]->subelement->element->object;
       for (n = pins[i]->subelement->element->nodelist; n != NULL; n = n->next){
 	if (n->pin_magic == pins[i]->subelement->pin_magic) {
-	  if (permute == 0) {
+	  if ((permute == 0) && (ob->instance.name != NULL)) {
 	     pinname = ob->name + strlen(ob->instance.name) + 1;
 	  }
-	  else {
+	  else if (ob->instance.name != NULL) {
 	     char *pinsave = pinname;
 	     pinname = (char *)MALLOC(strlen(pinsave) + strlen(ob->name +
 			strlen(ob->instance.name) + 1) + 2);
@@ -5289,8 +5289,8 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
       }
 
       /* Promote properties as necessary to make sure they all match */
-      if (kl1->type != vl1->type) PromoteProperty(kl1, vl1, tc1, tp1);
-      if (kl2->type != vl2->type) PromoteProperty(kl2, vl2, tc2, tp2);
+      if (kl1->type != vl1->type) PromoteProperty(kl1, vl1, tp1, tc1);
+      if (kl2->type != vl2->type) PromoteProperty(kl2, vl2, tp2, tc2);
 
       /* If kl1 and kl2 types differ, choose one type to target. Prefer	*/
       /* double if either type is double, otherwise string.		*/
@@ -5310,8 +5310,8 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
       else
 	 klt = kl1;
 
-      if (vl2->type != klt->type) PromoteProperty(klt, vl2, tc2, tp2);
-      if (vl1->type != klt->type) PromoteProperty(klt, vl1, tc1, tp1);
+      if (vl2->type != klt->type) PromoteProperty(klt, vl2, tp2, tc2);
+      if (vl1->type != klt->type) PromoteProperty(klt, vl1, tp1, tc1);
 
       if (vl1->type != vl2->type) {
 	 if (do_print && (vl1->type != vl2->type)) {
