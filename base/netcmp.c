@@ -4254,10 +4254,12 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    struct objlist *obn, *obp;
    propsort *proplist;
    struct property *kl;
-   struct valuelist *vl, *ml;
-   int i, p, mval, merge_type, has_crit = FALSE;
-   char c, *subs_crit = NULL;
-   double cval, tval, aval, slop, tslop;
+   struct valuelist *vl;
+   int i, p, mval, merge_type;
+   int has_crit;
+   char ca, co;
+   double tval, tslop;
+   double aval, pval, oval, aslop, pslop;
 
    obn = ob1->next;
    for (i = 0; i < idx1; i++) obn = obn->next;
@@ -4266,96 +4268,99 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
     * value and index.  Then sort that list, then use the sorted
     * indexes to sort the actual property linked list.
     *
-    * If there is no critical property listed, then it will sort on
-    * M first, and any additive property second, or any property at
-    * all if no additive property was found.  It is doubtful that any
-    * use case requires more than two properties for sorting.
+    * Collect properties of interest that we can potentially sort on.
+    * That includes the M value, critical parameter, additive value(s),
+    * and finally any parameter.  Keep these values and their slop.
+    * If there is a critical value, then sort on additive values * M.
+    * If not, then sort on M and additive values.
     */
 
    proplist = (propsort *)MALLOC(run * sizeof(propsort));
 
    obp = obn;
    mval = 1;
-   cval = aval = slop = 0.0;
+   pval = aval = oval = 0.0;
    for (i = 0; i < run; i++) {
+      has_crit = FALSE;
       merge_type = MERGE_NONE;
-      ml = NULL;
-      c = (char)0;
+      ca = co = (char)0;
+
       for (p = 0;; p++) {
 	 vl = &(obp->instance.props[p]);
 	 if (vl->type == PROP_ENDLIST) break;
 	 if (vl->key == NULL) continue;
          if ((*matchfunc)(vl->key, "M")) {
 	    mval = vl->value.ival;
-	    ml = vl;
+	    continue;
 	 }
          kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
 	 if (kl == NULL) continue;		/* Ignored property */
-         if (kl->merge & MERGE_P_CRIT)
-	    has_crit = TRUE;
-	 else if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR)) {
-	    if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
-		  	(kl->type != vl->type))
-		PromoteProperty(kl, vl, obp, tp1);
-	    if (vl->type == PROP_INTEGER) {
-	        tval = (double)vl->value.ival;
-	        tslop = (double)kl->slop.ival;
-	    }
-	    else if (vl->type == PROP_STRING) {
-		/* This is unlikely---no method to merge string properties! */
-		tval = (double)vl->value.string[0]
-			+ (double)vl->value.string[1] / 10.0;
-	        tslop = (double)0;
-	    }
-	    else {
-	        tval = vl->value.dval;
-	        tslop = kl->slop.dval;
-	    }
 
-	    if (merge_type == MERGE_NONE)
-	    {
-	       merge_type = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
-	       cval = tval;
-	       slop = tslop;
-	    }
-	    else {
-	       if ((c == (char)0) || (toupper(vl->key[0]) > c)) {
-		  c = toupper(vl->key[0]);
-		  aval = tval;
-	       }
-	    }
+	 /* Get the property value and slop.  Promote if needed.  Save	*/
+	 /* property and slop as type double so they can be sorted.	*/
+
+	 if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
+		  	(kl->type != vl->type))
+	    PromoteProperty(kl, vl, obp, tp1);
+	 if (vl->type == PROP_INTEGER) {
+	    tval = (double)vl->value.ival;
+	    tslop = (double)kl->slop.ival;
+	 }
+	 else if (vl->type == PROP_STRING) {
+	    /* This is unlikely---no method to merge string properties! */
+	    tval = (double)vl->value.string[0]
+			+ (double)vl->value.string[1] / 10.0;
+	    tslop = (double)0;
 	 }
 	 else {
-	    if ((c == (char)0) || (toupper(vl->key[0]) > c)) {
-	       if (vl->type == PROP_INTEGER) {
-	           aval = (double)vl->value.ival;
-	           c = toupper(vl->key[0]);
-	       }
-	       else if (vl->type == PROP_DOUBLE) {
-	           aval = vl->value.dval;
-	           c = toupper(vl->key[0]);
-	       }
+	    tval = vl->value.dval;
+	    tslop = kl->slop.dval;
+	 }
+
+	 if (kl->merge & MERGE_P_CRIT) {
+	    has_crit = TRUE;
+	    pval = tval;
+	    pslop = tslop;
+	 }
+	 else if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR)) {
+	    if ((ca == (char)0) || (toupper(vl->key[0]) > ca)) {
+	       merge_type = kl->merge & (MERGE_P_ADD | MERGE_P_PAR);
+	       aval = tval;
+	       aslop = tslop;
+	       ca = toupper(vl->key[0]);
 	    }
-         }
+	 }
+	 else if ((co == (char)0) || (toupper(vl->key[0]) > co)) {
+	    oval = tval;
+	    co = toupper(vl->key[0]);
+	 }
       }
-      if (merge_type == MERGE_P_ADD) {
-	 proplist[i].value = cval * (double)mval;
-	 proplist[i].avalue = aval;
-	 proplist[i].slop = tslop;
-	 if (ml) ml->value.ival = 1;
-      }
-      else if (merge_type == MERGE_P_PAR) {
-	 proplist[i].value = cval / (double)mval;
-	 proplist[i].avalue = aval;
-	 proplist[i].slop = tslop;
-	 if (ml) ml->value.ival = 1;
+      if (has_crit == TRUE) {
+	 /* If there is a critical value, then sort first   */
+	 /* by critical value				    */
+	 proplist[i].value = pval;
+	 proplist[i].slop = pslop;
+
+	 /* then sort on additive value times M	*/
+	 /* or on non-additive value.		*/
+         if (merge_type == MERGE_P_ADD)
+	    proplist[i].avalue = aval * (double)mval;
+         else if (merge_type == MERGE_P_PAR)
+	    proplist[i].avalue = aval / (double)mval;
+	 else
+	    proplist[i].avalue = (double)mval;
       }
       else {
-	 /* If there are no additive values, then sort first by M   */
-	 /* and second by aval					    */
-	 proplist[i].value = (double)mval;
-	 proplist[i].avalue = aval;
-	 proplist[i].slop = (double)0;
+         if (merge_type != MERGE_NONE) {
+	    proplist[i].value = aval;
+	    proplist[i].slop = aslop;
+	    proplist[i].avalue = (double)mval;
+	 }
+	 else {
+	    proplist[i].value = (double)mval;
+	    proplist[i].slop = (double)0;
+	    proplist[i].avalue = oval;
+	 }
       }
       proplist[i].idx = i;
       proplist[i].ob = obp;
