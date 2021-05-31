@@ -8,6 +8,8 @@ SCRIPTINSTALL = $(DESTDIR)${INSTALL_PYDIR}
 
 include ${NETGENDIR}/defs.mak
 
+CLEANS += lvs_manager.py
+
 main: lvs_manager.py
 
 tcl-main: lvs_manager.py

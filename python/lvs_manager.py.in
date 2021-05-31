@@ -343,7 +343,7 @@ class LVSManager(ttk.Frame):
             techbase = os.path.split(techname)[1]
             self.tech = os.path.splitext(techbase)[0]
             self.lvs_setup = techname
-            self.toppane.title2_frame.layout_select.config(text = self.tech)
+            self.toppane.title2_frame.tech_select.config(text = self.tech)
 
     def choose_layout(self):
         try:
@@ -358,30 +358,37 @@ class LVSManager(ttk.Frame):
 			title = "Choose a layout cell to compare.")
         if cellname != '':
             print("Selected compare cell " + cellname)
+            self.layout = cellname
             cellbase = os.path.split(cellname)[1]
-            self.layout = os.path.splitext(cellbase)[0]
-            self.toppane.title2_frame.layout_select.config(text = self.layout)
+            layoutname = os.path.splitext(cellbase)[0]
+            self.toppane.title2_frame.layout_select.config(text = layoutname)
+            fileext = os.path.splitext(cellbase)[1]
+            if fileext == '.mag':
+                self.toppane.title2_frame.layout_label.config(text = 'Layout:')
+            else:
+                self.toppane.title2_frame.layout_label.config(text = 'Layout netlist:')
 
     def choose_netlist(self):
         try:
             project_path = self.rootpath
-            initdirname = self.rootpath + '/netlist/' + self.project + '.spi'
+            initdirname = self.rootpath + '/netlist/' + self.project + '.spice'
         except:
             print('Must choose a project first.')
             return
         cellname = filedialog.askopenfilename(multiple=False,
 			initialdir = initdirname,
-			filetypes = (("Spice netlist", "*.spi"),("Verilog netlist", "*.v")),
+			filetypes = (("Spice netlist", "*.spice"),("Verilog netlist", "*.v"),("All Files","*.*")),
 			title = "Choose a netlist to compare.")
         if cellname != '':
             print("Selected compare cell " + cellname)
+            self.schematic = cellname
             cellbase = os.path.split(cellname)[1]
-            self.schematic = os.path.splitext(cellbase)[0]
-            self.toppane.title2_frame.schem_select.config(text = self.schematic)
+            schematic_name = os.path.splitext(cellbase)[0]
+            self.toppane.title2_frame.schem_select.config(text = schematic_name)
             fileext = os.path.splitext(cellbase)[1]
             if fileext == '.v':
                 self.toppane.title2_frame.schem_label.config(text = 'Verilog netlist:')
-            elif fileext == '.sp' or fileext == '.spi' or fileext == '.spice' or fileext == '.spc' or fileext == '.ckt':
+            elif fileext == '.sp' or fileext == '.spice' or fileext == '.spi' or fileext == '.spc' or fileext == '.ckt':
                 self.toppane.title2_frame.schem_label.config(text = 'SPICE netlist:')
             elif fileext == '.cdl':
                 self.toppane.title2_frame.schem_label.config(text = 'CDL netlist:')
@@ -433,7 +440,10 @@ class LVSManager(ttk.Frame):
                 self.logfile = None
 
             # Put new log file called 'lvs.log' in the mag/ subdirectory
-            self.logfile = open(rootpath + '/layout/lvs.log', 'w')
+            if os.path.exists(rootpath + '/layout'):
+                self.logfile = open(rootpath + '/layout/lvs.log', 'w')
+            else:
+                self.logfile = open(rootpath + '/lvs.log', 'w')
             # Print some initial information to the logfile.
             self.logprint('Starting new log file ' + datetime.datetime.now().strftime('%c'),
 				doflush=True)
@@ -444,14 +454,22 @@ class LVSManager(ttk.Frame):
             # Cell name is the same as project name initially
             self.layout = self.project
             self.schematic = self.project
-            self.toppane.title2_frame.layout_select.config(text = self.layout)
-            self.toppane.title2_frame.schem_select.config(text = self.schematic)
+            layname = os.path.splitext(os.path.split(self.layout)[1])[0]
+            self.toppane.title2_frame.layout_select.config(text = layname)
+            schemname = os.path.splitext(os.path.split(self.schematic)[1])[0]
+            self.toppane.title2_frame.schem_select.config(text = schemname)
 
             # Update schematic button
-            if os.path.isfile(rootpath + '/verilog/' + self.schematic + '.v'):
+            if os.path.splitext(self.schematic)[1] == '.v':
                 self.toppane.title2_frame.schem_label.config(text = 'Verilog netlist:')
             else:
                 self.toppane.title2_frame.schem_label.config(text = 'Schematic netlist:')
+
+            # Update layout button
+            if os.path.splitext(self.layout)[1] == '.mag':
+                self.toppane.title2_frame.schem_label.config(text = 'Layout:')
+            else:
+                self.toppane.title2_frame.schem_label.config(text = 'Layout netlist:')
 
             # If there is a comparison file that post-dates both netlists, load it.
             self.check_lvs()
@@ -567,8 +585,8 @@ class LVSManager(ttk.Frame):
         # load LVS results from comp.json
         project_path = self.rootpath
         project_name = self.project
-        layout_path = project_path + '/layout/' + project_name + '.spc'
-        net_path = project_path + '/netlist/' + project_name + '.spi'
+        layout_path = project_path + '/layout/' + project_name + '.spice'
+        net_path = project_path + '/netlist/' + project_name + '.spice'
         comp_path = project_path + '/layout/comp.json'
 
         if os.path.exists(layout_path) and os.path.exists(net_path) and os.path.exists(comp_path):
@@ -599,7 +617,7 @@ class LVSManager(ttk.Frame):
             mproc.stdin.write("ext2spice cthresh infinite\n")
             mproc.stdin.write("ext2spice rthresh infinite\n")
             mproc.stdin.write("ext2spice blackbox on\n")
-            mproc.stdin.write("ext2spice -o " + self.layout + ".spi\n")
+            mproc.stdin.write("ext2spice -o " + self.layout + ".spice\n")
             mproc.stdin.write("quit -noprompt\n")
             magicout = mproc.communicate()[0]
             self.printwarn(magicout)
@@ -607,8 +625,8 @@ class LVSManager(ttk.Frame):
                 print('Failure to generate new layout netlist.')
                 return False
 
-            # Move .spi netlist to project_dir/netlist/lvs/
-            shutil.move(project_path + '/layout/' + self.layout + '.spi', layout_path)
+            # Move .spice netlist to project_dir/netlist/lvs/
+            shutil.move(project_path + '/layout/' + self.layout + '.spice', layout_path)
             # Remove extraction files
             for file in os.listdir(project_path + '/layout'):
                 if os.path.splitext(file)[1] == '.ext':
@@ -625,17 +643,37 @@ class LVSManager(ttk.Frame):
 
         project_path = self.rootpath
         project_name = self.project
-        comp_path = project_path + '/layout/comp.json'
+
+        # Diagnostic:
+        print('project_name is ' + project_name)
+        print('project_path is ' + project_path)
+        print('self.layout is ' + self.layout)
+        print('self.schematic is ' + self.schematic)
+        print('self.lvs_setup is ' + self.lvs_setup)
+
         has_vlog = False
         vlog_path = project_path + '/verilog/' + project_name + '.v'
 
-        layout_path = project_path + '/netlist/lvs/' + self.layout + '.spi'
-        net_path = project_path + '/netlist/schem/' + self.schematic + '.spi'
-        layout_src = project_path + '/layout/' + self.layout + '.mag'
+        if os.path.isfile(self.layout):
+            layout_path = self.layout
+            layout_src = None
+        else:
+            layout_path = project_path + '/netlist/lvs/' + self.layout + '.spice'
+            layout_src = project_path + '/layout/' + self.layout + '.mag'
+
+        comp_dir = os.path.split(layout_path)[0]
+        comp_path = comp_dir + '/comp.json'
+
+        if os.path.isfile(self.schematic):
+            net_path = self.schematic
+        else:
+            net_path = project_path + '/netlist/schem/' + self.schematic + '.spice'
 
         # Does the setup file exist (this is optional)?
-        if self.lvs_setup != '' and not os.path.isfile('setup.tcl'):
+        if self.lvs_setup == '' and not os.path.isfile('setup.tcl'):
             print('No technology setup file selected.')
+        elif not os.path.isfile(self.lvs_setup):
+            print("Can't find technology setup file " + self.lvs_setup)
 
         # Does schematic netlist exist?
         if not os.path.isfile(vlog_path) and not os.path.isfile(net_path):
@@ -643,14 +681,16 @@ class LVSManager(ttk.Frame):
             return
 
         # Does LVS netlist subdirectory exist?
-        if not os.path.exists(project_path + '/netlist/lvs'):
-            os.makedirs(project_path + '/netlist/lvs')
+        if os.path.exists(project_path + '/netlist'):
+            if not os.path.exists(project_path + '/netlist/lvs'):
+                os.makedirs(project_path + '/netlist/lvs')
 
         # Does layout netlist exist and is it current?
-        if not self.generate_layout_netlist(layout_path, layout_src, project_path):
-            return False
+        if layout_src:
+            if not self.generate_layout_netlist(layout_path, layout_src, project_path):
+                return False
 
-        # Final check
+        # Final checks
         if not os.path.isfile(layout_path):
             print('Error:  No netlist generated from magic.')
             return
@@ -662,26 +702,27 @@ class LVSManager(ttk.Frame):
             with open(layout_path) as ifile:
                 spitext = ifile.read()
 
-            # spilines = spitext.replace(',', '|')
-            # with open(layout_path, 'w') as ofile:
-            #     ofile.write(spilines)
-
         # Check the netlist to see if the cell to match is a subcircuit.  If
         # not, then assume it is the top level.
 
+        layoutcell = os.path.splitext(os.path.split(self.layout)[1])[0]
         is_subckt = False
+        subname = None
         subrex = re.compile('^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE)
         dutlines = spitext.replace('\n+', ' ').splitlines()
         for line in dutlines:
             lmatch = subrex.match(line)
             if lmatch:
                 subname = lmatch.group(1)
-                if subname == self.layout:
+                if subname == layoutcell:
                     is_subckt = True
                     break
 
         if is_subckt:
-            layout_arg = layout_path + ' ' + self.layout
+            layout_arg = self.layout + ' ' + layoutcell
+            layout_text = '"' + layout_arg + '"'
+        elif subname:
+            layout_arg = self.layout + ' ' + subname
             layout_text = '"' + layout_arg + '"'
         else:
             layout_arg = layout_path
@@ -690,8 +731,39 @@ class LVSManager(ttk.Frame):
         if has_vlog:
             schem_arg = vlog_path + ' ' + self.schematic
         else:
-            schem_arg = net_path + ' ' + self.schematic
-        schem_text = '"' + schem_arg + '"'
+            # Final checks
+            if not os.path.isfile(net_path):
+                print('Error:  No netlist from schematic.')
+                return
+
+            with open(net_path) as ifile:
+                spitext = ifile.read()
+
+            # Check the netlist to see if the cell to match is a subcircuit.  If
+            # not, then assume it is the top level.
+
+            schemcell = os.path.splitext(os.path.split(self.schematic)[1])[0]
+            subname = None
+            is_subckt = False
+            subrex = re.compile('^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE)
+            dutlines = spitext.replace('\n+', ' ').splitlines()
+            for line in dutlines:
+                lmatch = subrex.match(line)
+                if lmatch:
+                    subname = lmatch.group(1)
+                    if subname == schemcell:
+                        is_subckt = True
+                        break
+
+            if is_subckt:
+                schem_arg = self.schematic + ' ' + schemcell
+                schem_text = '"' + schem_arg + '"'
+            elif subname:
+                schem_arg = self.schematic + ' ' + subname
+                schem_text = '"' + schem_arg + '"'
+            else:
+                schem_arg = net_path
+                schem_text = schem_arg
 
         # Remove any previous comparison output file
         comp_out_path = os.path.splitext(comp_path)[0] + '.out'
@@ -708,7 +780,7 @@ class LVSManager(ttk.Frame):
         self.lvsproc = subprocess.Popen(['netgen', '-batch', 'lvs',
 		layout_arg, schem_arg,
 		self.lvs_setup, comp_out_path, '-json', '-blackbox'],
-		cwd=project_path + '/layout',
+		cwd=comp_dir,
 		stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
         # This is largely unnecessary as netgen usually runs to completion very quickly.
         self.watchclock(comp_path)
