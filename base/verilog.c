@@ -63,6 +63,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #define VLOG_PIN_NAME_DELIMITERS "X///**/(**)X()"
 #define VLOG_PIN_CHECK_DELIMITERS "X///**/(**)X,;(){}"
 
+// Used by portelement structure "flags" record.
+#define PORT_NOT_FOUND	0
+#define PORT_FOUND	1
+
 // Global storage for verilog parameters
 struct hashdict verilogparams;
 // Global storage for verilog definitions
@@ -1404,6 +1408,7 @@ skip_endmodule:
 	char *name;	// Name of port in subcell
 	char *net;	// Name of net connecting to port in the parent
 	int   width;	// Width of port, if port is a bus
+	char  flags;	// Used for marking if port was added into netlist
 	struct portelement *next;
       };
 
@@ -1530,6 +1535,7 @@ nextinst:
 	       new_port = (struct portelement *)CALLOC(1, sizeof(struct portelement));
 	       new_port->name = strsave(nexttok + 1);
 	       new_port->width = -1;
+	       new_port->flags = PORT_NOT_FOUND;
 	       SkipTokComments(VLOG_DELIMITERS);
 	       if (!match(nexttok, "(")) {
 	           Printf("Badly formed subcircuit pin line at \"%s\"\n", nexttok);
@@ -1964,6 +1970,7 @@ nextinst:
 	       obpinidx = -1;
 	       while (scan != NULL) {
 		  if (match(obpinname, scan->name)) {
+		     scan->flags |= PORT_FOUND;
 		     break;
 		  }
 		  scan = scan->next;
@@ -2056,6 +2063,89 @@ nextinst:
 	           if (LookupObject(scan->net, CurrentCell) == NULL) Node(scan->net);
 	           join(scan->net, obptr->name);
 	       }
+
+	       /* Before exiting the loop, check if all ports in the	*/
+	       /* scan list were handled.				*/
+
+	       if ((obptr->next == NULL) || (obptr->next->type <= FIRSTPIN)) {
+	          for (scan = head; scan; scan = scan->next) {
+	             if (!(scan->flags & PORT_FOUND)) {
+		        if (tp->flags & CELL_PLACEHOLDER) {
+			   char tempname[128];
+			   int maxnode;
+
+		           /* This pin was probably implicit in the first call */
+		           /* and so it needs to be added to the definition.	 */
+
+			   ReopenCellDef(modulename, filenum);
+		           Port(scan->name);
+			   ReopenCellDef((*CellStackPtr)->cellname, filenum);
+
+			   /* obptr->next now gets the new port.  Update the	*/
+			   /* port number, and copy class and instance name.	*/
+			   nobj = GetObject();
+			   sprintf(tempname, "%s%s%s", obptr->instance.name,
+						SEPARATOR, scan->name);
+			   nobj->name = strsave(tempname);
+			   nobj->model.class = strsave(obptr->model.class);
+			   nobj->instance.name = strsave(obptr->instance.name);
+			   nobj->type = obptr->type + 1;
+			   nobj->next = obptr->next;
+			   nobj->node = -1;
+			   obptr->next = nobj;
+      			   HashPtrInstall(nobj->name, nobj, &(CurrentCell->objdict));
+
+	           	   if (LookupObject(scan->net, CurrentCell) == NULL)
+			      Node(scan->net);
+	           	   join(scan->net, nobj->name);
+	             	   scan->flags |= PORT_FOUND;
+
+			   /* Now any previous instance of the same cell must	*/
+			   /* insert the same additional pin as a no-connect.	*/
+			   /* NOTE:  This should be running a callback on all	*/
+			   /* cells in the file, not just CurrentCell.		*/
+
+			   for (sobj = CurrentCell->cell; sobj && (sobj != obptr);
+					sobj = sobj->next) {
+			      if (sobj->type == FIRSTPIN) {
+				 if (match(sobj->model.class, obptr->model.class)) {
+				    while (sobj->next->type > FIRSTPIN)
+				       sobj = sobj->next;
+				    /* Stop when reaching the current instance */
+				    if (sobj->type == obptr->type + 1) break;
+				    nobj = GetObject();
+				    sprintf(tempname, "%s%s%s", sobj->instance.name,
+						SEPARATOR, scan->name);
+				    nobj->name = strsave(tempname);
+				    nobj->model.class = strsave(sobj->model.class);
+				    nobj->instance.name = strsave(sobj->instance.name);
+				    nobj->type = obptr->type + 1;
+				    nobj->node = -1;
+				    nobj->next = sobj->next;
+				    sobj->next = nobj;
+      				    HashPtrInstall(nobj->name, nobj,
+							&(CurrentCell->objdict));
+
+		  	   	    sprintf(tempname, "_noconnect_%d_", localcount++);
+		  	   	    Node(tempname);
+		  	   	    join(tempname, nobj->name);
+		  	   	    Fprintf(stderr, "Note:  Implicit pin %s in instance "
+						"%s of %s in cell %s\n",
+			 			scan->name, sobj->instance.name,
+						modulename, CurrentCell->name);
+				 }
+			      }
+			   }
+		        }
+		        else {
+		           Fprintf(stderr, "Error:  Instance %s has pin %s which is "
+					"not in the %s cell definition.\n",
+					locinst, scan->name, modulename);
+		        }
+	             }
+	          }
+	       }
+
 	       obptr = obptr->next;
             } while (obptr != NULL && obptr->type > FIRSTPIN);
 	 }

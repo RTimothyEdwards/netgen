@@ -7240,71 +7240,74 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       }
    }
 
-   /* Do any unmatched pins have the same name? 		  */
-   /* (This should not happen if unconnected pins are eliminated) */
+   /* Do any unmatched pins have the same name? 		*/
+   /* This should not happen if unconnected pins are eliminated	*/
+   /* so apply only to black-box (CELL_PLACEHOLDER) entries.	*/ 
    /* (Semi-hack: Allow "!" global flag) */
 
-   ob1 = tc1->cell;
-   bangptr1 = strrchr(ob1->name, '!');
-   if (bangptr1 && (*(bangptr1 + 1) == '\0'))
-      *bangptr1 = '\0';
-   else bangptr1 = NULL;
+   if ((tc1->flags & CELL_PLACEHOLDER) && (tc2->flags & CELL_PLACEHOLDER)) {
+      ob1 = tc1->cell;
+      bangptr1 = strrchr(ob1->name, '!');
+      if (bangptr1 && (*(bangptr1 + 1) == '\0'))
+         *bangptr1 = '\0';
+      else bangptr1 = NULL;
   
-   for (i = 0; i < numorig; i++) {
-      if (*(cover + i) == (char)0) {
-	 j = 0;
-         for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
-	    char *name1, *name2;
+      for (i = 0; i < numorig; i++) {
+         if (*(cover + i) == (char)0) {
+	    j = 0;
+            for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
+	       char *name1, *name2;
 
-	    if (!IsPort(ob2)) break;
+	       if (!IsPort(ob2)) break;
 
-	    bangptr2 = strrchr(ob2->name, '!');
-	    if (bangptr2 && (*(bangptr2 + 1) == '\0'))
-	       *bangptr2 = '\0';
-	    else bangptr2 = NULL;
+	       bangptr2 = strrchr(ob2->name, '!');
+	       if (bangptr2 && (*(bangptr2 + 1) == '\0'))
+	          *bangptr2 = '\0';
+	       else bangptr2 = NULL;
 
-	    name1 = ob1->name;
-	    name2 = ob2->name;
+	       name1 = ob1->name;
+	       name2 = ob2->name;
 
-	    /* Recognize proxy pins as matching */
-	    if (!strncmp(name1, "proxy", 5)) name1 +=5;
-	    if (!strncmp(name2, "proxy", 5)) name2 +=5;
+	       /* Recognize proxy pins as matching */
+	       if (!strncmp(name1, "proxy", 5)) name1 +=5;
+	       if (!strncmp(name2, "proxy", 5)) name2 +=5;
 
-	    if ((*matchfunc)(name1, name2)) {
-	       ob2->model.port = i;		/* save order */
-	       *(cover + i) = (char)1;
+	       if ((*matchfunc)(name1, name2)) {
+	          ob2->model.port = i;		/* save order */
+	          *(cover + i) = (char)1;
 
-	       if (Debug == 0) {
-		  for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-		  for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-		  snprintf(ostr, left_col_end, "%s", ob1->name);
-		  snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-		  for (m = 0; m < right_col_end + 1; m++)
-		     if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-		  Fprintf(stdout, ostr);
-	       }
-	       else {
-		  Fprintf(stdout, "Circuit %s port %d \"%s\""
+	          if (Debug == 0) {
+		     for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
+		     for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
+		     snprintf(ostr, left_col_end, "%s", ob1->name);
+		     snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
+		     for (m = 0; m < right_col_end + 1; m++)
+		        if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+		     Fprintf(stdout, ostr);
+	          }
+	          else {
+		     Fprintf(stdout, "Circuit %s port %d \"%s\""
 				" = cell %s port %d \"%s\"\n",
 				tc1->name, i, ob1->name,
 				tc2->name, j, ob2->name);
-	       }
+	          }
 #ifdef TCL_NETGEN
-	       if (dolist) {
-		  Tcl_ListObjAppendElement(netgeninterp, plist1,
+	          if (dolist) {
+		     Tcl_ListObjAppendElement(netgeninterp, plist1,
 				Tcl_NewStringObj(ob1->name, -1));
-		  Tcl_ListObjAppendElement(netgeninterp, plist2,
+		     Tcl_ListObjAppendElement(netgeninterp, plist2,
 				Tcl_NewStringObj(ob2->name, -1));
-	       }
+	          }
 #endif
+	       }
+	       if (bangptr2) *bangptr2 = '!';
+	       j++;
 	    }
-	    if (bangptr2) *bangptr2 = '!';
-	    j++;
-	 }
+         }
+         ob1 = ob1->next;
       }
-      ob1 = ob1->next;
+      if (bangptr1) *bangptr1 = '!';
    }
-   if (bangptr1) *bangptr1 = '!';
 
    /* Find the end of the pin list in tc1, for adding proxy pins */
 
