@@ -7350,7 +7350,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			Tcl_NewStringObj(ob2->name, -1));
          }
 #endif
-	 result = 0;
 
 	 /* Before making a proxy pin, check to see if	*/
 	 /* flattening instances has left a port with a	*/
@@ -7368,6 +7367,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    ob2->node = -2;	// Will run this through cleanuppins
 	    needclean2 = 1;
 	    continue;
+	 }
+	 else if (notempty == 1) {
+	    /* Flag this as an error */
+	    result = 0;
 	 }
 	 ob2->model.port = numnodes++;	// Assign a port order
 
