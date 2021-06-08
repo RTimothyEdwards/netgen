@@ -7245,7 +7245,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* so apply only to black-box (CELL_PLACEHOLDER) entries.	*/ 
    /* (Semi-hack: Allow "!" global flag) */
 
-   if ((tc1->flags & CELL_PLACEHOLDER) && (tc2->flags & CELL_PLACEHOLDER)) {
+   if (((tc1->flags & CELL_PLACEHOLDER) && (tc2->flags & CELL_PLACEHOLDER)) ||
+	    (NodeClasses == NULL)) {
       ob1 = tc1->cell;
       bangptr1 = strrchr(ob1->name, '!');
       if (bangptr1 && (*(bangptr1 + 1) == '\0'))
