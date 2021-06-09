@@ -7344,14 +7344,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    Fprintf(stderr, "No netlist match for cell %s pin %s\n",
 				tc2->name, ob2->name);
 	 }
-#ifdef TCL_NETGEN
-         if (dolist) {
-	    Tcl_ListObjAppendElement(netgeninterp, plist1,
-			Tcl_NewStringObj("(no matching pin)", -1));
-	    Tcl_ListObjAppendElement(netgeninterp, plist2,
-			Tcl_NewStringObj(ob2->name, -1));
-         }
-#endif
 
 	 /* Before making a proxy pin, check to see if	*/
 	 /* flattening instances has left a port with a	*/
@@ -7368,11 +7360,27 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 if ((obt == NULL) && (notempty == 1)) {
 	    ob2->node = -2;	// Will run this through cleanuppins
 	    needclean2 = 1;
+#ifdef TCL_NETGEN
+            if (dolist) {
+	       Tcl_ListObjAppendElement(netgeninterp, plist1,
+			Tcl_NewStringObj("(no pin)", -1));
+	       Tcl_ListObjAppendElement(netgeninterp, plist2,
+			Tcl_NewStringObj(ob2->name, -1));
+            }
+#endif
 	    continue;
 	 }
 	 else if (notempty == 1) {
 	    /* Flag this as an error */
 	    result = 0;
+#ifdef TCL_NETGEN
+            if (dolist) {
+	       Tcl_ListObjAppendElement(netgeninterp, plist1,
+			Tcl_NewStringObj("(no matching pin)", -1));
+	       Tcl_ListObjAppendElement(netgeninterp, plist2,
+			Tcl_NewStringObj(ob2->name, -1));
+            }
+#endif
 	 }
 	 ob2->model.port = numnodes++;	// Assign a port order
 
