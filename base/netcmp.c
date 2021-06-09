@@ -5691,7 +5691,7 @@ PropertyMatch(struct objlist *ob1, int file1,
 #endif
    }
 
-   /* WIP---Check for no-connect pins in merged devices on both sides.	*/
+   /* Check for no-connect pins in merged devices on both sides.	*/
    /* Both sides should either have no-connects marked, or neither.	*/
    /* (Permutable pins may need to be handled correctly. . .		*/
 
@@ -5746,10 +5746,12 @@ PropertyMatch(struct objlist *ob1, int file1,
       if ((t1type != PROPERTY) && (checked_one == TRUE)) {
 	 // t2 has more property records than t1, and they did not get
 	 // merged equally by PropertySortAndCombine().
-	 Fprintf(stdout, "Circuit 1 parallel/series network does not match"
+	 if (do_print) {
+	    Fprintf(stdout, "Circuit 1 parallel/series network does not match"
 			" Circuit 2\n");
-	 DumpNetwork(ob1, 1);
-	 DumpNetwork(ob2, 2);
+	    DumpNetwork(ob1, 1);
+	    DumpNetwork(ob2, 2);
+	 }
 	 mismatches++;
       }
       else if (t1type != PROPERTY) {
