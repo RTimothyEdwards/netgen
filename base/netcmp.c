@@ -5691,7 +5691,7 @@ PropertyMatch(struct objlist *ob1, int file1,
 #endif
    }
 
-   /* WIP---Check for no-connect pins in merged devices on both sides.	*/
+   /* Check for no-connect pins in merged devices on both sides.	*/
    /* Both sides should either have no-connects marked, or neither.	*/
    /* (Permutable pins may need to be handled correctly. . .		*/
 
@@ -5746,10 +5746,12 @@ PropertyMatch(struct objlist *ob1, int file1,
       if ((t1type != PROPERTY) && (checked_one == TRUE)) {
 	 // t2 has more property records than t1, and they did not get
 	 // merged equally by PropertySortAndCombine().
-	 Fprintf(stdout, "Circuit 1 parallel/series network does not match"
+	 if (do_print) {
+	    Fprintf(stdout, "Circuit 1 parallel/series network does not match"
 			" Circuit 2\n");
-	 DumpNetwork(ob1, 1);
-	 DumpNetwork(ob2, 2);
+	    DumpNetwork(ob1, 1);
+	    DumpNetwork(ob2, 2);
+	 }
 	 mismatches++;
       }
       else if (t1type != PROPERTY) {
@@ -7342,14 +7344,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    Fprintf(stderr, "No netlist match for cell %s pin %s\n",
 				tc2->name, ob2->name);
 	 }
-#ifdef TCL_NETGEN
-         if (dolist) {
-	    Tcl_ListObjAppendElement(netgeninterp, plist1,
-			Tcl_NewStringObj("(no matching pin)", -1));
-	    Tcl_ListObjAppendElement(netgeninterp, plist2,
-			Tcl_NewStringObj(ob2->name, -1));
-         }
-#endif
 
 	 /* Before making a proxy pin, check to see if	*/
 	 /* flattening instances has left a port with a	*/
@@ -7366,11 +7360,27 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 if ((obt == NULL) && (notempty == 1)) {
 	    ob2->node = -2;	// Will run this through cleanuppins
 	    needclean2 = 1;
+#ifdef TCL_NETGEN
+            if (dolist) {
+	       Tcl_ListObjAppendElement(netgeninterp, plist1,
+			Tcl_NewStringObj("(no pin)", -1));
+	       Tcl_ListObjAppendElement(netgeninterp, plist2,
+			Tcl_NewStringObj(ob2->name, -1));
+            }
+#endif
 	    continue;
 	 }
 	 else if (notempty == 1) {
 	    /* Flag this as an error */
 	    result = 0;
+#ifdef TCL_NETGEN
+            if (dolist) {
+	       Tcl_ListObjAppendElement(netgeninterp, plist1,
+			Tcl_NewStringObj("(no matching pin)", -1));
+	       Tcl_ListObjAppendElement(netgeninterp, plist2,
+			Tcl_NewStringObj(ob2->name, -1));
+            }
+#endif
 	 }
 	 ob2->model.port = numnodes++;	// Assign a port order
 
