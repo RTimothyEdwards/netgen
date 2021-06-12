@@ -254,9 +254,10 @@ void flattenCell(char *name, int file)
 int flattenInstancesOf(char *name, int fnum, char *instance)
 {
   struct objlist *ParentParams;
-  struct objlist *ParentProps;
+  struct objlist *ParentProps, *CurrentProp;
   struct objlist *NextObj, *LastObj, *prepp;
-  struct objlist *ChildObjList;
+  struct objlist *ChildObjList, *ChildListEnd;
+  struct objlist *ChildStart, *ChildEnd, *ParentEnd;
   struct nlist *ThisCell;
   struct  nlist *ChildCell;
   struct objlist *tmp, *ob2, *ob3;
@@ -334,32 +335,55 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 		ParentProps = ParentProps->next) {
 	 if (ParentProps->type == PROPERTY) break;
       }
-      if (ParentProps && (ParentProps->type != PROPERTY)) ParentProps = NULL;
+      if (ParentProps && (ParentProps->type != PROPERTY)) {
+	  ParentProps = NULL;
+	  CurrentProp = NULL;
+      }
+      else
+	  CurrentProp = ParentProps;
 
-      /* not primitive, so need to flatten this instance */
+      /* Find the end record of the parent cell and save it */
+      for (ParentEnd = (ParentProps) ? ParentProps : ParentParams;
+		ParentEnd && ParentEnd->next && ParentEnd->next->type != FIRSTPIN;
+		ParentEnd = ParentEnd->next);
+
+      /* Not primitive, so need to flatten this instance */
       notdone = 1;
-      /* if this is a new instance, flatten it */
-      /* if (ChildCell->dumped == 0) flattenCell(ParentParams->model.class, file); */
 
-      ChildObjList = CopyObjList(ChildCell->cell, 1);
+      /* Loop over property records.  Need to flatten once per	*/
+      /* property record (or more, if property has M > 1)	*/
+
+      ob2 = NULL;
+      ChildObjList = NULL;
+      ChildListEnd = NULL;
+      while (1) {
+
+// XXX NEEDS INDENTING
+      ChildStart = CopyObjList(ChildCell->cell, 1);
       numflat++;
+
+      /* Find the end record of the child cell and save it */
+      for (ChildEnd = ChildStart; ChildEnd && ChildEnd->next;
+		ChildEnd = ChildEnd->next);
+
+      if (ChildListEnd == NULL) ChildListEnd = ChildEnd;
 
       /* update node numbers in child to unique numbers */
       oldmax = 0;
-      for (tmp = ChildObjList; tmp != NULL; tmp = tmp->next) 
+      for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) 
 	if (tmp->node > oldmax) oldmax = tmp->node;
       if (nextnode <= oldmax) nextnode = oldmax + 1;
 
-      for (tmp = ChildObjList; tmp != NULL; tmp = tmp->next) 
+      for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) 
 	if (tmp->node <= oldmax && tmp->node > 0) {
 	  if (Debug) Printf("Update node %d --> %d\n", tmp->node, nextnode);
-	  UpdateNodeNumbers(ChildObjList, tmp->node, nextnode);
+	  UpdateNodeNumbers(ChildStart, tmp->node, nextnode);
 	  nextnode++;
 	}
 
       /* copy nodenumbers of ports from parent */
       ob2 = ParentParams;
-      for (tmp = ChildObjList; tmp != NULL; tmp = tmp->next) 
+      for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) 
 	if (IsPort(tmp)) {
 	  if (tmp->node > 0) {
 	    if (ob2->node == -1) {
@@ -385,7 +409,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	       // Printf("  Sealing port: %d to node %d\n", tmp->node, ob2->node);
 	       Printf("Update node %d --> %d\n", tmp->node, ob2->node);
 	    }
-	    UpdateNodeNumbers(ChildObjList, tmp->node, ob2->node);
+	    UpdateNodeNumbers(ChildStart, tmp->node, ob2->node);
 	  }
 
 	/* in pathological cases, the lengths of the port lists may
@@ -405,15 +429,15 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 
       if (name != NULL) {
         /* delete all port elements from child */
-        while ((ChildObjList != NULL) && IsPort(ChildObjList)) {
+        while ((ChildStart != NULL) && IsPort(ChildStart)) {
 	  /* delete all ports at beginning of list */
 	  if (Debug) Printf("deleting leading port from child\n");
-	  tmp = ChildObjList->next;
-	  // FreeObjectAndHash(ChildObjList, ChildCell);
-	  FreeObject(ChildObjList);
-	  ChildObjList = tmp;
+	  tmp = ChildStart->next;
+	  // FreeObjectAndHash(ChildStart, ChildCell);
+	  FreeObject(ChildStart);
+	  ChildStart = tmp;
         }
-        tmp = ChildObjList;
+        tmp = ChildStart;
         while (tmp && (tmp->next != NULL)) {
 	  if (IsPort(tmp->next)) {
 	    ob2 = (tmp->next)->next;
@@ -433,7 +457,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       strcat(tmpstr,SEPARATOR);
       prefixlength = strlen(tmpstr);
 #endif
-      for (tmp = ChildObjList; tmp != NULL; tmp = tmp->next) {
+      for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) {
 	if (tmp->type == PROPERTY)
 	    continue;
 
@@ -448,7 +472,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 		    if (ob2->node >= 0) {
 		       // Replace all child objects with this node number
 		       rnodenum = tmp->node;
-		       for (ob3 = ChildObjList; ob3 != NULL; ob3 = ob3->next) {
+		       for (ob3 = ChildStart; ob3 != NULL; ob3 = ob3->next) {
 			  if (ob3->node == rnodenum)
 			     ob3->node = ob2->node;
 		       }
@@ -489,8 +513,12 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 
       /* Do property inheritance */
 
-      if (ParentProps) {
-         for (ob2 = ChildObjList; ob2 != NULL; ob2=ob2->next) {
+      /* NOTE:  Need to do:  Check properties for M > 1 and decrement
+       * and repeat without moving CurrentProp
+       */
+
+      if (CurrentProp) {
+         for (ob2 = ChildStart; ob2 != NULL; ob2=ob2->next) {
 
 	    /* If the parent cell has properties to declare, then	*/
 	    /* pass them on to children.  Use globals only if the	*/
@@ -498,48 +526,57 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	    /* only).							*/
 
 	    if (ob2->type == PROPERTY)
-		ReduceExpressions(ob2, ParentProps, ChildCell,
+		ReduceExpressions(ob2, CurrentProp, ChildCell,
 			(spiceparams.hashtab == NULL) ? 0 : 1);
          }
+
+         /* Repeat for each property record, as each property represents a
+          * unique instance that must be flattened individually.
+          */
+
+	 CurrentProp = CurrentProp->next;
+	 if (CurrentProp->type != PROPERTY) break;
+      }
+      else break;
+
+      /* Put the child cell at the start of ChildObjList */
+      ChildEnd->next = ChildObjList;
+      ChildObjList = ChildStart;
+
+// XXX END INDENTATION
       }
 
-      /* splice instance out of parent */
-      if ((ParentParams == ThisCell->cell) && (ChildObjList == NULL)) {
-	ThisCell->cell = ob2;	/* Child cell was empty */
-	tmp = ob2;
-      }
-      else {
+      /* Pull the instance out of the parent */
+
+      if ((ParentParams != ThisCell->cell) || (ChildObjList != NULL)) {
          if (ParentParams == ThisCell->cell) {
 	   /* ParentParams are the very first thing in the list */
 	   ThisCell->cell = ChildObjList;
-	   for (ob2 = ChildObjList; ob2 && ob2->next != NULL; ob2 = ob2->next) ;
          }
          else {
 	   /* find ParentParams in ThisCell list.  In most cases, LastObj   */
 	   /* should be pointing to it.					    */
 	   if (LastObj && (LastObj->next == ParentParams)) {
-	       ob2 = LastObj;
+	       LastObj->next = ChildObjList;
 	   }
 	   else {
-	      for (ob2 = LastObj; ob2 && ob2->next != ParentParams; ob2=ob2->next); 
+	      for (ob2 = LastObj; ob2 && ob2->next != ParentParams;
+			ob2 = ob2->next); 
 	      if (ob2 == NULL) {
 		 /* It should not happen that LastObj is ahead of ParentParams	*/
 		 /* but just in case, this long loop will find it.		*/
-	         for (ob2 = ThisCell->cell; ob2 && ob2->next != ParentParams; ob2=ob2->next); 
+	         for (ob2 = ThisCell->cell; ob2 && ob2->next != ParentParams;
+				ob2 = ob2->next); 
 	      }
+	      ob2->next = ChildObjList;
 	   }
-	   if (ob2)
-	         for (ob2->next = ChildObjList; ob2->next != NULL; ob2 = ob2->next) ;
          }
-         /* now, ob2 is last element in child list, so skip and reclaim parent */
 
-         tmp = ParentParams;
-         do {
-	   tmp = tmp->next;
-         } while ((tmp != NULL) && ((tmp->type > FIRSTPIN) || (tmp->type == PROPERTY)));
-         if (ob2) ob2->next = tmp;
+         /* Link end of child list into the parent */
+	 if (ChildListEnd)
+	    ChildListEnd->next = ParentEnd->next;
       }
-      while (ParentParams != tmp) {
+      while (ParentParams != ChildListEnd->next) {
 	ob2 = ParentParams->next;
 	FreeObjectAndHash(ParentParams, ThisCell);
 	ParentParams = ob2;
@@ -1538,13 +1575,13 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		if (ecomp->cell1) {
+		if (ecomp->cell1 && (ecomp->num1 > 0)) {
 		    Fprintf(stdout, "Flattening instances of %s in cell %s"
 				" makes a better match\n", ecomp->cell1->name,
 				name1);
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
 		}
-		if (ecomp->cell2) {
+		if (ecomp->cell2 && (ecomp->num2 > 0)) {
 		    Fprintf(stdout, "Flattening instances of %s in cell %s"
 				" makes a better match\n", ecomp->cell2->name,
 				name2);
