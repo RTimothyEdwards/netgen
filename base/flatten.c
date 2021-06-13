@@ -358,218 +358,217 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       ChildListEnd = NULL;
       while (1) {
 
-// XXX NEEDS INDENTING
-      ChildStart = CopyObjList(ChildCell->cell, 1);
-      numflat++;
+         ChildStart = CopyObjList(ChildCell->cell, 1);
+         numflat++;
 
-      /* Find the end record of the child cell and save it */
-      for (ChildEnd = ChildStart; ChildEnd && ChildEnd->next;
-		ChildEnd = ChildEnd->next);
+         /* Find the end record of the child cell and save it */
+         for (ChildEnd = ChildStart; ChildEnd && ChildEnd->next;
+			ChildEnd = ChildEnd->next);
 
-      if (ChildListEnd == NULL) ChildListEnd = ChildEnd;
+         if (ChildListEnd == NULL) ChildListEnd = ChildEnd;
 
-      /* update node numbers in child to unique numbers */
-      oldmax = 0;
-      for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) 
-	if (tmp->node > oldmax) oldmax = tmp->node;
-      if (nextnode <= oldmax) nextnode = oldmax + 1;
+         /* update node numbers in child to unique numbers */
+         oldmax = 0;
+         for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) 
+	    if (tmp->node > oldmax) oldmax = tmp->node;
+         if (nextnode <= oldmax) nextnode = oldmax + 1;
 
-      for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) 
-	if (tmp->node <= oldmax && tmp->node > 0) {
-	  if (Debug) Printf("Update node %d --> %d\n", tmp->node, nextnode);
-	  UpdateNodeNumbers(ChildStart, tmp->node, nextnode);
-	  nextnode++;
-	}
+         for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) 
+	    if (tmp->node <= oldmax && tmp->node > 0) {
+	       if (Debug) Printf("Update node %d --> %d\n", tmp->node, nextnode);
+	       UpdateNodeNumbers(ChildStart, tmp->node, nextnode);
+	       nextnode++;
+	    }
 
-      /* copy nodenumbers of ports from parent */
-      ob2 = ParentParams;
-      for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) 
-	if (IsPort(tmp)) {
-	  if (tmp->node > 0) {
-	    if (ob2->node == -1) {
+         /* copy nodenumbers of ports from parent */
+         ob2 = ParentParams;
+         for (tmp = ChildStart; tmp != NULL; tmp = tmp->next)  {
+	    if (IsPort(tmp)) {
+	       if (tmp->node > 0) {
+	          if (ob2->node == -1) {
 
-	       // Before commiting to attaching to a unconnected node, see
-	       // if there is another node in ParentParams with the same
-	       // name and a valid node number.  If so, connect them.  In
-	       // the broader case, it may be necessary to consider all
-	       // nodes, not just those with node == -1, and call join()
-	       // here to update all node numbers in the parent cell.
-	       // In that case, a more efficient method is needed for
-	       // tracking same-name ports.
+	             // Before commiting to attaching to a unconnected node, see
+	             // if there is another node in ParentParams with the same
+	             // name and a valid node number.  If so, connect them.  In
+	             // the broader case, it may be necessary to consider all
+	             // nodes, not just those with node == -1, and call join()
+	             // here to update all node numbers in the parent cell.
+	             // In that case, a more efficient method is needed for
+	             // tracking same-name ports.
 
-	       for (ob3 = ParentParams; ob3 && ob3->type >= FIRSTPIN; ob3 = ob3->next) {
-		   if (ob3 == ob2) continue;
-		   if ((*matchfunc)(ob3->name, ob2->name) && ob3->node != -1) {
-		       ob2->node = ob3->node;
-		       break;
-		   }
+	             for (ob3 = ParentParams; ob3 && ob3->type >= FIRSTPIN;
+					ob3 = ob3->next) {
+		        if (ob3 == ob2) continue;
+		        if ((*matchfunc)(ob3->name, ob2->name) && ob3->node != -1) {
+		           ob2->node = ob3->node;
+		           break;
+		        }
+	             }
+	          }
+	          if (Debug) {
+	             // Printf("  Sealing port: %d to node %d\n", tmp->node, ob2->node);
+	             Printf("Update node %d --> %d\n", tmp->node, ob2->node);
+	          }
+	          UpdateNodeNumbers(ChildStart, tmp->node, ob2->node);
 	       }
+
+	       /* in pathological cases, the lengths of the port lists may
+                * change.  This is an error, but that is no reason to allow
+                * the code to core dump.  We avoid this by placing a 
+                * superfluous check on ob2->type
+                */
+	       if (ob2 != NULL) ob2 = ob2->next;
+
+	       if (ob2 == NULL) break;
 	    }
-	    if (Debug) {
-	       // Printf("  Sealing port: %d to node %d\n", tmp->node, ob2->node);
-	       Printf("Update node %d --> %d\n", tmp->node, ob2->node);
-	    }
-	    UpdateNodeNumbers(ChildStart, tmp->node, ob2->node);
-	  }
+	 }
 
-	/* in pathological cases, the lengths of the port lists may
-         * change.  This is an error, but that is no reason to allow
-         * the code to core dump.  We avoid this by placing a 
-         * superfluous check on ob2->type
-         */
+         /* Using name == NULL to indicate that a .ext file is being 	*/
+         /* flattened on the fly.  This is quick & dirty.		*/
 
-	  if (ob2 != NULL)
-	    ob2 = ob2->next;
-
-	  if (ob2 == NULL) break;
-	}
-
-      /* Using name == NULL to indicate that a .ext file is being */
-      /* flattened on the fly.  This is quick & dirty.		  */
-
-      if (name != NULL) {
-        /* delete all port elements from child */
-        while ((ChildStart != NULL) && IsPort(ChildStart)) {
-	  /* delete all ports at beginning of list */
-	  if (Debug) Printf("deleting leading port from child\n");
-	  tmp = ChildStart->next;
-	  // FreeObjectAndHash(ChildStart, ChildCell);
-	  FreeObject(ChildStart);
-	  ChildStart = tmp;
-        }
-        tmp = ChildStart;
-        while (tmp && (tmp->next != NULL)) {
-	  if (IsPort(tmp->next)) {
-	    ob2 = (tmp->next)->next;
-	    if (Debug) Printf("deleting a port from child\n");
-	    // FreeObjectAndHash(tmp->next, ChildCell);
-	    FreeObject(tmp->next);
-	    tmp->next = ob2;
-	  } 
-	  else tmp = tmp->next;
-        }
-      }
-
-      /* for each element in child, prepend 'prefix' */
-#if !OLDPREFIX
-      /* replaces all the sprintf's below */
-      strcpy(tmpstr,ParentParams->instance.name);
-      strcat(tmpstr,SEPARATOR);
-      prefixlength = strlen(tmpstr);
-#endif
-      for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) {
-	if (tmp->type == PROPERTY)
-	    continue;
-
-	else if (IsGlobal(tmp)) {
-	   /* Keep the name but search for node of same name in parent	*/
-	   /* and replace the node number, if found.			*/
-
-	   for (ob2 = ThisCell->cell; ob2 != NULL; ob2 = ob2->next) {
-	      /* Type in parent may be a port, not a global */
-	      if (ob2->type == tmp->type || ob2->type == PORT) {
-	         if ((*matchfunc)(tmp->name, ob2->name)) {
-		    if (ob2->node >= 0) {
-		       // Replace all child objects with this node number
-		       rnodenum = tmp->node;
-		       for (ob3 = ChildStart; ob3 != NULL; ob3 = ob3->next) {
-			  if (ob3->node == rnodenum)
-			     ob3->node = ob2->node;
-		       }
-		       break;
-		    }
-		 }
-	      }
-	   }
-	   // Don't hash this if the parent had a port of this name
-	   if (!ob2 || ob2->type != PORT)
-	      HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
-	   continue;
-	}
-
-#if OLDPREFIX	
-	sprintf(tmpstr, "%s%s%s", ParentParams->instance.name, SEPARATOR,
-		tmp->name);
-#else
-	strcpy(tmpstr+prefixlength,tmp->name);
-#endif
-	if (Debug) Printf("Renaming %s to %s\n", tmp->name, tmpstr);
-	FreeString(tmp->name);
-	tmp->name = strsave(tmpstr);
-	HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
-	if ((tmp->type != NODE) && (tmp->instance.name != NULL)) {
-#if OLDPREFIX
-	   sprintf(tmpstr, "%s%s%s", ParentParams->instance.name, SEPARATOR,
-		    tmp->instance.name);
-#else
-	   strcpy(tmpstr+prefixlength,tmp->instance.name);
-#endif
-	   FreeString(tmp->instance.name);
-	   tmp->instance.name = strsave(tmpstr);
-	   if (tmp->type == FIRSTPIN) 
-	      HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
-        }
-      }
-
-      /* Do property inheritance */
-
-      /* NOTE:  Need to do:  Check properties for M > 1 and decrement
-       * and repeat without moving CurrentProp
-       */
-
-      if (CurrentProp) {
-         for (ob2 = ChildStart; ob2 != NULL; ob2=ob2->next) {
-
-	    /* If the parent cell has properties to declare, then	*/
-	    /* pass them on to children.  Use globals only if the	*/
-	    /* spiceparams dictionary is active (during file reading	*/
-	    /* only).							*/
-
-	    if (ob2->type == PROPERTY)
-		ReduceExpressions(ob2, CurrentProp, ChildCell,
-			(spiceparams.hashtab == NULL) ? 0 : 1);
+         if (name != NULL) {
+            /* delete all port elements from child */
+            while ((ChildStart != NULL) && IsPort(ChildStart)) {
+	       /* delete all ports at beginning of list */
+	       if (Debug) Printf("deleting leading port from child\n");
+	       tmp = ChildStart->next;
+	       FreeObject(ChildStart);
+	       ChildStart = tmp;
+            }
+            tmp = ChildStart;
+            while (tmp && (tmp->next != NULL)) {
+	       if (IsPort(tmp->next)) {
+	          ob2 = (tmp->next)->next;
+	          if (Debug) Printf("deleting a port from child\n");
+	          FreeObject(tmp->next);
+	          tmp->next = ob2;
+	       } 
+	       else tmp = tmp->next;
+            }
          }
 
-         /* Repeat for each property record, as each property represents a
-          * unique instance that must be flattened individually.
+         /* for each element in child, prepend 'prefix' */
+#if !OLDPREFIX
+         /* replaces all the sprintf's below */
+         strcpy(tmpstr,ParentParams->instance.name);
+         strcat(tmpstr,SEPARATOR);
+         prefixlength = strlen(tmpstr);
+#endif
+         for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) {
+	    if (tmp->type == PROPERTY)
+	       continue;
+
+	    else if (IsGlobal(tmp)) {
+	       /* Keep the name but search for node of same name in parent	*/
+	       /* and replace the node number, if found.			*/
+
+	       for (ob2 = ThisCell->cell; ob2 != NULL; ob2 = ob2->next) {
+	          /* Type in parent may be a port, not a global */
+	          if (ob2->type == tmp->type || ob2->type == PORT) {
+	             if ((*matchfunc)(tmp->name, ob2->name)) {
+		        if (ob2->node >= 0) {
+		           // Replace all child objects with this node number
+		           rnodenum = tmp->node;
+		           for (ob3 = ChildStart; ob3 != NULL; ob3 = ob3->next) {
+			      if (ob3->node == rnodenum)
+			         ob3->node = ob2->node;
+		           }
+		           break;
+		        }
+		     }
+	          }
+	       }
+	       // Don't hash this if the parent had a port of this name
+	       if (!ob2 || ob2->type != PORT)
+	          HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
+	       continue;
+	    }
+
+#if OLDPREFIX	
+	    sprintf(tmpstr, "%s%s%s", ParentParams->instance.name, SEPARATOR,
+				tmp->name);
+#else
+	    strcpy(tmpstr+prefixlength,tmp->name);
+#endif
+	    if (Debug) Printf("Renaming %s to %s\n", tmp->name, tmpstr);
+	    FreeString(tmp->name);
+	    tmp->name = strsave(tmpstr);
+	    HashPtrInstall(tmp->name, tmp, &(ThisCell->objdict));
+	    if ((tmp->type != NODE) && (tmp->instance.name != NULL)) {
+#if OLDPREFIX
+	       sprintf(tmpstr, "%s%s%s", ParentParams->instance.name, SEPARATOR,
+		    		tmp->instance.name);
+#else
+	       strcpy(tmpstr+prefixlength,tmp->instance.name);
+#endif
+	       FreeString(tmp->instance.name);
+	       tmp->instance.name = strsave(tmpstr);
+	       if (tmp->type == FIRSTPIN) 
+	          HashPtrInstall(tmp->instance.name, tmp, &(ThisCell->instdict));
+            }
+         }
+
+         /* Do property inheritance */
+
+         /* NOTE:  Need to do:  Check properties for M > 1 and decrement
+          * and repeat without moving CurrentProp
           */
 
-	 CurrentProp = CurrentProp->next;
-	 if (CurrentProp->type != PROPERTY) break;
+         if (CurrentProp) {
+            for (ob2 = ChildStart; ob2 != NULL; ob2=ob2->next) {
+
+	       /* If the parent cell has properties to declare, then	*/
+	       /* pass them on to children.  Use globals only if the	*/
+	       /* spiceparams dictionary is active (during file		*/
+	       /* reading only).					*/
+
+	       if (ob2->type == PROPERTY)
+		  ReduceExpressions(ob2, CurrentProp, ChildCell,
+				(spiceparams.hashtab == NULL) ? 0 : 1);
+            }
+
+            /* Repeat for each property record, as each property represents a
+             * unique instance that must be flattened individually.
+             */
+
+	    CurrentProp = CurrentProp->next;
+	    if (CurrentProp->type != PROPERTY) break;
+         }
+         else break;
+
+         /* Put the child cell at the start of ChildObjList */
+         ChildEnd->next = ChildObjList;
+         ChildObjList = ChildStart;
       }
-      else break;
 
       /* Put the child cell at the start of ChildObjList */
       ChildEnd->next = ChildObjList;
       ChildObjList = ChildStart;
 
-// XXX END INDENTATION
-      }
-
       /* Pull the instance out of the parent */
 
       if ((ParentParams != ThisCell->cell) || (ChildObjList != NULL)) {
          if (ParentParams == ThisCell->cell) {
-	   /* ParentParams are the very first thing in the list */
-	   ThisCell->cell = ChildObjList;
+	    /* ParentParams are the very first thing in the list */
+	    ThisCell->cell = ChildObjList;
          }
          else {
-	   /* find ParentParams in ThisCell list.  In most cases, LastObj   */
-	   /* should be pointing to it.					    */
-	   if (LastObj && (LastObj->next == ParentParams)) {
+	    /* find ParentParams in ThisCell list.  In most cases, LastObj  */
+	    /* should be pointing to it.				    */
+	    if (LastObj && (LastObj->next == ParentParams)) {
 	       LastObj->next = ChildObjList;
-	   }
-	   else {
-	      for (ob2 = LastObj; ob2 && ob2->next != ParentParams;
+	    }
+	    else {
+	       for (ob2 = LastObj; ob2 && ob2->next != ParentParams;
 			ob2 = ob2->next); 
-	      if (ob2 == NULL) {
-		 /* It should not happen that LastObj is ahead of ParentParams	*/
-		 /* but just in case, this long loop will find it.		*/
-	         for (ob2 = ThisCell->cell; ob2 && ob2->next != ParentParams;
+	       if (ob2 == NULL) {
+		  /* It should not happen that LastObj is ahead of ParentParams	*/
+		  /* but just in case, this long loop will find it.		*/
+	          for (ob2 = ThisCell->cell; ob2 && ob2->next != ParentParams;
 				ob2 = ob2->next); 
-	      }
-	      ob2->next = ChildObjList;
-	   }
+	       }
+	       ob2->next = ChildObjList;
+	    }
          }
 
          /* Link end of child list into the parent */
@@ -577,9 +576,9 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	    ChildListEnd->next = ParentEnd->next;
       }
       while (ParentParams != ChildListEnd->next) {
-	ob2 = ParentParams->next;
-	FreeObjectAndHash(ParentParams, ThisCell);
-	ParentParams = ob2;
+	 ob2 = ParentParams->next;
+	 FreeObjectAndHash(ParentParams, ThisCell);
+	 ParentParams = ob2;
       }
       NextObj = ParentParams;
     }				/* repeat until no more instances found */
