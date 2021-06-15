@@ -5601,6 +5601,7 @@ PropertyMatch(struct objlist *ob1, int file1,
    int t1type, t2type;
    int i, mismatches = 0, checked_one;
    int rval = 1;
+   int flags1, flags2;
    char *inst1, *inst2;
 #ifdef TCL_NETGEN
    Tcl_Obj *proplist = NULL, *mpair, *mlist;
@@ -5696,8 +5697,7 @@ PropertyMatch(struct objlist *ob1, int file1,
    /* (Permutable pins may need to be handled correctly. . .		*/
 
    for (tp1 = ob1, tp2 = ob2; (tp1 != NULL) && tp1->type >= FIRSTPIN &&
-	    (tp2 != NULL) && tp2->type >= FIRSTPIN; tp1 = tp1->next, tp2 = tp2->next)
-   {
+	    (tp2 != NULL) && tp2->type >= FIRSTPIN; tp1 = tp1->next, tp2 = tp2->next) {
       struct objlist *node1, *node2;
 
       if (file1 == Circuit1->file)
@@ -5710,8 +5710,17 @@ PropertyMatch(struct objlist *ob1, int file1,
       else
          node2 = Circuit2->nodename_cache[tp2->node];
 
-      if (node1->instance.flags != node2->instance.flags)
-      {
+      /* NOTE: A "no-connect" node (multiple no-connects represented by a
+       * single node) has non-zero flags.  A non-node entry in the cache
+       * implies a node with zero flags.
+       */
+      flags1 = flags2 = 0;
+      if ((node1->type <= NODE) && (node1->type >= UNIQUEGLOBAL))
+	 flags1 = node1->instance.flags;
+      if ((node2->type <= NODE) && (node2->type >= UNIQUEGLOBAL))
+	 flags2 = node2->instance.flags;
+
+      if (flags1 != flags2) {
 	 Fprintf(stdout, "  Parallelized instances disagree on pin connections.\n");
 	 Fprintf(stdout, "    Circuit1 instance %s pin %s connections are %s (%d)\n",
 		    tp1->instance.name, node1->name,

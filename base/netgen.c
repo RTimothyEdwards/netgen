@@ -3259,6 +3259,8 @@ int CombineParallel(char *model, int file)
 	    if ((ob2->node >= 0) && (nodecount[ob2->node] == 1))
 	    {
 	       nob = (tp->nodename_cache)[ob2->node];
+	       /* NOTE:  nob must be a pin type or NODE, so it's */
+	       /* okay to set the instance.flags record for it.	 */
 	       nob->instance.flags = NO_CONNECT;
 	       strcat(pptr, "_nc");
 	    }
