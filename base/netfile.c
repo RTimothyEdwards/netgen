@@ -896,7 +896,9 @@ char *ReadNetlist(char *fname, int *fnum)
 
   /* make first pass looking for extension */
   for (index = 0; formats[index].extension != NULL; index++) {
-    if (strstr(fname, formats[index].extension) != NULL) {
+    int extlen = strlen(formats[index].extension);
+    int flen = strlen(fname);
+    if (!strcmp(fname + flen - extlen, formats[index].extension)) {
       return (*(formats[index].proc))(fname, fnum);
     }
   }
