@@ -162,9 +162,9 @@ struct objlist {
   union {
      char *name;		/* unique name for the instance, or */
 				/* (string) value of property for properties */
-     int  flags;		/* Used by NODE type to flag isolated net */
      struct valuelist *props;	/* Property record */
   } instance;
+  unsigned char flags;	/* Used by NODE type to flag isolated net */
   int node;		/* the electrical node number of the port/node/pin */
   struct objlist *next;
 };

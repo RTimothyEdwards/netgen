@@ -257,7 +257,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   struct objlist *ParentProps, *CurrentProp;
   struct objlist *NextObj, *LastObj, *prepp;
   struct objlist *ChildObjList, *ChildListEnd;
-  struct objlist *ChildStart, *ChildEnd, *ParentEnd;
+  struct objlist *ChildStart, *ChildEnd, *ParentEnd, *ParentNext;
   struct nlist *ThisCell;
   struct  nlist *ChildCell;
   struct objlist *tmp, *ob2, *ob3;
@@ -445,6 +445,10 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	       } 
 	       else tmp = tmp->next;
             }
+	    if (ChildStart == NULL) {
+	       if (ChildListEnd == ChildEnd) ChildListEnd = NULL;
+	       ChildEnd = NULL;
+	    }
          }
 
          /* for each element in child, prepend 'prefix' */
@@ -542,8 +546,10 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       }
 
       /* Put the child cell at the start of ChildObjList */
-      ChildEnd->next = ChildObjList;
-      ChildObjList = ChildStart;
+      if (ChildEnd) {
+         ChildEnd->next = ChildObjList;
+         ChildObjList = ChildStart;
+      }
 
       /* Pull the instance out of the parent */
 
@@ -552,7 +558,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	    /* ParentParams are the very first thing in the list */
 	    ThisCell->cell = ChildObjList;
          }
-         else {
+         else if (ChildObjList) {
 	    /* find ParentParams in ThisCell list.  In most cases, LastObj  */
 	    /* should be pointing to it.				    */
 	    if (LastObj && (LastObj->next == ParentParams)) {
@@ -570,12 +576,17 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	       ob2->next = ChildObjList;
 	    }
          }
+	 else {
+	    /* The child was completely optimized out, so close list around it */
+	    LastObj->next = ParentEnd->next;
+	 }
 
          /* Link end of child list into the parent */
-	 if (ChildListEnd)
+	 if (ChildListEnd && ParentEnd)
 	    ChildListEnd->next = ParentEnd->next;
       }
-      while (ParentParams != ChildListEnd->next) {
+      ParentNext = (ParentEnd) ? ParentEnd->next : NULL;
+      while (ParentParams != ParentNext) {
 	 ob2 = ParentParams->next;
 	 FreeObjectAndHash(ParentParams, ThisCell);
 	 ParentParams = ob2;
