@@ -975,10 +975,8 @@ struct objlist *CopyObjList(struct objlist *oldlist, unsigned char doforall)
           newob->model.class = NULL;
        else
           newob->model.class = strsave(tmp->model.class);
-       if (newob->type == NODE)
-	  newob->instance.flags = tmp->instance.flags;
-       else
-          newob->instance.name = (tmp->instance.name) ?
+       newob->flags = tmp->flags;
+       newob->instance.name = (tmp->instance.name) ?
 		strsave(tmp->instance.name) : NULL;
     }
     newob->node = tmp->node;
@@ -1098,8 +1096,8 @@ void FreeObject(struct objlist *ob)
 	FREE(ob->instance.props);
      }
   }
-  else if (ob->type != NODE) {
-     /* All other records except NODE, which uses this for flags */
+  else {
+     /* All other records */
      if (ob->instance.name != NULL) FreeString(ob->instance.name);
   }
   if (ob->model.class != NULL) FreeString(ob->model.class);

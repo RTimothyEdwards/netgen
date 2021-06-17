@@ -5601,7 +5601,6 @@ PropertyMatch(struct objlist *ob1, int file1,
    int t1type, t2type;
    int i, mismatches = 0, checked_one;
    int rval = 1;
-   int flags1, flags2;
    char *inst1, *inst2;
 #ifdef TCL_NETGEN
    Tcl_Obj *proplist = NULL, *mpair, *mlist;
@@ -5714,22 +5713,16 @@ PropertyMatch(struct objlist *ob1, int file1,
        * single node) has non-zero flags.  A non-node entry in the cache
        * implies a node with zero flags.
        */
-      flags1 = flags2 = 0;
-      if ((node1->type <= NODE) && (node1->type >= UNIQUEGLOBAL))
-	 flags1 = node1->instance.flags;
-      if ((node2->type <= NODE) && (node2->type >= UNIQUEGLOBAL))
-	 flags2 = node2->instance.flags;
-
-      if (flags1 != flags2) {
+      if (node1->flags != node1->flags) {
 	 Fprintf(stdout, "  Parallelized instances disagree on pin connections.\n");
 	 Fprintf(stdout, "    Circuit1 instance %s pin %s connections are %s (%d)\n",
 		    tp1->instance.name, node1->name,
-		    (node1->instance.flags == 0) ? "tied together" : "no connects",
-		    node1->instance.flags);
+		    (node1->flags == 0) ? "tied together" : "no connects",
+		    node1->flags);
 	 Fprintf(stdout, "    Circuit2 instance %s pin %s connections are %s (%d)\n",
 		    tp2->instance.name, node2->name,
-		    (node2->instance.flags == 0) ? "tied together" : "no connects",
-		    node2->instance.flags);
+		    (node2->flags == 0) ? "tied together" : "no connects",
+		    node2->flags);
 	 mismatches++;
       }
    }
@@ -6815,6 +6808,11 @@ int reorderpins(struct hashlist *p, int file)
 		"Ordering will be arbitrary.\n", tc2->name);
 
     for (ob = ptr->cell; ob != NULL; ) {
+        /* Catch badness */
+	if (ob->next && (ob->next->node > 100000)) {
+	    Fprintf(stdout, "Bad.\n");
+	} 
+
 	if (ob->type == FIRSTPIN) {
 	    if ((*matchfunc)(ob->model.class, tc2->name)) {
 		char *sptr = ob->instance.name;
@@ -6833,6 +6831,7 @@ int reorderpins(struct hashlist *p, int file)
 		        nodes[ob2->model.port] = ob->node;
 		        names[ob2->model.port] = ob->name;
 		    }
+
 		    ob = ob->next;
 		    ob2 = ob2->next;
 		    if (i < numports - 1) {
