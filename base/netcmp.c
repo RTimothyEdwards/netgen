@@ -4697,7 +4697,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    struct objlist *ob2, *obt;
    struct property *kl, *m_rec, **plist;
    unsigned char **clist;
-   struct valuelist ***vlist, *vl, *vl2, *newvlist;
+   struct valuelist ***vlist, *vl, *vl2, *newvlist, critval;
    proplinkptr plink, ptop;
    int pcount, p, i, j, k, pmatch, ival, ctype;
    double dval;
@@ -4785,12 +4785,12 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
  	 else if (kl != NULL) {
 	    vlist[kl->idx][i] = vl;
 	    if (series == FALSE) {
-		if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR))
+		if (kl->merge & (MERGE_P_ADD | MERGE_P_PAR | MERGE_P_CRIT))
 		    clist[kl->idx][i] = kl->merge &
 			    (MERGE_P_ADD | MERGE_P_PAR | MERGE_P_CRIT);
 	    }
 	    else if (series == TRUE) {
-		if (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))
+		if (kl->merge & (MERGE_S_ADD | MERGE_S_PAR | MERGE_S_CRIT))
 		    clist[kl->idx][i] = kl->merge &
 			    (MERGE_S_ADD | MERGE_S_PAR | MERGE_S_CRIT);
 	    }
@@ -4945,24 +4945,44 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    // (if any)
 
    if (comb == TRUE) {
-      int mult;
+      int mult, cidx = -1;
+      struct valuelist *avl, *cvl = NULL;
+      critval.type = PROP_ENDLIST;
+      critval.value.dval = 0.0;
       for (i = 0; i < run; i++) {
+         avl = NULL;
 	 if (vlist[0][i] == NULL) continue;
 	 mult = vlist[0][i]->value.ival;
-	 if (mult > 1) {
-	    changed = 0;
+	 changed = 0;
 
-	    /* For all properties that are not M, S, or crit,		*/
-	    /* combine as specified by the merge type of the property.	*/
+	 /* For all properties that are not M, S, or crit,		*/
+	 /* combine as specified by the merge type of the property.	*/
 
-	    for (p = 1; p < pcount; p++) {
-		vl = vlist[p][i];
-		ctype = clist[p][i];
+	 for (p = 1; p < pcount; p++) {
+	    vl = vlist[p][i];
+	    ctype = clist[p][i];
 
-		/* critical properties never combine */
-		if ((series == TRUE) && (ctype & MERGE_S_CRIT)) continue;
-		if ((series == FALSE) && (ctype & MERGE_P_CRIT)) continue;
+	    /* critical properties never combine, but track them */
+	    if ((series == TRUE) && (ctype & MERGE_S_CRIT)) {
+		if ((vl->type != critval.type) || (vl->value.dval != critval.value.dval))
+		{
+		    critval.type = vl->type;
+		    critval.value = vl->value;
+		    cidx = i;
+		}
+		continue;
+	    }
+	    if ((series == FALSE) && (ctype & MERGE_P_CRIT)) {
+		if ((vl->type != critval.type) || (vl->value.dval != critval.value.dval))
+		{
+		    critval.type = vl->type;
+		    critval.value = vl->value;
+		    cidx = i;
+		}
+		continue;
+	    }
 
+	    if (mult > 1) {
 		if (ctype & (MERGE_S_ADD | MERGE_P_ADD)) {
 		    if (vl->type == PROP_INTEGER)
 			vl->value.ival *= mult;
@@ -4982,14 +5002,72 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		    vlist[0][i]->value.ival = 1;
 		    changed += mult;
 		}
-		if (changed > 0) {
-		    if (series)
-			Printf("Combined %d series devices.\n", changed);
-		    else
-			Printf("Combined %d parallel devices.\n", changed);
+	    }
+	    if (ctype & (MERGE_S_ADD | MERGE_P_ADD | MERGE_S_PAR | MERGE_P_PAR))
+		avl = vl;
+         }
+	 if (cidx == i) cvl = avl;
+
+	 /* Sorting should have put all records with the same critical	*/
+	 /* value together sequentially.  So if there are still		*/
+	 /* multiple property records, then merge them into the first	*/
+	 /* record with the same critical property value.		*/
+
+	 if ((i > 0) && (cidx >= 0) && (cidx < i)) {
+	    for (p = 1; p < pcount; p++) {
+		vl = vlist[p][i];
+		ctype = clist[p][i];
+		if (ctype & (MERGE_S_ADD | MERGE_P_ADD)) {
+		    if (vl->type == PROP_INTEGER)
+			vl->value.ival *= mult;
+		    else if (vl->type == PROP_DOUBLE)
+			vl->value.dval *= (double)mult;
+		    vlist[0][i]->value.ival = 0;	/* set M to 0 */
+		    if (cvl && (cvl->type == PROP_INTEGER))
+		    {
+			if (vl->type == PROP_INTEGER)
+			    cvl->value.ival += vl->value.ival;
+			else {
+			    cvl->type = PROP_DOUBLE;
+			    cvl->value.dval = (double)cvl->value.ival + vl->value.dval;
+			}
+		    }
+		    else if ((cvl && vl->type == PROP_DOUBLE))
+		    {
+			if (vl->type == PROP_INTEGER)
+			    cvl->value.dval += (double)vl->value.ival;
+			else
+			    cvl->value.dval += vl->value.dval;
+		    }
+		    changed += mult;
+		}
+		else if (ctype & (MERGE_S_PAR | MERGE_P_PAR)) {
+		    if (vl->type == PROP_INTEGER) {
+			vl->type = PROP_DOUBLE;
+			vl->value.dval = (double)(vl->value.ival);
+		    }
+		    if (vl->type == PROP_DOUBLE)
+			vl->value.dval /= (double)mult;
+		    vlist[0][i]->value.ival = 0;    /* set M to 0 */
+		    if (cvl && (cvl->type == PROP_INTEGER)) {
+			cvl->type = PROP_DOUBLE;
+			cvl->value.dval = (double)cvl->value.ival;
+		    }
+		    if ((cvl && vl->type == PROP_DOUBLE)) {
+		        cvl->value.dval =
+				sqrt(cvl->value.dval * cvl->value.dval
+				+ vl->value.dval * vl->value.dval);
+		    }
+		    changed += mult;
 		}
 	    }
-         }
+	 }
+	 if (changed > 0) {
+	    if (series)
+		Printf("Combined %d series devices.\n", changed);
+	    else
+		Printf("Combined %d parallel devices.\n", changed);
+	 }
       }
    }
 
@@ -5595,10 +5673,10 @@ PropertyMatch(struct objlist *ob1, int file1,
 		int do_print, int do_list, int *retval)
 {
    struct nlist *tc1, *tc2;
-   struct objlist *tp1, *tp2, *obn1, *obn2;
+   struct objlist *tp1, *tp2, *obn1, *obn2, *tpc;
    struct property *kl1, *kl2;
    struct valuelist *vl1, *vl2;
-   int t1type, t2type;
+   int t1type, t2type, run1, run2;
    int i, mismatches = 0, checked_one;
    int rval = 1;
    char *inst1, *inst2;
@@ -5855,13 +5933,19 @@ PropertyMatch(struct objlist *ob1, int file1,
 			inst2, FALSE, FALSE, &multmatch, NULL);
 	 if (multmatch == 1) {
 	    /* Final attempt:  Reduce M to 1 on both devices */
-	    PropertyOptimize(tp1, tc1, 1, FALSE, TRUE);
-	    PropertyOptimize(tp2, tc2, 1, FALSE, TRUE);
+	    run1 = run2 = 0;
+	    for (tpc = tp1; tpc && (tpc->type == PROPERTY); tpc = tpc->next) run1++;
+	    for (tpc = tp2; tpc && (tpc->type == PROPERTY); tpc = tpc->next) run2++;
+	    PropertyOptimize(tp1, tc1, run1, FALSE, TRUE);
+	    PropertyOptimize(tp2, tc2, run2, FALSE, TRUE);
 	 }
 	 else if (multmatch == 2) {
 	    /* Final attempt:  Reduce S to 1 on both devices */
-	    PropertyOptimize(tp1, tc1, 1, TRUE, TRUE);
-	    PropertyOptimize(tp2, tc2, 1, TRUE, TRUE);
+	    run1 = run2 = 0;
+	    for (tpc = tp1; tpc && (tpc->type == PROPERTY); tpc = tpc->next) run1++;
+	    for (tpc = tp2; tpc && (tpc->type == PROPERTY); tpc = tpc->next) run2++;
+	    PropertyOptimize(tp1, tc1, run1, TRUE, TRUE);
+	    PropertyOptimize(tp2, tc2, run2, TRUE, TRUE);
 	 }
 #ifdef TCL_NETGEN
 	 mlist =
