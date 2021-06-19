@@ -536,7 +536,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
              */
 
 	    CurrentProp = CurrentProp->next;
-	    if (CurrentProp->type != PROPERTY) break;
+	    if ((CurrentProp == NULL) || (CurrentProp->type != PROPERTY)) break;
          }
          else break;
 
