@@ -620,15 +620,16 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
          for (elems = nodes[i]->node->elementlist; elems != NULL;
 			elems = elems->next)
 	    count++;
-
-         elemlist->flist[k].count = count;
-	 if (*ob->name != *ob->instance.name)	// e.g., "port_match_error"
-            elemlist->flist[k].name = ob->name;
-	 else
-            elemlist->flist[k].name = ob->name + strlen(ob->instance.name) + 1;
-         elemlist->flist[k].permute = (char)1;
-         k++;
       }
+      else count = 1;
+
+      elemlist->flist[k].count = count;
+      if (*ob->name != *ob->instance.name)	// e.g., "port_match_error"
+         elemlist->flist[k].name = ob->name;
+      else
+         elemlist->flist[k].name = ob->name + strlen(ob->instance.name) + 1;
+      elemlist->flist[k].permute = (char)1;
+      k++;
     }
     else {				/* handle multiple permutable pins */
       struct objlist *ob2;
@@ -665,13 +666,16 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
 	    struct ElementList *elems;
 
 	    count = 0;
-	    if (nodes[j]->node == NULL) continue;	// ?
-	    for (elems = nodes[j]->node->elementlist; elems != NULL;
-		 elems = elems->next) 
-	      count++;
+	    if (nodes[j]->node == NULL)	/* Under what condition is the node NULL? */
+	       count++;
+	    else {
+	       for (elems = nodes[j]->node->elementlist; elems != NULL;
+			elems = elems->next) 
+	          count++;
+	    }
 	    if (count >= maxcount) {
-	      maxcount = count;
-	      maxindex = j;
+	       maxcount = count;
+	       maxindex = j;
 	    }
 	  }
 	}
