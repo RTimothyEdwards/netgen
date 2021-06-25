@@ -621,7 +621,6 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
 			elems = elems->next)
 	    count++;
       }
-      else count = 1;
 
       elemlist->flist[k].count = count;
       if (*ob->name != *ob->instance.name)	// e.g., "port_match_error"
