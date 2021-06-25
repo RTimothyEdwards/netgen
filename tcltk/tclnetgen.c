@@ -2428,6 +2428,8 @@ _netcmp_run(ClientData clientData,
 	 else {
 	    enable_interrupt();
 	    while (!Iterate() && !InterruptPending);
+	    ExhaustiveSubdivision = 1;
+	    while (!Iterate() && !InterruptPending);
 	    if (dolist) {
 	       result = _netcmp_verify(clientData, interp, 2, objv - 1);
 	    }
@@ -2445,6 +2447,8 @@ _netcmp_run(ClientData clientData,
 	 }
 	 else {
 	    enable_interrupt();
+	    while (!Iterate() && !InterruptPending);
+	    ExhaustiveSubdivision = 1;
 	    while (!Iterate() && !InterruptPending);
 	    automorphisms = VerifyMatching();
 	    if (automorphisms == -1)
