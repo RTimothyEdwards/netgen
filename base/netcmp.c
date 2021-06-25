@@ -7225,8 +7225,13 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			      snprintf(ostr, left_col_end, "%s", obn->name);
 			      if ((*matchfunc)(obn->name, obp->name))
 			         snprintf(ostr + left_col_end + 1, left_col_end, "%s", obp->name);
-			      else
+			      else {
 			         snprintf(ostr + left_col_end + 1, left_col_end, "%s **Mismatch**", obp->name);
+				 /* Pins with different names are on different nets,
+				  * so this should trigger an error return code.
+				  */
+				 result = 0;
+			      }
 			      for (m = 0; m < right_col_end + 1; m++)
 				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 			      Fprintf(stdout, ostr);
