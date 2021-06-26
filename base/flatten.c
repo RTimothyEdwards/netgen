@@ -344,7 +344,10 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 
       /* Find the end record of the parent cell and save it */
       for (ParentEnd = (ParentProps) ? ParentProps : ParentParams;
-		ParentEnd && ParentEnd->next && ParentEnd->next->type != FIRSTPIN;
+		ParentEnd && ParentEnd->next &&
+		/* Stop on a node or the next instance */
+		((ParentEnd->next->type > FIRSTPIN) ||
+		    (ParentEnd->next->type == PROPERTY));
 		ParentEnd = ParentEnd->next);
 
       /* Not primitive, so need to flatten this instance */

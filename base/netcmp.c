@@ -620,15 +620,15 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
          for (elems = nodes[i]->node->elementlist; elems != NULL;
 			elems = elems->next)
 	    count++;
-
-         elemlist->flist[k].count = count;
-	 if (*ob->name != *ob->instance.name)	// e.g., "port_match_error"
-            elemlist->flist[k].name = ob->name;
-	 else
-            elemlist->flist[k].name = ob->name + strlen(ob->instance.name) + 1;
-         elemlist->flist[k].permute = (char)1;
-         k++;
       }
+
+      elemlist->flist[k].count = count;
+      if (*ob->name != *ob->instance.name)	// e.g., "port_match_error"
+         elemlist->flist[k].name = ob->name;
+      else
+         elemlist->flist[k].name = ob->name + strlen(ob->instance.name) + 1;
+      elemlist->flist[k].permute = (char)1;
+      k++;
     }
     else {				/* handle multiple permutable pins */
       struct objlist *ob2;
@@ -665,13 +665,16 @@ struct FormattedList *FormatBadElementFragment(struct Element *E)
 	    struct ElementList *elems;
 
 	    count = 0;
-	    if (nodes[j]->node == NULL) continue;	// ?
-	    for (elems = nodes[j]->node->elementlist; elems != NULL;
-		 elems = elems->next) 
-	      count++;
+	    if (nodes[j]->node == NULL)	/* Under what condition is the node NULL? */
+	       count++;
+	    else {
+	       for (elems = nodes[j]->node->elementlist; elems != NULL;
+			elems = elems->next) 
+	          count++;
+	    }
 	    if (count >= maxcount) {
-	      maxcount = count;
-	      maxindex = j;
+	       maxcount = count;
+	       maxindex = j;
 	    }
 	  }
 	}
@@ -7225,8 +7228,13 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			      snprintf(ostr, left_col_end, "%s", obn->name);
 			      if ((*matchfunc)(obn->name, obp->name))
 			         snprintf(ostr + left_col_end + 1, left_col_end, "%s", obp->name);
-			      else
+			      else {
 			         snprintf(ostr + left_col_end + 1, left_col_end, "%s **Mismatch**", obp->name);
+				 /* Pins with different names are on different nets,
+				  * so this should trigger an error return code.
+				  */
+				 result = 0;
+			      }
 			      for (m = 0; m < right_col_end + 1; m++)
 				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 			      Fprintf(stdout, ostr);
