@@ -5020,11 +5020,8 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	    for (p = 1; p < pcount; p++) {
 		vl = vlist[p][i];
 		ctype = clist[p][i];
+
 		if (ctype & (MERGE_S_ADD | MERGE_P_ADD)) {
-		    if (vl->type == PROP_INTEGER)
-			vl->value.ival *= mult;
-		    else if (vl->type == PROP_DOUBLE)
-			vl->value.dval *= (double)mult;
 		    vlist[0][i]->value.ival = 0;	/* set M to 0 */
 		    if (cvl && (cvl->type == PROP_INTEGER))
 		    {
@@ -5042,26 +5039,25 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 			else
 			    cvl->value.dval += vl->value.dval;
 		    }
-		    changed += mult;
 		}
 		else if (ctype & (MERGE_S_PAR | MERGE_P_PAR)) {
+		    vlist[0][i]->value.ival = 0;    /* set M to 0 */
+		    /* To do parallel combination, both types need to
+		     * be double, so recast them if they are integer.
+		     */
 		    if (vl->type == PROP_INTEGER) {
 			vl->type = PROP_DOUBLE;
 			vl->value.dval = (double)(vl->value.ival);
 		    }
-		    if (vl->type == PROP_DOUBLE)
-			vl->value.dval /= (double)mult;
-		    vlist[0][i]->value.ival = 0;    /* set M to 0 */
 		    if (cvl && (cvl->type == PROP_INTEGER)) {
 			cvl->type = PROP_DOUBLE;
 			cvl->value.dval = (double)cvl->value.ival;
 		    }
-		    if ((cvl && vl->type == PROP_DOUBLE)) {
+		    if ((cvl && (vl->type == PROP_DOUBLE))) {
 		        cvl->value.dval =
 				sqrt(cvl->value.dval * cvl->value.dval
 				+ vl->value.dval * vl->value.dval);
 		    }
-		    changed += mult;
 		}
 	    }
 	 }
