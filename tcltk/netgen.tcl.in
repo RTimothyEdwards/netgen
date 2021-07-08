@@ -532,7 +532,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    }
    set properr {}
    set matcherr {}
-   set pinsgood 0
+   set pinsgood -1
    while {$endval != {}} {
       if {$dolist == 1} {
          netgen::run -list converge
@@ -585,7 +585,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
                    netgen::log echo on
 	       }
 	    }
-	 } else {
+	 } elseif {$uresult > 0} {
 	    # Match pins
             netgen::log echo off
 	    if {$dolist == 1} {
