@@ -7467,6 +7467,12 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 if ((obt == NULL) && (notempty == 1)) {
 	    ob2->node = -2;	// Will run this through cleanuppins
 	    needclean2 = 1;
+
+	    /* On the top level, missing pins are an error, even if	*/
+	    /* they appear to match unconnected pins on the other side. */
+	    if (CompareQueue == NULL)
+		result = 0;
+
 #ifdef TCL_NETGEN
             if (dolist) {
 	       Tcl_ListObjAppendElement(netgeninterp, plist1,
