@@ -7560,7 +7560,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       }
 
       if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0
-		|| (ob1->node < 0 && tc1->class == CLASS_MODULE)) {
+		|| (ob1->node < 0 && tc1->class == CLASS_MODULE)
+		|| (ob1->node < 0 && ob1->model.port == -1)) {
 
 	 /* Add a proxy pin to tc2 */
          obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
@@ -7577,8 +7578,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
          obn->instance.name = NULL;
          obn->node = -1;
 
-#if 0
-	 /* Note:  This pin has already been accounted for */
+	 /* Note:  Has this pin already been accounted for? */
 	 if (Debug == 0) {
 	    if (strcmp(ob1->name, "(no pins)")) {
 	       for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
@@ -7594,7 +7594,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    Fprintf(stderr, "No netlist match for cell %s pin %s\n",
 				tc1->name, ob1->name);
 	 }
-#endif
 
 	 if (ob2 == tc2->cell) {
 	    obn->next = ob2;
