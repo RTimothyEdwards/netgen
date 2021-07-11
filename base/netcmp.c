@@ -7343,35 +7343,44 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* so apply only to black-box (CELL_PLACEHOLDER) entries.	*/ 
    /* (Semi-hack: Allow "!" global flag) */
 
-   if (((tc1->flags & CELL_PLACEHOLDER) && (tc2->flags & CELL_PLACEHOLDER)) ||
-	    (NodeClasses == NULL)) {
-      ob1 = tc1->cell;
-      bangptr1 = strrchr(ob1->name, '!');
-      if (bangptr1 && (*(bangptr1 + 1) == '\0'))
-         *bangptr1 = '\0';
-      else bangptr1 = NULL;
+   ob1 = tc1->cell;
+   bangptr1 = strrchr(ob1->name, '!');
+   if (bangptr1 && (*(bangptr1 + 1) == '\0'))
+      *bangptr1 = '\0';
+   else bangptr1 = NULL;
   
-      for (i = 0; i < numorig; i++) {
-         if (*(cover + i) == (char)0) {
-	    j = 0;
-            for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
-	       char *name1, *name2;
+   for (i = 0; i < numorig; i++) {
+      if (*(cover + i) == (char)0) {
+	 j = 0;
+         for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
+	    char *name1, *name2;
 
-	       if (!IsPort(ob2)) break;
+	    if (!IsPort(ob2)) break;
 
-	       bangptr2 = strrchr(ob2->name, '!');
-	       if (bangptr2 && (*(bangptr2 + 1) == '\0'))
-	          *bangptr2 = '\0';
-	       else bangptr2 = NULL;
+	    bangptr2 = strrchr(ob2->name, '!');
+	    if (bangptr2 && (*(bangptr2 + 1) == '\0'))
+	       *bangptr2 = '\0';
+	    else bangptr2 = NULL;
 
-	       name1 = ob1->name;
-	       name2 = ob2->name;
+	    name1 = ob1->name;
+	    name2 = ob2->name;
 
-	       /* Recognize proxy pins as matching */
-	       if (!strncmp(name1, "proxy", 5)) name1 +=5;
-	       if (!strncmp(name2, "proxy", 5)) name2 +=5;
+	    /* Recognize proxy pins as matching unconnected pins */
+	    if (!strncmp(name1, "proxy", 5) && (ob2->node == -1)) name1 +=5;
+	    if (!strncmp(name2, "proxy", 5) && (ob1->node == -1)) name2 +=5;
 
-	       if ((*matchfunc)(name1, name2)) {
+	    if ((*matchfunc)(name1, name2)) {
+
+	       /* If both sides have unconnected nodes, then pins with	*/
+	       /* matching names are an automatic match.  Otherwise, if	*/
+	       /* matching black-box entries, then pins are always	*/
+	       /* matched by name.					*/
+
+	       if (((ob1->node == -1) && (ob2->node == -1)) ||
+			(((tc1->flags & CELL_PLACEHOLDER) &&
+			(tc2->flags & CELL_PLACEHOLDER)) ||
+			(NodeClasses == NULL))) {
+
 	          ob2->model.port = i;		/* save order */
 	          *(cover + i) = (char)1;
 
@@ -7398,13 +7407,15 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 				Tcl_NewStringObj(ob2->name, -1));
 	          }
 #endif
+	          if (bangptr2) *bangptr2 = '!';
+		  break;
 	       }
-	       if (bangptr2) *bangptr2 = '!';
-	       j++;
 	    }
+	    if (bangptr2) *bangptr2 = '!';
+	    j++;
          }
-         ob1 = ob1->next;
       }
+      ob1 = ob1->next;
       if (bangptr1) *bangptr1 = '!';
    }
 
@@ -7456,6 +7467,12 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 if ((obt == NULL) && (notempty == 1)) {
 	    ob2->node = -2;	// Will run this through cleanuppins
 	    needclean2 = 1;
+
+	    /* On the top level, missing pins are an error, even if	*/
+	    /* they appear to match unconnected pins on the other side. */
+	    if (CompareQueue == NULL)
+		result = 0;
+
 #ifdef TCL_NETGEN
             if (dolist) {
 	       Tcl_ListObjAppendElement(netgeninterp, plist1,
