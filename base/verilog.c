@@ -1577,6 +1577,14 @@ nextinst:
 		     }
 		     new_port->net = wire_bundle;
 		  }
+		  else if (nexttok[0] == '~' || nexttok[0] == '!' || nexttok[0] == '-') {
+		     /* All of these imply that the signal is logically manipulated */
+		     /* in turn implying behavioral code.			    */
+		     Printf("Module '%s' is not structural verilog, "
+				    "making black-box.\n", model);
+		     SetClass(CLASS_MODULE);
+		     goto skip_endmodule;
+		  }
 		  else
 		     new_port->net = strsave(nexttok);
 

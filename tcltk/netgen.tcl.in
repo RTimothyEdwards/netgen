@@ -585,8 +585,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
                    netgen::log echo on
 	       }
 	    }
-	 } elseif {$uresult > 0} {
-	    # Match pins
+	 } else {
             netgen::log echo off
 	    if {$dolist == 1} {
 		set result [equate -list pins "$fnum1 [lindex $endval 0]" \
@@ -599,7 +598,11 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 		equate classes "$fnum1 [lindex $endval 0]" \
 			 "$fnum2 [lindex $endval 1]"
 	    }
-	    set pinsgood $result
+	    # If $uresult == -1 then these are black-box entries and
+	    # $pinsgood should not be set to the resulting value.
+	    if {$uresult > 0} {
+	        set pinsgood $result
+	    }
             netgen::log echo on
 	 }
 	 if {$uresult == 2} {lappend properr [lindex $endval 0]}
