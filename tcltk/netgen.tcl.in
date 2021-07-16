@@ -650,7 +650,8 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    puts stdout "Result: " nonewline
    netgen::log echo on
    if {$pinsgood == 0} {
-      netgen::log put "The top level cell failed pin matching.\n"
+      # NOTE:  Need to disambiguate these two cases. . .
+      netgen::log put "Cells failed matching, or top level cell failed pin matching.\n"
    } else {
       verify only
    }

@@ -4121,6 +4121,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    sval = 1;
    cval = slop = 0.0;
    for (i = 0; i < run; i++) {
+      sl = NULL;
       merge_type = MERGE_NONE;
       for (p = 0;; p++) {
 	 vl = &(obp->instance.props[p]);
@@ -4149,13 +4150,13 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 proplist[i].value = cval * (double)sval;
          proplist[i].slop = slop;
          proplist[i].avalue = 0;
-	 sl->value.ival = 1;
+	 if (sl) sl->value.ival = 1;
       }
       else if (merge_type == MERGE_S_PAR) {
 	 proplist[i].value = cval / (double)sval;
          proplist[i].slop = slop;
          proplist[i].avalue = 0;
-	 sl->value.ival = 1;
+	 if (sl) sl->value.ival = 1;
       }
       else {
 	 /* Components which declare no series addition method stay unsorted */
