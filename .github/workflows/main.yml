@@ -38,8 +38,7 @@ jobs:
         
       - name: Run the test
         run: |
-         cd /vezzal
-         ./configure.sh
+          ../configure.sh
   
       
           
