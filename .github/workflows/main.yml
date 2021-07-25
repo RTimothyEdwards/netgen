@@ -34,7 +34,7 @@ jobs:
         run: docker pull vezzal/vezzal:v0
         
       - name: Run the docker image
-        run: docker run -it vezzal/vezzal:v0 bash
+        run: docker run -i vezzal/vezzal:v0 bash
         
       - name: Run the test
         run: |
