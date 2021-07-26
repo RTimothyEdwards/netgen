@@ -26,8 +26,11 @@ jobs:
       - name: Pulling the docker image
         run: docker pull vezzal/vezzal:v0
         
-      - name: Run the docker image
-        run: docker run vezzal/vezzal:v0
+      - name: Start the container with the docker image
+        run: docker run -it --name test_netgen vezzal/vezzal:v0 bash | exit
+        
+      - name: Run the testing on the container
+        run: docker exec test_netgen /vezzal/test_netgen.sh
         
   
       
