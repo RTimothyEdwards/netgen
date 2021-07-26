@@ -4,6 +4,7 @@ SRCS = tclnetgen.c
 
 include ${NETGENDIR}/defs.mak
 
+VERSION := $(shell cat ../VERSION)
 EXTRA_LIBS = ${MAIN_EXTRA_LIBS}
 
 DFLAGS += -DNETGEN_DATE="\"`date`\""
@@ -32,11 +33,12 @@ netgen.tcl: netgen.tcl.in
 	    -e 's%SHDLIB_EXT%${SHDLIB_EXT}%g' \
 	    netgen.tcl.in > netgen.tcl
 
-netgen.sh: netgen.sh.in
+netgen.sh: netgen.sh.in ../VERSION
 	sed -e 's%TCL_DIR%${TCLDIR}%g' \
 	    -e 's%PY_DIR%${PYDIR}%g' \
 	    -e 's%TCLLIB_DIR%${TCL_LIB_DIR}%g' \
 	    -e 's%WISH_EXE%${WISH_EXE}%g' \
+	    -e 's%=VERSION%=${VERSION}%' \
 	    netgen.sh.in > netgen.sh
 
 $(DESTDIR)${INSTALL_TCLDIR}/%: %
