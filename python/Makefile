@@ -29,6 +29,7 @@ lvs_manager.py: lvs_manager.py.in
 $(DESTDIR)${INSTALL_PYDIR}/lvs_manager.py: lvs_manager.py
 	${RM} $@
 	${CP} lvs_manager.py $@
+	chmod a+x $@
 
 $(DESTDIR)${INSTALL_PYDIR}/treeviewsplit.py: treeviewsplit.py
 	${RM} $@
