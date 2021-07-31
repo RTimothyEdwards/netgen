@@ -32,7 +32,7 @@ jobs:
       - name: Start the container with the docker image
         run: docker run -id --name test_netgen vezzal/vezzal:v0 bash | exit
         
-      - name: Run the testing on the container and sends the mail
+      - name: Run the testing on the container and send the mail
         run: docker exec test_netgen /vezzal/test_netgen.sh "lankasaicharan123@gmail.com" ${{ secrets.MAILING_KEY }}
         
   
