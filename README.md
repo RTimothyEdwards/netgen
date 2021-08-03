@@ -1,9 +1,4 @@
-![CI](https://github.com/lankasaicharan/netgen/actions/workflows/main.yml/badge.svg) ![Trigger](https://github.com/github/docs/actions/workflows/main.yml/badge.svg?event=push)
-
-
-
-
-
+![CI](https://github.com/lankasaicharan/netgen/actions/workflows/main.yml/badge.svg)
 
 NETGEN:  VERSION 1.5
 
