@@ -1,4 +1,4 @@
-![CI](https://github.com/lankasaicharan/netgen/actions/workflows/badge.svg)
+![CI](https://github.com/lankasaicharan/netgen/actions/workflows/main.yml/badge.svg)
 
 NETGEN:  VERSION 1.5
 
