@@ -1,4 +1,8 @@
-NETGEN:  VERSION 1.5
+![Countinous Integration](https://github.com/lankasaicharan/netgen/actions/workflows/main.yml/badge.svg)
+
+# NETGEN
+
+### VERSION 1.5
 
 NETGEN is a general-purpose netlist management system.  It can read
 and write several netlist formats, including NTK (Caltech, CMU),
