@@ -1,6 +1,6 @@
 ![Countinous Integration](https://github.com/lankasaicharan/netgen/actions/workflows/main.yml/badge.svg)
 
-# NETGEN:  
+# NETGEN
 
 ### VERSION 1.5
 
