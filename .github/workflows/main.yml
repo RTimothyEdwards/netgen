@@ -30,7 +30,7 @@ jobs:
         run: docker run -id --name test_netgen vezzal/vezzal:v1 bash | exit
         
       - name: Run the testing on the container and send the mail
-        run: docker exec test_netgen /vezzal/test_netgen.sh "lankasaicharan123@gmail.com"
+        run: docker exec test_netgen /vezzal/test_netgen.sh "lankasaicharan123@gmail.com" ${{ MAILING_KEY }}
         
   
       
