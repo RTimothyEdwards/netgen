@@ -1,4 +1,4 @@
-![Countinous Integration](https://github.com/lankasaicharan/netgen/actions/workflows/main.yml/badge.svg)
+![Continuous Integration](https://github.com/RTimothyEdwards/netgen/actions/workflows/main.yml/badge.svg)
 
 # NETGEN
 
