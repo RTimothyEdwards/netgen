@@ -566,7 +566,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	           netgen::flatten class "[lindex $endval 0] $fnum1"
 	           netgen::flatten class "[lindex $endval 1] $fnum2"
 	       } else {
-	           netgen::log put "  Continuing with black-boxed subcircuits $endval"
+	           netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
 		   lappend matcherr [lindex $endval 0]
 	           # Match pins
                    netgen::log echo off
@@ -611,13 +611,13 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
          if {[netgen::print queue] != {}} {
 	    if {([lsearch $noflat [lindex $endval 1]] == -1) &&
 		    ([lsearch $noflat [lindex $endval 1]] == -1)} {
-	       netgen::log put "  Flattening non-matched subcircuits $endval"
+	       netgen::log put "  Flattening non-matched subcircuits $endval\n"
 	       netgen::flatten class "[lindex $endval 0] $fnum1"
 	       netgen::flatten class "[lindex $endval 1] $fnum2"
 	    } else {
-	       netgen::log put "  Continuing with black-boxed subcircuits $endval"
+	       netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
 	       lappend matcherr [lindex $endval 0]
-	       netgen::log put "  Continuing with black-boxed subcircuits $endval"
+	       netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
 	       lappend matcherr [lindex $endval 0]
 	       # Match pins
                netgen::log echo off
