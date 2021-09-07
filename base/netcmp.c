@@ -6894,7 +6894,7 @@ int reorderpins(struct hashlist *p, int file)
     for (ob = ptr->cell; ob != NULL; ) {
         /* Catch badness */
 	if (ob->next && (ob->next->node > 99999)) {
-	    if (ob->next->node % 100 == 0) {  /* print once every 100 nodes over 100000 */
+	    if (ob->next->node % 10000 == 0) {  /* print once every 10000 nodes over 100000 */
 		Fprintf(stdout, "Bad node. Node count %d\n", ob->next->node);
 	    }
 	} 
