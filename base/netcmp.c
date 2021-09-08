@@ -6892,11 +6892,6 @@ int reorderpins(struct hashlist *p, int file)
 		"Ordering will be arbitrary.\n", tc2->name);
 
     for (ob = ptr->cell; ob != NULL; ) {
-        /* Catch badness */
-	if (ob->next && (ob->next->node > 100000)) {
-	    Fprintf(stdout, "Bad.\n");
-	} 
-
 	if (ob->type == FIRSTPIN) {
 	    if ((*matchfunc)(ob->model.class, tc2->name)) {
 		char *sptr = ob->instance.name;
