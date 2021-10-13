@@ -599,6 +599,39 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   }
   CacheNodeNames(ThisCell);
   ThisCell->dumped = 1;		/* indicate cell has been flattened */
+  {  // Remove disconnected ports. New block to ensure isolated scope.
+    // Fprintf(stdout, "DEBUG: check pins for %s of %d\n", name, fnum);
+    struct objlist *myObject_p, *myPort_p;
+    struct objlist *myFirstPin_p, *myPin_p;
+    int myDeleteCount = 0;
+
+    myFirstPin_p = NULL;
+    // Save first pin definition so we don't have to search for each port
+    for ( myObject_p = ThisCell->cell; myObject_p != NULL; myObject_p = myObject_p->next ) {
+      if ( myObject_p->type >= FIRSTPIN ) {
+        myFirstPin_p = myObject_p;
+        break;
+      }
+    }
+    if ( myFirstPin_p != NULL ) {  // not a black box. Black boxes contain no pins.
+      // For each port, check for pin connection. If none, mark for deletion. 
+      // Assumes that all ports occur at the beginning of the list
+      for ( myPort_p = ThisCell->cell; myPort_p != NULL && IsPort(myPort_p); myPort_p = myPort_p->next ) {
+        for ( myPin_p = myFirstPin_p; myPin_p != NULL; myPin_p = myPin_p->next ) {
+          if ( myPort_p->node == myPin_p->node ) {  // only need to find one connection
+            break;
+          }
+        }
+        if ( myPin_p == NULL ) {  // mark disconnected ports
+          myDeleteCount++;
+          myPort_p->node = -2;
+        }
+      }
+      if ( myDeleteCount > 0 ) {  // delete disconnected ports
+        CleanupPins(name, fnum);
+      }
+    }
+  }
   return numflat;
 }
 
