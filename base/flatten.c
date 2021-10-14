@@ -259,13 +259,16 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   struct objlist *ChildObjList, *ChildListEnd;
   struct objlist *ChildStart, *ChildEnd, *ParentEnd, *ParentNext;
   struct nlist *ThisCell;
-  struct  nlist *ChildCell;
+  struct nlist *ChildCell;
   struct objlist *tmp, *ob2, *ob3;
-  int	notdone, rnodenum;
-  char	tmpstr[1024];
-  int	nextnode, oldmax, numflat = 0;
+  int	 notdone, rnodenum;
+  char	 tmpstr[1024];
+  int	 nextnode, oldmax, numflat = 0;
+  struct objlist *myObject_p, *myPort_p;
+  struct objlist *myFirstPin_p, *myPin_p;
+  int    myDeleteCount = 0;
 #if !OLDPREFIX
-  int     prefixlength;
+  int    prefixlength;
 #endif
 
   if (name == NULL) {
@@ -599,37 +602,36 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   }
   CacheNodeNames(ThisCell);
   ThisCell->dumped = 1;		/* indicate cell has been flattened */
-  {  // Remove disconnected ports. New block to ensure isolated scope.
-    // Fprintf(stdout, "DEBUG: check pins for %s of %d\n", name, fnum);
-    struct objlist *myObject_p, *myPort_p;
-    struct objlist *myFirstPin_p, *myPin_p;
-    int myDeleteCount = 0;
 
-    myFirstPin_p = NULL;
-    // Save first pin definition so we don't have to search for each port
-    for ( myObject_p = ThisCell->cell; myObject_p != NULL; myObject_p = myObject_p->next ) {
-      if ( myObject_p->type >= FIRSTPIN ) {
-        myFirstPin_p = myObject_p;
-        break;
+  // Remove disconnected ports.
+  // Fprintf(stdout, "DEBUG: check pins for %s of %d\n", name, fnum);
+
+  myFirstPin_p = NULL;
+
+  // Save first pin definition so we don't have to search for each port
+  for (myObject_p = ThisCell->cell; myObject_p != NULL; myObject_p = myObject_p->next) {
+    if (myObject_p->type >= FIRSTPIN) {
+      myFirstPin_p = myObject_p;
+      break;
+    }
+  }
+  if (myFirstPin_p != NULL) {  // Not a black box. Black boxes contain no pins.
+    // For each port, check for pin connection. If none, mark for deletion. 
+    // Assumes that all ports occur at the beginning of the list
+    for (myPort_p = ThisCell->cell; myPort_p != NULL && IsPort(myPort_p);
+		myPort_p = myPort_p->next ) {
+      for (myPin_p = myFirstPin_p; myPin_p != NULL; myPin_p = myPin_p->next) {
+        if (myPort_p->node == myPin_p->node) {  // only need to find one connection
+          break;
+        }
+      }
+      if (myPin_p == NULL) {  // mark disconnected ports
+        myDeleteCount++;
+        myPort_p->node = -2;
       }
     }
-    if ( myFirstPin_p != NULL ) {  // not a black box. Black boxes contain no pins.
-      // For each port, check for pin connection. If none, mark for deletion. 
-      // Assumes that all ports occur at the beginning of the list
-      for ( myPort_p = ThisCell->cell; myPort_p != NULL && IsPort(myPort_p); myPort_p = myPort_p->next ) {
-        for ( myPin_p = myFirstPin_p; myPin_p != NULL; myPin_p = myPin_p->next ) {
-          if ( myPort_p->node == myPin_p->node ) {  // only need to find one connection
-            break;
-          }
-        }
-        if ( myPin_p == NULL ) {  // mark disconnected ports
-          myDeleteCount++;
-          myPort_p->node = -2;
-        }
-      }
-      if ( myDeleteCount > 0 ) {  // delete disconnected ports
-        CleanupPins(name, fnum);
-      }
+    if (myDeleteCount > 0) {  // delete disconnected ports
+      CleanupPins(name, fnum);
     }
   }
   return numflat;
@@ -1615,8 +1617,8 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 			}
 		    }
 		    else {
-		       // cell exists in one circuit but not the other, so flatten it.
-		       // match = 0;
+		       // Apply recursive flattening when a cell exists in
+		       // one circuit but not the other.
 		       break;
 		    }
 		}
