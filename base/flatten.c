@@ -1615,7 +1615,8 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 			}
 		    }
 		    else {
-		       match = 0;
+		       // cell exists in one circuit but not the other, so flatten it.
+		       // match = 0;
 		       break;
 		    }
 		}
