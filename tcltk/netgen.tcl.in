@@ -567,7 +567,8 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	           netgen::flatten class "[lindex $endval 1] $fnum2"
 	       } else {
 	           netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
-		   lappend matcherr [lindex $endval 0]
+		   lappend matcherr [lindex $endval 0]"($fnum1)"
+		   lappend matcherr [lindex $endval 1]"($fnum2)"
 	           # Match pins
                    netgen::log echo off
 	           if {$dolist == 1} {
@@ -616,9 +617,8 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	       netgen::flatten class "[lindex $endval 1] $fnum2"
 	    } else {
 	       netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
-	       lappend matcherr [lindex $endval 0]"(1)"
-	       netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
-	       lappend matcherr [lindex $endval 0]"(2)"
+	       lappend matcherr [lindex $endval 0]"($fnum1)"
+	       lappend matcherr [lindex $endval 0]"($fnum2)"
 	       # Match pins
                netgen::log echo off
 	       if {$dolist == 1} {
@@ -656,10 +656,10 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       verify only
    }
    if {$properr != {}} {
-      netgen::log put "The following cells had property errors: $properr\n"
+      netgen::log put "The following cells had property errors:\n " [regsub -all { } $properr "\n "] "\n"
    }
    if {$matcherr != {}} {
-      netgen::log put "The following subcells failed to match: $matcherr\n"
+      netgen::log put "The following subcells failed to match:\n " [regsub -all { } $matcherr "\n "] "\n"
    }
    if {$dolog} {
       netgen::log end
