@@ -2194,6 +2194,7 @@ _netcmp_compare(ClientData clientData,
    CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
    while (PrematchLists(name1, fnum1, name2, fnum2) > 0) {
       Fprintf(stdout, "Making another compare attempt.\n");
+      Printf("Flattened mismatched instances and attempting compare again.\n");
       CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
    }
 
