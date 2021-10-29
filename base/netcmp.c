@@ -3125,7 +3125,7 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
   ostr = CALLOC(right_col_end + 2, sizeof(char));
 
   if (Debug == 0) {
-     Fprintf(stdout, "\nSubcircuit summary:\n");
+     Fprintf(stdout, "Subcircuit summary:\n");
      *(ostr + left_col_end) =  '|';
      *(ostr + right_col_end) = '\n';
      *(ostr + right_col_end + 1) = '\0';
@@ -3736,8 +3736,9 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2, int dolist)
 
     ResetState();
 
+    Fprintf(stdout, "\n");  // blank line before new circuit diagnostics in log file
     /* print preliminary statistics */
-    Printf("Contents of circuit 1:  ");
+    Printf("\nContents of circuit 1:  ");
     DescribeInstance(name1, file1);
     Printf("Contents of circuit 2:  ");
     DescribeInstance(name2, file2);
