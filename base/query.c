@@ -807,9 +807,9 @@ void DescribeInstance(char *name, int file)
 
       if (!(tp->flags & CELL_PLACEHOLDER) && (tp->class != CLASS_MODULE))
       {
-	if (disconnectednodes == 0) Fprintf(stderr, "\n");
+	//if (disconnectednodes == 0) Fprintf(stderr, "\n");
         disconnectednodes++;
-        Fprintf(stderr, "Cell %s disconnected node: %s\n", tp->name, ob->name);
+        Fprintf(stderr, "Cell %s(%d) disconnected node: %s\n", tp->name, tp->file, ob->name);
       }
     }
   }
