@@ -2066,6 +2066,7 @@ _netcmp_format(ClientData clientData,
 	Tcl_WrongNumArgs(interp, 1, objv, "[col1_width [col2_width]]");
 	return TCL_ERROR;
     }
+    return TCL_OK;
 }
 
 /*------------------------------------------------------*/
