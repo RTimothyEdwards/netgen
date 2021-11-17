@@ -37,7 +37,6 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifdef TCL_NETGEN
 #include <tcl.h>
-int check_interrupt();
 #endif
 
 #include "netgen.h"
@@ -54,6 +53,7 @@ int check_interrupt();
 int InterruptPending = 0;
 void (*oldinthandler)() = SIG_DFL;
 extern Tcl_Interp *netgeninterp;
+extern int check_interrupt();
 #endif
 
 /* define the following to debug core allocation */
@@ -3761,7 +3761,7 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2, int dolist)
     /* determine if matching will be case sensitive or case insensitive */
     matchfunc = match;
     matchintfunc = matchfile;
-    hashfunc = my_hash;
+    hashfunc = hashcase;
     if (tc1 != NULL && tc2 != NULL) {
         if ((tc1->flags & CELL_NOCASE) && (tc2->flags & CELL_NOCASE)) {
 	   matchfunc = matchnocase;

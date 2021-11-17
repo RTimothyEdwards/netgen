@@ -148,7 +148,7 @@ unsigned long hashnocase(char *s, int hashsize)
 	return (hashsize == 0) ? hashval : (hashval % hashsize);
 }
 
-unsigned long my_hash(char *s, int hashsize)
+unsigned long hashcase(char *s, int hashsize)
 {
 	unsigned long hashval;
 	

@@ -187,7 +187,7 @@ char *ReadExt(char *fname, int doflat, int *fnum)
   /* Make sure all .ext file reading is case sensitive */
   matchfunc = match;
   matchintfunc = matchfile;
-  hashfunc = my_hash;
+  hashfunc = hashcase;
 
   if (LookupCellFile(fname, filenum) != NULL) {
     Printf("Error:  Duplicate cell name \"%s\"!\n", fname);
@@ -653,7 +653,7 @@ char *ReadSim(char *fname, int *fnum)
   /* Make sure all .sim file reading is case sensitive */
   matchfunc = match;
   matchintfunc = matchfile;
-  hashfunc = my_hash;
+  hashfunc = hashcase;
 
   CellDef(fname, filenum);
 

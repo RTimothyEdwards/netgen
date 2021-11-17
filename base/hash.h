@@ -48,7 +48,7 @@ extern void *HashFirst(struct hashdict *dict);
 extern void *HashNext(struct hashdict *dict);
 
 extern unsigned long hashnocase(char *s, int hashsize);
-extern unsigned long my_hash(char *s, int hashsize);
+extern unsigned long hashcase(char *s, int hashsize);
 
 extern int (*matchfunc)(char *, char *);
 /* matchintfunc() compares based on the name and the first	*/

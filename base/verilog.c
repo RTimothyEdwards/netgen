@@ -2239,7 +2239,7 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   else {
      matchfunc = match;
      matchintfunc = matchfile;
-     hashfunc = my_hash;
+     hashfunc = hashcase;
   }
 
   InitializeHashTable(&verilogparams, OBJHASHSIZE);
