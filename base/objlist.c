@@ -179,7 +179,7 @@ char *strsave(char *s)
 
 int match(char *st1, char *st2)
 {
-	if (0==strncmp(st1,st2,PATH_MAX)) return(1);
+	if (0==strcmp(st1,st2)) return(1);
 	else return(0);
 }
 

@@ -34,6 +34,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "hash.h"
 #include "xilinx.h"
 #include "tech.h"
+#include "flatten.h"
 
 #ifndef TRUE
 #define TRUE 1

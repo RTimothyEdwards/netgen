@@ -18,8 +18,6 @@
 #define HORIZONTAL 1
 #define VERTICAL 2
 
-int UniquePins(char *name, int filenum);
-
 /* netgen.c */
 extern void ReopenCellDef(char *name, int file);
 extern void CellDef(char *name, int file);

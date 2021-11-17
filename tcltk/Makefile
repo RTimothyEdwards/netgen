@@ -9,7 +9,7 @@ EXTRA_LIBS = ${MAIN_EXTRA_LIBS}
 DFLAGS += -DNETGEN_DATE="\"`date`\""
 LIBS += -lm
 CLEANS += netgen.sh netgen.tcl netgenexec${EXEEXT}
-CFLAGS += -I${NETGENDIR}/base -I./base
+CFLAGS += -I${NETGENDIR}/base
 
 TCL_FILES = \
 	$(DESTDIR)${INSTALL_TCLDIR}/tkcon.tcl \

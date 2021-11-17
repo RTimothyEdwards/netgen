@@ -18,59 +18,59 @@ extern int InterruptPending;
 
 /* Exported procedures */
 
-void PrintElementClasses(struct ElementClass *EC, int type, int dolist);
-void PrintNodeClasses(struct NodeClass *NC, int type, int dolist);
-void SummarizeNodeClasses(struct NodeClass *NC);
-void PrintPropertyResults(int do_list);
-void PrintCoreStats(void);
-void ResetState(void);
-void CreateTwoLists(char *name1, int file1, char *name2, int file2,
+extern void PrintElementClasses(struct ElementClass *EC, int type, int dolist);
+extern void PrintNodeClasses(struct NodeClass *NC, int type, int dolist);
+extern void SummarizeNodeClasses(struct NodeClass *NC);
+extern void PrintPropertyResults(int do_list);
+extern void PrintCoreStats(void);
+extern void ResetState(void);
+extern void CreateTwoLists(char *name1, int file1, char *name2, int file2,
 		int dolist);
-int Iterate(void);
-int VerifyMatching(void);
-void PrintAutomorphisms(void);
-int ResolveAutomorphisms(void);
-void PermuteAutomorphisms(void);
-int Permute(void);
-int PermuteSetup(char *model, int filenum, char *pin1, char *pin2);
-int PermuteForget(char *model, int filenum, char *pin1, char *pin2);
-int EquivalenceElements(char *name1, int file1, char *name2, int file2);
-int EquivalenceNodes(char *name1, int file1, char *name2, int file2);
-int EquivalenceClasses(char *name1, int file1, char *name2, int file2);
-int IgnoreClass(char *name, int file, unsigned char type);
-int MatchPins(struct nlist *tp1, struct nlist *tp2, int dolist);
-int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run,
+extern int Iterate(void);
+extern int VerifyMatching(void);
+extern void PrintAutomorphisms(void);
+extern int ResolveAutomorphisms(void);
+extern void PermuteAutomorphisms(void);
+extern int Permute(void);
+extern int PermuteSetup(char *model, int filenum, char *pin1, char *pin2);
+extern int PermuteForget(char *model, int filenum, char *pin1, char *pin2);
+extern int EquivalenceElements(char *name1, int file1, char *name2, int file2);
+extern int EquivalenceNodes(char *name1, int file1, char *name2, int file2);
+extern int EquivalenceClasses(char *name1, int file1, char *name2, int file2);
+extern int IgnoreClass(char *name, int file, unsigned char type);
+extern int MatchPins(struct nlist *tp1, struct nlist *tp2, int dolist);
+extern int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run,
 	int series, int comb);
 
-int  CreateCompareQueue(char *, int, char *, int);
-int  GetCompareQueueTop(char **, int *, char **, int *);
-int  PeekCompareQueueTop(char **, int *, char **, int *);
-void RemoveCompareQueue();
+extern int  CreateCompareQueue(char *, int, char *, int);
+extern int  GetCompareQueueTop(char **, int *, char **, int *);
+extern int  PeekCompareQueueTop(char **, int *, char **, int *);
+extern void RemoveCompareQueue();
 
-void PrintIllegalClasses();
-void PrintIllegalNodeClasses();
-void PrintIllegalElementClasses();
+extern void PrintIllegalClasses();
+extern void PrintIllegalNodeClasses();
+extern void PrintIllegalElementClasses();
 
-void DumpNetwork(struct objlist *ob, int cidx);
-void DumpNetworkAll(char *name, int file);
+extern void DumpNetwork(struct objlist *ob, int cidx);
+extern void DumpNetworkAll(char *name, int file);
 
-void RegroupDataStructures();
-void FormatIllegalElementClasses();
-void FormatIllegalNodeClasses();
-int ResolveAutomorphsByProperty();
-int ResolveAutomorphsByPin();
-void SummarizeElementClasses(struct ElementClass *EC);
-int remove_group_tags(struct objlist *ob);
+extern void RegroupDataStructures();
+extern void FormatIllegalElementClasses();
+extern void FormatIllegalNodeClasses();
+extern int ResolveAutomorphsByProperty();
+extern int ResolveAutomorphsByPin();
+extern void SummarizeElementClasses(struct ElementClass *EC);
+extern int remove_group_tags(struct objlist *ob);
 
 
 #ifdef TCL_NETGEN
-int EquivalentNode();
-int EquivalentElement();
+extern int EquivalentNode();
+extern int EquivalentElement();
 
-void enable_interrupt();
-void disable_interrupt();
+extern void enable_interrupt();
+extern void disable_interrupt();
 
-Tcl_Obj *ListNodeClasses(int legal);
-Tcl_Obj *ListElementClasses(int legal);
+extern Tcl_Obj *ListNodeClasses(int legal);
+extern Tcl_Obj *ListElementClasses(int legal);
 #endif
 
