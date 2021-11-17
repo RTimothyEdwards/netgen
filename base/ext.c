@@ -24,7 +24,6 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdlib.h>	/* for strtod() */
 #include <stdarg.h>
 #include <ctype.h>
-#include <xlocale.h>
 
 #include "netgen.h"
 #include "objlist.h"
