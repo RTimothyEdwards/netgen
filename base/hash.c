@@ -30,8 +30,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #endif
 
 #include "netgen.h"
-#include "hash.h"
 #include "objlist.h"
+#include "hash.h"
 
 unsigned long (*hashfunc)(char *, int) = NULL;
 int (*matchfunc)(char *, char *) = NULL;
@@ -148,7 +148,7 @@ unsigned long hashnocase(char *s, int hashsize)
 	return (hashsize == 0) ? hashval : (hashval % hashsize);
 }
 
-unsigned long hash(char *s, int hashsize)
+unsigned long my_hash(char *s, int hashsize)
 {
 	unsigned long hashval;
 	

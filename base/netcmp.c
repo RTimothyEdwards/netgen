@@ -21,11 +21,13 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "config.h"
 
 #include <stdio.h>
+#include <stdlib.h>  /* for rand(), abs(), etc */
 #include <setjmp.h>
 #include <signal.h>
 #include <time.h>    /* for time() as a seed for random number generator */
 #include <limits.h>
 #include <math.h>    /* for fabs() */
+#include <ctype.h>   /* for toupper() */
 
 #ifdef IBMPC
 #include <alloc.h>
@@ -35,6 +37,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifdef TCL_NETGEN
 #include <tcl.h>
+int check_interrupt();
 #endif
 
 #include "netgen.h"
@@ -45,6 +48,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "netfile.h"
 #include "print.h"
 #include "dbug.h"
+#include "hash.h"
 
 #ifdef TCL_NETGEN
 int InterruptPending = 0;
@@ -3757,7 +3761,7 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2, int dolist)
     /* determine if matching will be case sensitive or case insensitive */
     matchfunc = match;
     matchintfunc = matchfile;
-    hashfunc = hash;
+    hashfunc = my_hash;
     if (tc1 != NULL && tc2 != NULL) {
         if ((tc1->flags & CELL_NOCASE) && (tc2->flags & CELL_NOCASE)) {
 	   matchfunc = matchnocase;

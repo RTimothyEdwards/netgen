@@ -32,6 +32,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "print.h"
 #include "query.h"	/* for ElementNodes() */
 #include "hash.h"
+#include "xilinx.h"
+#include "tech.h"
 
 #ifndef TRUE
 #define TRUE 1
@@ -976,7 +978,7 @@ _netgen_writenet(ClientData clientData,
          SpiceCell(repstr, filenum, "");
          break;
       case VERILOG_IDX:
-         VerilogModule(repstr, filenum, "");
+         VerilogTop(repstr, filenum, "");
          break;
       case WOMBAT_IDX:
          Wombat(repstr,NULL);

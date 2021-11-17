@@ -22,6 +22,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #include <stdio.h>
 #include <ctype.h>
+#include <limits.h>
 #ifdef IBMPC
 #include <alloc.h>
 #endif
@@ -31,13 +32,13 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #endif
 
 #include "netgen.h"
-#include "hash.h"
 #include "objlist.h"
 #include "regexp.h"
 #include "dbug.h"
 #include "print.h"
 #include "netfile.h"
 #include "netcmp.h"
+#include "hash.h"
 
 #ifdef TCL_NETGEN
 extern Tcl_Interp *netgeninterp;
@@ -178,7 +179,7 @@ char *strsave(char *s)
 
 int match(char *st1, char *st2)
 {
-	if (0==strcmp(st1,st2)) return(1);
+	if (0==strncmp(st1,st2,PATH_MAX)) return(1);
 	else return(0);
 }
 
@@ -288,7 +289,7 @@ static struct hashdict cell_dict;
 
 void InitCellHashTable(void)
 {
-    hashfunc = hash;
+    hashfunc = my_hash;
     matchfunc = NULL;
     matchintfunc = matchfile;
     InitializeHashTable(&cell_dict, CELLHASHSIZE);

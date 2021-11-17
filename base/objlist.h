@@ -312,6 +312,19 @@ extern void GarbageCollect(void);
 extern void InitGarbageCollection(void);
 extern void AddToGarbageList(struct objlist *head);
 
+void DeleteProperties(struct keyvalue **topptr);
+void AddProperty(struct keyvalue **topptr, char *key, char *value);
+void AddScaledProperty(struct keyvalue **topptr, char *key, char *value, double scale);
+void DeleteProperties(struct keyvalue **topptr);
+struct objlist *LinkProperties(char *model, struct keyvalue *topptr);
+
+void ClassDelete(char *class, int file);
+void RemoveShorted(char *class, int file);
+void CellRehash(char *name, char *newname, int file);
+
+/* defined in netgen.c */
+int ConvertStringToInteger(char *string, int *ival);
+
 #ifdef HAVE_MALLINFO
 void PrintMemoryStats(void);
 #endif
