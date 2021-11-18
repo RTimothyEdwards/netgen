@@ -54,6 +54,15 @@ extern void PrintIllegalElementClasses();
 extern void DumpNetwork(struct objlist *ob, int cidx);
 extern void DumpNetworkAll(char *name, int file);
 
+extern void RegroupDataStructures();
+extern void FormatIllegalElementClasses();
+extern void FormatIllegalNodeClasses();
+extern int ResolveAutomorphsByProperty();
+extern int ResolveAutomorphsByPin();
+extern void SummarizeElementClasses(struct ElementClass *EC);
+extern int remove_group_tags(struct objlist *ob);
+
+
 #ifdef TCL_NETGEN
 extern int EquivalentNode();
 extern int EquivalentElement();

@@ -23,12 +23,13 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdio.h>
 #include <stdlib.h>	/* for strtod() */
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "netgen.h"
-#include "hash.h"
 #include "objlist.h"
 #include "netfile.h"
 #include "print.h"
+#include "hash.h"
 
 void extCell(char *name, int filenum)
 {
@@ -186,7 +187,7 @@ char *ReadExt(char *fname, int doflat, int *fnum)
   /* Make sure all .ext file reading is case sensitive */
   matchfunc = match;
   matchintfunc = matchfile;
-  hashfunc = hash;
+  hashfunc = hashcase;
 
   if (LookupCellFile(fname, filenum) != NULL) {
     Printf("Error:  Duplicate cell name \"%s\"!\n", fname);
@@ -652,7 +653,7 @@ char *ReadSim(char *fname, int *fnum)
   /* Make sure all .sim file reading is case sensitive */
   matchfunc = match;
   matchintfunc = matchfile;
-  hashfunc = hash;
+  hashfunc = hashcase;
 
   CellDef(fname, filenum);
 

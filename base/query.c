@@ -1033,7 +1033,7 @@ void Query(void)
       break;
     case 'v':
       promptstring("Write Verilog: circuit name: ", repstr);
-      VerilogModule(repstr, filenum, "");
+      VerilogTop(repstr, filenum, "");
       break;
     case 'E':
       promptstring("Write ESACAP: circuit name: ", repstr);

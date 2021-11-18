@@ -26,6 +26,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #endif
 
 #include <stdlib.h>  /* for calloc(), free(), getenv() */
+#include <ctype.h>  /* for toupper(), isascii() */
 #ifndef IBMPC
 #include <sys/types.h>	/* for getpwnam() tilde expansion */
 #include <pwd.h>
@@ -40,6 +41,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "objlist.h"
 #include "netfile.h"
 #include "print.h"
+#include "query.h"
+#include "objlist.h"
 
 // Global storage for parameters from .PARAM
 struct hashdict spiceparams;

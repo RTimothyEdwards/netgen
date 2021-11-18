@@ -23,6 +23,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdio.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <time.h>
 
 #ifdef IBMPC
 #include <stdlib.h>  /* for strtol on PC */
@@ -33,6 +34,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "netfile.h"
 #include "hash.h"
 #include "print.h"
+#include "xilinx.h"
+#include "flatten.h"
 
 #define XILINXHASHSIZE 99
 static long xilinxhashbase = 0xA00;
@@ -132,10 +135,8 @@ char *xilinx_class(model)
 	}
 	return(model);
 }
-void
-Xilinx(cellname, filename)
-	char *cellname;
-	char *filename;
+
+void Xilinx(char *cellname, char *filename)
 {
 	char Path[500];
 	char FileName[500];
@@ -163,8 +164,7 @@ Xilinx(cellname, filename)
 	CloseFile(FileName);
 }
 
-xilinxCell(cell)
-	char *cell;
+int xilinxCell(char *cell)
 {
 	struct nlist *nl;
 	struct objlist *ob;
@@ -252,9 +252,7 @@ struct objlist *xilinx_gate(ob,nl)
 	return(nob);
 }
 
-xilinx_sym(nl,gob)
-	struct nlist *nl;
-	struct objlist *gob;
+void xilinx_sym(struct nlist *nl, struct objlist *gob)
 {
 	struct objlist *ob;
 	char *cp,*rindex();

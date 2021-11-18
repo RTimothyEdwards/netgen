@@ -52,10 +52,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #endif
 
 #include "netgen.h"
-#include "hash.h"
 #include "objlist.h"
 #include "netfile.h"
 #include "print.h"
+#include "hash.h"
 
 // See netfile.c for explanation of delimiters.  'X'
 // separates single-character delimiters from two-character delimiters.
@@ -2239,7 +2239,7 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   else {
      matchfunc = match;
      matchintfunc = matchfile;
-     hashfunc = hash;
+     hashfunc = hashcase;
   }
 
   InitializeHashTable(&verilogparams, OBJHASHSIZE);
