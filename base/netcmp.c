@@ -1367,8 +1367,8 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
 		    nlists2[n1] = temp;
 		    HashPtrInstall(nlists2[n1]->name, (void *)((long)n1 + 1), &n2hash);
 		    HashPtrInstall(nlists2[n2]->name, (void *)((long)n2 + 1), &n2hash);
-		    SortFanoutLists(nlists1[n1], nlists2[n1]);
 		}
+		SortFanoutLists(nlists1[n1], nlists2[n1]);
 	    }
 	}
 
@@ -1423,8 +1423,13 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
 		    nlists1[n2] = temp;
 		    HashPtrInstall(nlists1[n1]->name, (void *)((long)n1 + 1), &n1hash);
 		    HashPtrInstall(nlists1[n2]->name, (void *)((long)n2 + 1), &n1hash);
-		    SortFanoutLists(nlists2[n2], nlists1[n2]);
 		}
+		SortFanoutLists(nlists2[n2], nlists1[n2]);
+	    }
+	    else if ((n1max == 1) && (n2max == 1)) {
+		/* Names didn't match but there's only one entry on each side,	*/
+		/* so do a sort anyway.						*/
+		SortFanoutLists(nlists2[n2], nlists1[n2]);
 	    }
 	}
 	/* For all nets that didn't match by name, match by content */
