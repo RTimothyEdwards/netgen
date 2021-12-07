@@ -893,9 +893,8 @@ struct FormattedList *FormatBadNodeFragment(struct Node *N)
          WITH THE SAME HASH NUMBER, are on this node */
       for (j = i+1; j < fanout; j++) {
 	if (pins[j] != NULL && 
-	    (*matchfunc) (model,
-		  pins[j]->subelement->element->object->model.class) &&
-	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
+	    (*matchfunc)(model, pins[j]->subelement->element->object->model.class) &&
+	    	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
 	      count++;
 	      nodelist->fanout--;
 	      pins[j] = NULL;
@@ -975,16 +974,36 @@ void PrintBadNodeFragment(struct Node *N)
          WITH THE SAME HASH NUMBER, are on this node */
       for (j = i+1; j < fanout; j++) {
 	if (pins[j] != NULL && 
-	    (*matchfunc)(model,
-		  pins[j]->subelement->element->object->model.class) &&
-	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
-	      count++;
-	      pins[j] = NULL;
-	    }
+	    (*matchfunc)(model, pins[j]->subelement->element->object->model.class) &&
+	    	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
+	   count++;
+	   /* pins[j] = NULL; */ /* Done in diagnostic output, below */
+	 }
       }
 
-      if (i != 0) Fprintf(stdout, ";");
+      if (i != 0) {
+	 /* Fprintf(stdout, ";"); */
+	 Fprintf(stdout, "\n");
+	 Ftab(stdout, 32);
+      }
       Fprintf(stdout, " %s:%s = %d", model, pinname, count);
+
+      /* Diagnostic */
+      Fprintf(stdout, "\n");
+      Ftab(stdout, 25);
+      Fprintf(stdout, ">>>  %s", pins[i]->subelement->element->object->instance);
+      for (j = i+1; j < fanout; j++) {
+	if (pins[j] != NULL && 
+	    (*matchfunc)(model, pins[j]->subelement->element->object->model.class) &&
+	    	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
+	   /* Diagnostic */
+           Fprintf(stdout, "\n");
+           Ftab(stdout, 25);
+           Fprintf(stdout, ">>>  %s", pins[j]->subelement->element->object->instance);
+	   pins[j] = NULL;
+	}
+      }
+
       pins[i] = NULL; /* not really necessary */
     }
   Fprintf(stdout, "\n");
