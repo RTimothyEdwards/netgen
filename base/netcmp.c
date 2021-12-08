@@ -893,9 +893,8 @@ struct FormattedList *FormatBadNodeFragment(struct Node *N)
          WITH THE SAME HASH NUMBER, are on this node */
       for (j = i+1; j < fanout; j++) {
 	if (pins[j] != NULL && 
-	    (*matchfunc) (model,
-		  pins[j]->subelement->element->object->model.class) &&
-	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
+	    (*matchfunc)(model, pins[j]->subelement->element->object->model.class) &&
+	    	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
 	      count++;
 	      nodelist->fanout--;
 	      pins[j] = NULL;
@@ -975,16 +974,36 @@ void PrintBadNodeFragment(struct Node *N)
          WITH THE SAME HASH NUMBER, are on this node */
       for (j = i+1; j < fanout; j++) {
 	if (pins[j] != NULL && 
-	    (*matchfunc)(model,
-		  pins[j]->subelement->element->object->model.class) &&
-	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
-	      count++;
-	      pins[j] = NULL;
-	    }
+	    (*matchfunc)(model, pins[j]->subelement->element->object->model.class) &&
+	    	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
+	   count++;
+	   /* pins[j] = NULL; */ /* Done in diagnostic output, below */
+	 }
       }
 
-      if (i != 0) Fprintf(stdout, ";");
+      if (i != 0) {
+	 /* Fprintf(stdout, ";"); */
+	 Fprintf(stdout, "\n");
+	 Ftab(stdout, 32);
+      }
       Fprintf(stdout, " %s:%s = %d", model, pinname, count);
+
+      /* Diagnostic */
+      Fprintf(stdout, "\n");
+      Ftab(stdout, 25);
+      Fprintf(stdout, ">>>  %s", pins[i]->subelement->element->object->instance);
+      for (j = i+1; j < fanout; j++) {
+	if (pins[j] != NULL && 
+	    (*matchfunc)(model, pins[j]->subelement->element->object->model.class) &&
+	    	    pins[i]->subelement->pin_magic == pins[j]->subelement->pin_magic) {
+	   /* Diagnostic */
+           Fprintf(stdout, "\n");
+           Ftab(stdout, 25);
+           Fprintf(stdout, ">>>  %s", pins[j]->subelement->element->object->instance);
+	   pins[j] = NULL;
+	}
+      }
+
       pins[i] = NULL; /* not really necessary */
     }
   Fprintf(stdout, "\n");
@@ -1367,8 +1386,8 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
 		    nlists2[n1] = temp;
 		    HashPtrInstall(nlists2[n1]->name, (void *)((long)n1 + 1), &n2hash);
 		    HashPtrInstall(nlists2[n2]->name, (void *)((long)n2 + 1), &n2hash);
-		    SortFanoutLists(nlists1[n1], nlists2[n1]);
 		}
+		SortFanoutLists(nlists1[n1], nlists2[n1]);
 	    }
 	}
 
@@ -1423,8 +1442,13 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
 		    nlists1[n2] = temp;
 		    HashPtrInstall(nlists1[n1]->name, (void *)((long)n1 + 1), &n1hash);
 		    HashPtrInstall(nlists1[n2]->name, (void *)((long)n2 + 1), &n1hash);
-		    SortFanoutLists(nlists2[n2], nlists1[n2]);
 		}
+		SortFanoutLists(nlists2[n2], nlists1[n2]);
+	    }
+	    else if ((n1max == 1) && (n2max == 1)) {
+		/* Names didn't match but there's only one entry on each side,	*/
+		/* so do a sort anyway.						*/
+		SortFanoutLists(nlists2[n2], nlists1[n2]);
 	    }
 	}
 	/* For all nets that didn't match by name, match by content */
