@@ -3667,12 +3667,19 @@ int CreateCompareQueue(char *name1, int file1, char *name2, int file2)
          Fprintf(stdout, "Descend level %d circuit 2\n", level);
       DescendCompareQueue(tc2, tc1, level, 0, 1);
 
+      /* NOTE:  Preemptive flattening is inefficient and can cause
+       * unnecessary flattening of cells that will never be compared.
+       * let the prematch stage take care of this.
+       */
+      /*--------------------------------------
       if (Debug == TRUE)
          Fprintf(stdout, "Flatten level %d circuit 1\n", level);
       FlattenUnmatched(tc1, name1, level, 0);
       if (Debug == TRUE)
          Fprintf(stdout, "Flatten level %d circuit 2\n", level);
       FlattenUnmatched(tc2, name2, level, 0);
+      ---------------------------------------*/
+
       level--;
    }
 
