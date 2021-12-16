@@ -1425,7 +1425,7 @@ typedef struct ecomplist {
 /* Survey the contents of a cell and sort into a hash	*/
 /*------------------------------------------------------*/
 
-void
+int
 SurveyCell(struct nlist *tc, struct hashdict *compdict, int file1, int file2, int which)
 {
     struct objlist *ob;
@@ -1433,10 +1433,12 @@ SurveyCell(struct nlist *tc, struct hashdict *compdict, int file1, int file2, in
     ECompare *ecomp, *qcomp, *ncomp;
     int file = (which == 0) ? file1 : file2;
     int ofile = (which == 0) ? file2 : file1;
+    int retval = FALSE;
     char *dstr;
 
     for (ob = tc->cell; ob; ob = ob->next) {
 	if (ob->type == FIRSTPIN) {
+	    retval = TRUE;	/* Cell has at least one device or subcircuit */
 	    tsub = LookupCellFile(ob->model.class, file);
 	    if (tsub->flags & CELL_DUPLICATE) {
 	       // Always register a duplicate under the original name
@@ -1490,6 +1492,7 @@ SurveyCell(struct nlist *tc, struct hashdict *compdict, int file1, int file2, in
 	    if (dstr) *dstr = '[';
 	}
     }
+    return retval;
 }
 
 /*------------------------------------------------------*/
@@ -1518,6 +1521,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     struct hashdict compdict;
     ECompare *ecomp, *ncomp;
     ECompList *list0X, *listX0;
+    int hascontents1, hascontents2;
     int match, modified = 0;
 
     if (file1 == -1)
@@ -1533,19 +1537,37 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     if (tc1 == NULL || tc2 == NULL) return 0;
 
     InitializeHashTable(&compdict, OBJHASHSIZE);
+    listX0 = list0X = NULL;
 
     // Gather information about instances of cell "name1"
-    SurveyCell(tc1, &compdict, file1, file2, 0);
+    hascontents1 = SurveyCell(tc1, &compdict, file1, file2, 0);
 
     // Gather information about instances of cell "name2"
-    SurveyCell(tc2, &compdict, file1, file2, 1);
+    hascontents2 = SurveyCell(tc2, &compdict, file1, file2, 1);
+
+    // If one cell has no contents, then flattening the other
+    // isn't going to improve anything, so stop here.
+
+    if (!hascontents1 && !hascontents2 && (tc1->flags & CELL_PLACEHOLDER)
+		&& (tc2->flags & CELL_PLACEHOLDER)) {
+        goto done;
+    }
+    else if (hascontents1 && !hascontents2 && (tc2->flags & CELL_PLACEHOLDER)) {
+	Fprintf(stdout, "Circuit 2 cell %s is a black box; will not flatten "
+			"Circuit 1\n", name2);
+	goto done;
+    }
+    else if (hascontents2 && !hascontents1 && (tc1->flags & CELL_PLACEHOLDER)) {
+	Fprintf(stdout, "Circuit 1 cell %s is a black box; will not flatten "
+			"Circuit 2\n", name1);
+	goto done;
+    }
 
     // Find all instances of one cell that have fewer in
     // the compared circuit.  Check whether subcircuits
     // in the hierarchy of each instance contain devices
     // or subcircuits that have more in the compared circuit.
 
-    listX0 = list0X = NULL;
     ecomp = (ECompare *)HashFirst(&compdict);
     while (ecomp != NULL) {
 
@@ -1650,7 +1672,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	}
 
 	/* Case 2:  Cell2 class is a subcircuit, and flattening	*/
-	/* (it without regard to cell1) improves the matching.	*/
+	/* it (without regard to cell1) improves the matching.	*/
 
 	else if ((ecomp->num1 != ecomp->num2) && (ecomp->cell2 != NULL) &&
 			(ecomp->num2 != 0) && (ecomp->cell2->class == CLASS_SUBCKT)) {
@@ -1708,7 +1730,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	}
 	
 	/* Case 3:  Cell1 class is a subcircuit, and flattening	*/
-	/* (it without regard to cell1) improves the matching.	*/
+	/* it (without regard to cell1) improves the matching.	*/
 
 	else if ((ecomp->num1 != ecomp->num2) && (ecomp->cell1 != NULL) &&
 			(ecomp->num1 != 0) && (ecomp->cell1->class == CLASS_SUBCKT)) {
@@ -2065,6 +2087,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	}
     }
 
+done:
     // Free the hash table and its contents.
 
     ecomp = (ECompare *)HashFirst(&compdict);
