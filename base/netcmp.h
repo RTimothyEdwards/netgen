@@ -46,6 +46,7 @@ extern int  CreateCompareQueue(char *, int, char *, int);
 extern int  GetCompareQueueTop(char **, int *, char **, int *);
 extern int  PeekCompareQueueTop(char **, int *, char **, int *);
 extern void RemoveCompareQueue();
+extern int FlattenUnmatched(struct nlist *, char *, int, int);
 
 extern void PrintIllegalClasses();
 extern void PrintIllegalNodeClasses();
