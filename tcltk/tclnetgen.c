@@ -2196,10 +2196,8 @@ _netcmp_compare(ClientData clientData,
       ConvertGlobals(name2, fnum2);
    }
 
-   if (tp1 == NULL) tp1 = LookupCellFile(name1, fnum1);
-   if (tp2 == NULL) tp2 = LookupCellFile(name2, fnum2);
-
-   CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
+   tp1 = LookupCellFile(name1, fnum1);
+   tp2 = LookupCellFile(name2, fnum2);
 
    hascontents1 = HasContents(tp1);
    hascontents2 = HasContents(tp2);
@@ -2215,15 +2213,17 @@ _netcmp_compare(ClientData clientData,
    else if (hascontents1 || hascontents2) {
        FlattenUnmatched(tp1, name1, 1, 0);
        FlattenUnmatched(tp2, name2, 1, 0);
+       DescribeContents(name1, fnum1, name2, fnum2);
 
        while (PrematchLists(name1, fnum1, name2, fnum2) > 0) {
           Fprintf(stdout, "Making another compare attempt.\n");
           Printf("Flattened mismatched instances and attempting compare again.\n");
-          CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
-          FlattenUnmatched(tp1, name1, 0, 0);
-          FlattenUnmatched(tp2, name2, 0, 0);
+          FlattenUnmatched(tp1, name1, 1, 0);
+          FlattenUnmatched(tp2, name2, 1, 0);
+          DescribeContents(name1, fnum1, name2, fnum2);
        }
    }
+   CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
 
    // Return the names of the two cells being compared, if doing "compare
    // hierarchical".  If "-list" was specified, then append the output

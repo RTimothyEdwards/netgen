@@ -805,7 +805,7 @@ void DescribeInstance(char *name, int file)
       /* All black-box modules and placeholders by definition have all	*/
       /* disconnected pins, so don't report those.			*/
 
-      if (!(tp->flags & CELL_PLACEHOLDER) && (tp->class != CLASS_MODULE))
+      if ((!(tp->flags & CELL_PLACEHOLDER)) && (tp->class != CLASS_MODULE))
       {
 	//if (disconnectednodes == 0) Fprintf(stderr, "\n");
         disconnectednodes++;

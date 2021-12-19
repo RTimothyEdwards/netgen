@@ -26,6 +26,7 @@ extern void PrintCoreStats(void);
 extern void ResetState(void);
 extern void CreateTwoLists(char *name1, int file1, char *name2, int file2,
 		int dolist);
+extern void DescribeContents(char *name1, int file1, char *name2, int file2);
 extern int Iterate(void);
 extern int VerifyMatching(void);
 extern void PrintAutomorphisms(void);
