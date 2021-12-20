@@ -3758,8 +3758,23 @@ void RemoveCompareQueue()
    CompareQueue = NULL;
 }
 
+/*----------------------------------------------------------------------*/
+/* Output a summary of the contents of the two circuits being compared	*/
+/*----------------------------------------------------------------------*/
+
+void DescribeContents(char *name1, int file1, char *name2, int file2)
+{
+    Fprintf(stdout, "\n");  // blank line before new circuit diagnostics in log file
+    /* print preliminary statistics */
+    Printf("\nContents of circuit 1:  ");
+    DescribeInstance(name1, file1);
+    Printf("Contents of circuit 2:  ");
+    DescribeInstance(name2, file2);
+    Printf("\n");
+}
+
 /*----------------------------------*/
-/* create an initial data structure */
+/* Create an initial data structure */
 /*----------------------------------*/
 
 void CreateTwoLists(char *name1, int file1, char *name2, int file2, int dolist)
@@ -3770,14 +3785,6 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2, int dolist)
     int modified;
 
     ResetState();
-
-    Fprintf(stdout, "\n");  // blank line before new circuit diagnostics in log file
-    /* print preliminary statistics */
-    Printf("\nContents of circuit 1:  ");
-    DescribeInstance(name1, file1);
-    Printf("Contents of circuit 2:  ");
-    DescribeInstance(name2, file2);
-    Printf("\n");
 
     if (file1 == -1)
         tc1 = LookupCell(name1);
@@ -7938,6 +7945,7 @@ int Compare(char *cell1, char *cell2)
 {
   int automorphisms;
 
+  DescribeContents(cell1, -1, cell2, -1);
   CreateTwoLists(cell1, -1, cell2, -1, 0);
   Permute();
   while (!Iterate()); 
@@ -7998,6 +8006,7 @@ void NETCOMP(void)
     case 'c':
       promptstring("Enter cell 1: ",name);
       promptstring("Enter cell 2: ",name2);
+      DescribeContents(name, -1, name2, -1);
       CreateTwoLists(name, -1, name2, -1, 0);
 #ifdef DEBUG_ALLOC
       PrintCoreStats();

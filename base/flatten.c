@@ -1421,11 +1421,27 @@ typedef struct ecomplist {
     ECompListPtr next;
 } ECompList;
 
+/*----------------------------------------------------------------------*/
+/* Determine if a cell contains at least one device or subcircuit	*/
+/*----------------------------------------------------------------------*/
+
+int
+HasContents(struct nlist *tc)
+{
+    struct objlist *ob;
+
+    for (ob = tc->cell; ob; ob = ob->next)
+	if (ob->type == FIRSTPIN)
+	    return TRUE;
+
+    return FALSE;
+}
+
 /*------------------------------------------------------*/
 /* Survey the contents of a cell and sort into a hash	*/
 /*------------------------------------------------------*/
 
-int
+void
 SurveyCell(struct nlist *tc, struct hashdict *compdict, int file1, int file2, int which)
 {
     struct objlist *ob;
@@ -1433,12 +1449,10 @@ SurveyCell(struct nlist *tc, struct hashdict *compdict, int file1, int file2, in
     ECompare *ecomp, *qcomp, *ncomp;
     int file = (which == 0) ? file1 : file2;
     int ofile = (which == 0) ? file2 : file1;
-    int retval = FALSE;
     char *dstr;
 
     for (ob = tc->cell; ob; ob = ob->next) {
 	if (ob->type == FIRSTPIN) {
-	    retval = TRUE;	/* Cell has at least one device or subcircuit */
 	    tsub = LookupCellFile(ob->model.class, file);
 	    if (tsub->flags & CELL_DUPLICATE) {
 	       // Always register a duplicate under the original name
@@ -1492,7 +1506,6 @@ SurveyCell(struct nlist *tc, struct hashdict *compdict, int file1, int file2, in
 	    if (dstr) *dstr = '[';
 	}
     }
-    return retval;
 }
 
 /*------------------------------------------------------*/
@@ -1540,28 +1553,10 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     listX0 = list0X = NULL;
 
     // Gather information about instances of cell "name1"
-    hascontents1 = SurveyCell(tc1, &compdict, file1, file2, 0);
+    SurveyCell(tc1, &compdict, file1, file2, 0);
 
     // Gather information about instances of cell "name2"
-    hascontents2 = SurveyCell(tc2, &compdict, file1, file2, 1);
-
-    // If one cell has no contents, then flattening the other
-    // isn't going to improve anything, so stop here.
-
-    if (!hascontents1 && !hascontents2 && (tc1->flags & CELL_PLACEHOLDER)
-		&& (tc2->flags & CELL_PLACEHOLDER)) {
-        goto done;
-    }
-    else if (hascontents1 && !hascontents2 && (tc2->flags & CELL_PLACEHOLDER)) {
-	Fprintf(stdout, "Circuit 2 cell %s is a black box; will not flatten "
-			"Circuit 1\n", name2);
-	goto done;
-    }
-    else if (hascontents2 && !hascontents1 && (tc1->flags & CELL_PLACEHOLDER)) {
-	Fprintf(stdout, "Circuit 1 cell %s is a black box; will not flatten "
-			"Circuit 2\n", name1);
-	goto done;
-    }
+    SurveyCell(tc2, &compdict, file1, file2, 1);
 
     // Find all instances of one cell that have fewer in
     // the compared circuit.  Check whether subcircuits

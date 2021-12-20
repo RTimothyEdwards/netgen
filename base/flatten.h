@@ -3,5 +3,6 @@
 
 extern int UniquePins(char *name, int filenum);
 extern void flattenCell(char *name, int file);
+extern int HasContents(struct nlist *);
 
 #endif /* _FLATTEN_H */
