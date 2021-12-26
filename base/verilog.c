@@ -2117,7 +2117,7 @@ nextinst:
 					sobj = sobj->next) {
 			      if (sobj->type == FIRSTPIN) {
 				 if (match(sobj->model.class, obptr->model.class)) {
-				    while (sobj->next->type > FIRSTPIN)
+				    while (sobj->next && (sobj->next->type > FIRSTPIN))
 				       sobj = sobj->next;
 				    /* Stop when reaching the current instance */
 				    if (sobj->type == obptr->type + 1) break;
