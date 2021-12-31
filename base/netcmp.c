@@ -3457,7 +3457,7 @@ int FlattenUnmatched(struct nlist *tc, char *parent, int stoplevel, int loclevel
    if (loclevel == stoplevel && !(tc->flags & CELL_MATCHED)) {
       ClearDumpedList();
       if (Debug == TRUE) Fprintf(stdout, "Level %d ", loclevel);
-      Fprintf(stdout, "Flattening unmatched subcell %s in circuit %s (%d)",
+      Fprintf(stdout, "Flattening unmatched subcell %s in circuit %s(%d)",
 				tc->name, parent, tc->file);
       changed = flattenInstancesOf(parent, tc->file, tc->name);
       Fprintf(stdout, "(%d instance%s)\n", changed, ((changed == 1) ? "" : "s"));
@@ -3810,11 +3810,11 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2, int dolist)
 
     modified = CreateLists(name1, file1);
     if (Elements == NULL) {
-       Printf("Circuit %s contains no devices.\n", name1);
+       Printf("\nCircuit %s(%d) contains no devices. Compared as black-box.\n", name1, file1);
        return;
     }
     if (Nodes == NULL) {
-       Printf("Circuit %s contains no nets.\n", name1);
+       Printf("\nCircuit %s(%d) contains no nets. Compared as black-box.\n", name1, file1);
        return;
     }
 
@@ -3855,13 +3855,13 @@ void CreateTwoLists(char *name1, int file1, char *name2, int file2, int dolist)
 
     modified += CreateLists(name2, file2);
     if (Elements == NULL) {
-       Printf("Circuit %s contains no devices.\n", name2);
+       Printf("\nCircuit %s(%d) contains no devices. Compared as black-box.\n", name2, file2);
        ResetState();
        return;
     }
 
     if (Nodes == NULL) {
-       Printf("Circuit %s contains no nets.\n", name2);
+       Printf("\nCircuit %s(%d) contains no nets. Compared as black-box.\n", name2, file2);
        ResetState();
        return;
     }
@@ -7885,10 +7885,10 @@ int EquivalentElement(char *name, struct nlist *circuit, struct objlist **retobj
 void FlattenCurrent()
 {
    if (Circuit1 != NULL && Circuit2 != NULL) {
-      Fprintf(stdout, "Flattening subcell %s\n", Circuit1->name);
+      Fprintf(stdout, "Flattening subcell %s(%d)\n", Circuit1->name, Circuit1->file);
       FlattenInstancesOf(Circuit1->name, Circuit1->file);
 
-      Fprintf(stdout, "Flattening subcell %s\n", Circuit2->name);
+      Fprintf(stdout, "Flattening subcell %s(%d)\n", Circuit2->name, Circuit2->file);
       FlattenInstancesOf(Circuit2->name, Circuit2->file);
    }
 }

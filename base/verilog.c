@@ -2233,7 +2233,7 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   /* be case insensitive, with a stern warning.			*/
 
   if (matchfunc == matchnocase) {
-     Printf("Warning:  A case-insensitive file has been read and so the	"
+     Printf("Warning:  A case-insensitive file has been read and so the "
 		"verilog file must be treated case-insensitive to match.\n");
   }
   else {

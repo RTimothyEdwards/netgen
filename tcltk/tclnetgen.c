@@ -2203,11 +2203,11 @@ _netcmp_compare(ClientData clientData,
    hascontents2 = HasContents(tp2);
 
    if (hascontents1 && !hascontents2 && (tp2->flags & CELL_PLACEHOLDER)) {
-       Fprintf(stdout, "Circuit 2 cell %s is a black box; will not flatten "
+       Fprintf(stdout, "\nCircuit 2 cell %s is a black-box; will not flatten "
                         "Circuit 1\n", name2);
    }
    else if (hascontents2 && !hascontents1 && (tp1->flags & CELL_PLACEHOLDER)) {
-       Fprintf(stdout, "Circuit 1 cell %s is a black box; will not flatten "
+       Fprintf(stdout, "\nCircuit 1 cell %s is a black-box; will not flatten "
                         "Circuit 2\n", name1);
    }
    else if (hascontents1 || hascontents2) {
@@ -2222,6 +2222,10 @@ _netcmp_compare(ClientData clientData,
           FlattenUnmatched(tp2, name2, 1, 0);
           DescribeContents(name1, fnum1, name2, fnum2);
        }
+   }
+   else {  // two empty subcircuits
+       Fprintf(stdout, "\nCircuit 1 cell %s and Circuit 2 cell %s are black-boxes.\n",
+                       name1, name2);
    }
    CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
 
@@ -3054,19 +3058,21 @@ _netcmp_equate(ClientData clientData,
 	    else if ((tp1->flags & CELL_PLACEHOLDER) ||
 			(tp2->flags & CELL_PLACEHOLDER)) {
 		if (tp1->flags & CELL_PLACEHOLDER) {
-		    Fprintf(stdout, "Warning: Equate pins:  cell %s "
-			"is a placeholder, treated as a black box.\n", name1);
+		    Fprintf(stdout, "Warning: Equate pins:  cell %s(%d) "
+			"is a placeholder, treated as a black-box.\n", name1, file1);
 		}
 		if (tp2->flags & CELL_PLACEHOLDER) {
-		    Fprintf(stdout, "Warning: Equate pins:  cell %s "
-			"is a placeholder, treated as a black box.\n", name2);
+		    Fprintf(stdout, "Warning: Equate pins:  cell %s(%d) "
+			"is a placeholder, treated as a black-box.\n", name2, file2);
 		}
 		// If a cell in either circuit is marked as a black box, then
 		// the cells in both circuits should be marked as a black box.
 		tp1->flags |= CELL_PLACEHOLDER;
 		tp2->flags |= CELL_PLACEHOLDER;
 	    }
-	    else {
+	    else if (doforce != TRUE) {
+		// when doforce is true, ElementClass has been set to NULL even though circuits contain elements.
+		// so this message is not correct.
 		Fprintf(stdout, "Equate pins:  cell %s and/or %s "
 			"has no elements.\n", name1, name2);
 		/* This is not necessarily an error, so go ahead and match pins. */
@@ -3124,7 +3130,7 @@ _netcmp_equate(ClientData clientData,
 	    /* Objects must be CLASS_MODULE or CLASS_SUBCKT */
 
 	    if (tp1->class != CLASS_MODULE && tp1->class != CLASS_SUBCKT) {
-	       Tcl_SetResult(interp, "Device class is not black box"
+	       Tcl_SetResult(interp, "Device class is not black-box"
 			" or subcircuit!", NULL);
 	       return TCL_ERROR;
 	    }

@@ -66,7 +66,7 @@ void flattenCell(char *name, int file)
   else
      ThisCell = LookupCellFile(name, file);
   if (ThisCell == NULL) {
-    Printf("No cell %s found.\n", name);
+    Printf("No cell %s(%d) found.\n", name, file);
     return;
   }
   FreeNodeNames(ThisCell);
@@ -278,13 +278,13 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   }
   else {
     if (Debug) 
-       Printf("Flattening instances of %s within cell: %s\n", instance, name);
+       Printf("Flattening instances of %s within cell: %s(%d)\n", instance, name, fnum);
     if (fnum == -1)
        ThisCell = LookupCell(name);
     else
        ThisCell = LookupCellFile(name, fnum);
     if (ThisCell == NULL) {
-      Printf("No cell %s found.\n", name);
+      Printf("No cell %s(%d) found.\n", name, fnum);
       return 0;
     }
   }
@@ -694,7 +694,7 @@ void convertGlobalsOf(char *name, int fnum, char *instance)
       else
          ThisCell = LookupCellFile(name, fnum);
       if (ThisCell == NULL) {
-	 Printf("No cell %s found.\n", name);
+	 Printf("No cell %s(%d) found.\n", name, fnum);
 	 return;
       }
    }
@@ -1124,7 +1124,7 @@ int UniquePins(char *name, int filenum)
       ThisCell = LookupCellFile(name, filenum);
 
    if (ThisCell == NULL) {
-      Printf("No cell %s found.\n", name);
+      Printf("No cell %s(%d) found.\n", name, filenum);
       return 0;
    }
 
@@ -1146,7 +1146,7 @@ int UniquePins(char *name, int filenum)
       if (ob->node > 0) {
 	 nodecount[ob->node]++;
 	 if (nodecount[ob->node] == 2) {
-	    Printf("Duplicate pin %s in cell %s\n", ob->name, ThisCell->name);
+	    Printf("Duplicate pin %s in cell %s(%d)\n", ob->name, ThisCell->name, filenum);
 	 }
 	 if (nodecount[ob->node] > 1) {
 	    /* Remove this node;  prep for removal by marking with UNKNOWN */
@@ -1345,7 +1345,7 @@ int CleanupPins(char *name, int filenum)
       ThisCell = LookupCellFile(name, filenum);
 
    if (ThisCell == NULL) {
-      Printf("No cell %s found.\n", name);
+      Printf("No cell %s(%d) found.\n", name, filenum);
       return 0;
    }
 
