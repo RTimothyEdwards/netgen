@@ -805,11 +805,13 @@ void DescribeInstance(char *name, int file)
       /* All black-box modules and placeholders by definition have all	*/
       /* disconnected pins, so don't report those.			*/
 
-      if ((!(tp->flags & CELL_PLACEHOLDER)) && (tp->class != CLASS_MODULE))
-      {
-	//if (disconnectednodes == 0) Fprintf(stderr, "\n");
+      if ((!(tp->flags & CELL_PLACEHOLDER)) && (tp->class != CLASS_MODULE)) {
+	// if (disconnectednodes == 0) Fprintf(stderr, "\n");
         disconnectednodes++;
-        Fprintf(stderr, "Cell %s(%d) disconnected node: %s\n", tp->name, tp->file, ob->name);
+	/* Don't report on ports marked "port_match_error", which is just confusing. */
+	if (strcmp(ob->name, "port_match_error")) {
+           Fprintf(stderr, "Cell %s(%d) disconnected node: %s\n", tp->name, tp->file, ob->name);
+	}
       }
     }
   }
