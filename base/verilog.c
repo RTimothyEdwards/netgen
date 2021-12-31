@@ -1778,54 +1778,6 @@ nextinst:
 	    scan->width = width;
 
 	    result = GetBus(scan->net, &wb);
-	    if (result == -1) {
-		/* CHECK:  THIS CODE SHOULD BE DELETED, IT IS NOT THE ISSUE */
-		/* Not bus notation, but check if signal was defined as a bus */
-		wb.start = wb.end = -1;
-		minnet = maxnet = -1;
-
-		/* Pins should be in index order start->end.  Other nodes */
-		/* should be in order start->end by node number.	  */
-
-		for (bobj = CurrentCell->cell; bobj; bobj = bobj->next) {
-		    if (bobj->type == PORT) {
-			if ((bptr = strvchr(bobj->name, '[')) != NULL) {
-			    *bptr = '\0';
-			    if (!strcmp(bobj->name, scan->net)) {
-				*bptr = '[';
-				if (wb.start == -1)
-				    sscanf(bptr + 1, "%d", &wb.start);
-				else
-				    sscanf(bptr + 1, "%d", &wb.end);
-			    }
-			}
-		    }
-		    else if (bobj->type == NODE) {
-			if ((bptr = strvchr(bobj->name, '[')) != NULL) {
-			    *bptr = '\0';
-			    if (!strcmp(bobj->name, scan->net)) {
-				if (sscanf(bptr + 1, "%d", &testidx) == 1) {
-				    if (minnet == -1) {
-					minnet = maxnet = bobj->node;
-					wb.start = wb.end = testidx;
-				    }
-				    else if (bobj->node < minnet) {
-					minnet = bobj->node;
-					wb.start = testidx;
-				    }
-				    else if (bobj->node > maxnet) {
-					maxnet = bobj->node;
-					wb.end = testidx;
-				    }
-				}
-			    }
-			    *bptr = '[';
-			}
-		    }
-		}
-		if (wb.start != -1) result = 0;
-	    }
-
 	    if (result == 0) {
 	       int match = 0;
 	       int wblen, arraylen;
@@ -1935,7 +1887,25 @@ nextinst:
 	       }
 	    }
 	    else if (portstart != portend) {
-	       Fprintf(stderr, "Error:  Single net %s is connected to bus port %s\n",
+	       /* If the name starts with "_noconnect_", then it was an
+		* auto-generated name that incorrectly assumed a single-bit
+		* wide signal because it did not have a module prototype.
+		* Rewrite the noconnect name as an array.  This just means
+		* that the verilog had an empty list "()" and the initial
+		* assumption was wrong.  If not all instances agree on the
+		* size, then this will eventually generate an error.
+		*/
+	       if (!strncmp(scan->net, "_noconnect_", 11) &&
+			(strchr(scan->net, '\[') == NULL) && (width > 1)) {
+		  char *savenet = scan->net;
+		  char *newnet = MALLOC(strlen(scan->net) + 12);
+		  sprintf(newnet, "%s[%d:0]", scan->net, scan->width - 1);
+		  FREE(savenet);
+		  scan->net = newnet;
+		  continue;	/* Re-process this entry */
+	       }
+	       else
+	          Fprintf(stderr, "Error:  Single net %s is connected to bus port %s\n",
 			scan->net, scan->name);
 	    }
 	 }
@@ -2117,7 +2087,7 @@ nextinst:
 					sobj = sobj->next) {
 			      if (sobj->type == FIRSTPIN) {
 				 if (match(sobj->model.class, obptr->model.class)) {
-				    while (sobj->next->type > FIRSTPIN)
+				    while (sobj->next && (sobj->next->type > FIRSTPIN))
 				       sobj = sobj->next;
 				    /* Stop when reaching the current instance */
 				    if (sobj->type == obptr->type + 1) break;
