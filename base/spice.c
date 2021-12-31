@@ -940,7 +940,7 @@ skip_ends:
 	 goto baddevice;
       }
 
-      snprintf(instname, 255, "%s%s", model, inst);
+      snprintf(instname, 255, "%s:%s", model, inst);
       Cell(instname, model, collector, base, emitter);
       pobj = LinkProperties(model, kvlist);
       ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
@@ -1013,7 +1013,7 @@ skip_ends:
 	 goto baddevice;
       }
 
-      snprintf(instname, 255, "%s%s", model, inst);
+      snprintf(instname, 255, "%s:%s", model, inst);
       Cell(instname, model, drain, gate, source, bulk);
       pobj = LinkProperties(model, kvlist);
       ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
@@ -1104,7 +1104,7 @@ skip_ends:
 	   usemodel = 1;
 	}
 
-	snprintf(instname, 255, "%s%s", model, inst);
+	snprintf(instname, 255, "%s:%s", model, inst);
 	if (usemodel)
            Cell(instname, model, ctop, cbot);
 	else
@@ -1197,7 +1197,7 @@ skip_ends:
 	else
 	   strcpy(model, "r");		/* Use default resistor model */
 
-	snprintf(instname, 255, "%s%s", model, inst);
+	snprintf(instname, 255, "%s:%s", model, inst);
 	if (usemodel)
 	   Cell(instname, model, rtop, rbot);
 	else
@@ -1255,7 +1255,7 @@ skip_ends:
 	 Fprintf(stderr, "Device \"%s\" has wrong number of ports for a diode.\n");
 	 goto baddevice;
       }
-      snprintf(instname, 255, "%s%s", model, inst);
+      snprintf(instname, 255, "%s:%s", model, inst);
       Cell(instname, model, anode, cathode);
       pobj = LinkProperties(model, kvlist);
       ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
@@ -1334,7 +1334,7 @@ skip_ends:
 	else
 	   strcpy(model, "t");		/* Use default xline model */
 
-	snprintf(instname, 255, "%s%s", model, inst);
+	snprintf(instname, 255, "%s:%s", model, inst);
 
 	if (usemodel)
 	   Cell(instname, model, node1, node2, node3, node4);
@@ -1417,7 +1417,7 @@ skip_ends:
       else
 	 strcpy(model, "l");		/* Use default inductor model */
 
-      snprintf(instname, 255, "%s%s", model, inst);
+      snprintf(instname, 255, "%s:%s", model, inst);
       if (usemodel)
 	 Cell(instname, model, end_a, end_b);
       else
@@ -1729,7 +1729,7 @@ skip_ends:
       /* names.								  */
 
       if (strncmp(instancename, scan->name, strlen(scan->name))) {
-         snprintf(subcktname, 99, "%s%s", scan->name, instancename);
+         snprintf(subcktname, 99, "%s:%s", scan->name, instancename);
          strcpy(instancename, subcktname);
       }
       else {
