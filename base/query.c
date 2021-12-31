@@ -810,7 +810,8 @@ void DescribeInstance(char *name, int file)
         disconnectednodes++;
 	/* Don't report on ports marked "port_match_error", which is just confusing. */
 	if (strcmp(ob->name, "port_match_error")) {
-           Fprintf(stderr, "Cell %s(%d) disconnected node: %s\n", tp->name, tp->file, ob->name);
+           Fprintf(stderr, "Cell %s (%d) disconnected node: %s\n",
+		    tp->name, tp->file, ob->name);
 	}
       }
     }

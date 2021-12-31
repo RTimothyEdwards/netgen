@@ -3441,7 +3441,8 @@ int CombineParallel(char *model, int file)
    }
    HashKill(&devdict);
    if (dcnt > 0) {
-      Fprintf(stdout, "Class %s(%d):  Merged %d parallel devices.\n", model, file, dcnt);
+      Fprintf(stdout, "Class %s (%d):  Merged %d parallel devices.\n",
+		model, file, dcnt);
    }
    FREE(nodecount);
    return dcnt;
@@ -3739,7 +3740,8 @@ int CombineSeries(char *model, int file)
    }
    FREE(instlist);
    if (scnt > 0) {
-      Fprintf(stdout, "Class %s(%d):  Merged %d series devices.\n", model, file, scnt);
+      Fprintf(stdout, "Class %s (%d):  Merged %d series devices.\n",
+		model, file, scnt);
    }
    return scnt;
 }
