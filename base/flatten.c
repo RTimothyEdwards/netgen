@@ -66,7 +66,7 @@ void flattenCell(char *name, int file)
   else
      ThisCell = LookupCellFile(name, file);
   if (ThisCell == NULL) {
-    Printf("No cell %s(%d) found.\n", name, file);
+    Printf("No cell %s (%d) found.\n", name, file);
     return;
   }
   FreeNodeNames(ThisCell);
@@ -278,13 +278,13 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   }
   else {
     if (Debug) 
-       Printf("Flattening instances of %s within cell: %s(%d)\n", instance, name, fnum);
+       Printf("Flattening instances of %s within cell: %s (%d)\n", instance, name, fnum);
     if (fnum == -1)
        ThisCell = LookupCell(name);
     else
        ThisCell = LookupCellFile(name, fnum);
     if (ThisCell == NULL) {
-      Printf("No cell %s(%d) found.\n", name, fnum);
+      Printf("No cell %s (%d) found.\n", name, fnum);
       return 0;
     }
   }
@@ -370,7 +370,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 
          if (ChildListEnd == NULL) ChildListEnd = ChildEnd;
 
-         /* update node numbers in child to unique numbers 
+         /* update node numbers in child to unique numbers
 	    by adding previous greatest node number. */
          oldmax = 0;
          for (tmp = ChildStart; tmp != NULL; tmp = tmp->next) {
@@ -694,7 +694,7 @@ void convertGlobalsOf(char *name, int fnum, char *instance)
       else
          ThisCell = LookupCellFile(name, fnum);
       if (ThisCell == NULL) {
-	 Printf("No cell %s(%d) found.\n", name, fnum);
+	 Printf("No cell %s (%d) found.\n", name, fnum);
 	 return;
       }
    }
@@ -1124,7 +1124,7 @@ int UniquePins(char *name, int filenum)
       ThisCell = LookupCellFile(name, filenum);
 
    if (ThisCell == NULL) {
-      Printf("No cell %s(%d) found.\n", name, filenum);
+      Printf("No cell %s (%d) found.\n", name, filenum);
       return 0;
    }
 
@@ -1146,7 +1146,7 @@ int UniquePins(char *name, int filenum)
       if (ob->node > 0) {
 	 nodecount[ob->node]++;
 	 if (nodecount[ob->node] == 2) {
-	    Printf("Duplicate pin %s in cell %s(%d)\n", ob->name, ThisCell->name, filenum);
+	    Printf("Duplicate pin %s in cell %s (%d)\n", ob->name, ThisCell->name, filenum);
 	 }
 	 if (nodecount[ob->node] > 1) {
 	    /* Remove this node;  prep for removal by marking with UNKNOWN */
@@ -1345,7 +1345,7 @@ int CleanupPins(char *name, int filenum)
       ThisCell = LookupCellFile(name, filenum);
 
    if (ThisCell == NULL) {
-      Printf("No cell %s(%d) found.\n", name, filenum);
+      Printf("No cell %s (%d) found.\n", name, filenum);
       return 0;
    }
 
@@ -1613,13 +1613,13 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    }
 	    if (match) {
 		if (ecomp->cell1 && (ecomp->num1 > 0)) {
-		    Fprintf(stdout, "Flattening instances of %s in cell %s(%d)"
+		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell1->name,
 				name1, file1);
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
 		}
 		if (ecomp->cell2 && (ecomp->num2 > 0)) {
-		    Fprintf(stdout, "Flattening instances of %s in cell %s(%d)"
+		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell2->name,
 				name2, file2);
 		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
@@ -1702,7 +1702,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    }
 	    if (match) {
 		if (ecomp->cell2) {
-		    Fprintf(stdout, "Flattening instances of %s in cell %s(%d)"
+		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell2->name,
 				name2, file2);
 		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
@@ -1760,7 +1760,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	    }
 	    if (match) {
 		if (ecomp->cell1) {
-		    Fprintf(stdout, "Flattening instances of %s in cell %s(%d)"
+		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell1->name,
 				name1, file1);
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
@@ -1843,7 +1843,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				    }
 				    if (found) {
 					Fprintf(stdout, "Removing zero-valued device "
-						"%s from cell %s(%d) makes a better match\n",
+						"%s from cell %s (%d) makes a better match\n",
 						tsub1->name,
 						tc1->name, tc1->file);
 
@@ -1954,7 +1954,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				    }
 				    if (found) {
 					Fprintf(stdout, "Removing zero-valued device "
-						"%s from cell %s(%d) makes a better match\n",
+						"%s from cell %s (%d) makes a better match\n",
 						tsub2->name,
 						tc2->name, tc2->file);
 
@@ -2046,7 +2046,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					ecompX0->cell1->file, &compdict);
 			    if (dstr) *dstr = '[';
 			    if ((ncomp == ecomp0X) && (ecomp0X->num2 <= ecompX0->num1)) {
-				Fprintf(stdout, "Flattening instances of %s in cell %s(%d)"
+				Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 					" makes a better match\n", ecompX0->cell1->name,
 					name1, file1);
 				flattenInstancesOf(name1, file1, ecompX0->cell1->name); 
@@ -2072,7 +2072,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					ecomp0X->cell2->file, &compdict);
 			    if (dstr) *dstr = '[';
 			    if ((ncomp == ecompX0) && (ecompX0->num1 <= ecomp0X->num2)) {
-				Fprintf(stdout, "Flattening instances of %s in cell %s(%d)"
+				Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 					" makes a better match\n", ecomp0X->cell2->name,
 					name2, file2);
 				flattenInstancesOf(name2, file2, ecomp0X->cell2->name); 

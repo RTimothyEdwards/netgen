@@ -3058,11 +3058,11 @@ _netcmp_equate(ClientData clientData,
 	    else if ((tp1->flags & CELL_PLACEHOLDER) ||
 			(tp2->flags & CELL_PLACEHOLDER)) {
 		if (tp1->flags & CELL_PLACEHOLDER) {
-		    Fprintf(stdout, "Warning: Equate pins:  cell %s(%d) "
+		    Fprintf(stdout, "Warning: Equate pins:  cell %s (%d) "
 			"is a placeholder, treated as a black-box.\n", name1, file1);
 		}
 		if (tp2->flags & CELL_PLACEHOLDER) {
-		    Fprintf(stdout, "Warning: Equate pins:  cell %s(%d) "
+		    Fprintf(stdout, "Warning: Equate pins:  cell %s (%d) "
 			"is a placeholder, treated as a black-box.\n", name2, file2);
 		}
 		// If a cell in either circuit is marked as a black box, then
