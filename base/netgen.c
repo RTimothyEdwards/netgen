@@ -3337,16 +3337,13 @@ int CombineParallel(char *model, int file)
 	    /* "sob" to it.  If "ob" does not have properties, then	*/
 	    /* create a property record and set property "M" to 1.	*/
 
-	    /* Find last non-property record of sob ( = pob) */
-	    /* Find first property record of sob ( = spropfirst) */
-	    /* Find last property record of sob ( = sproplast)	*/
+	    /* Find last non-property record of sob ( = pob) 		*/
+	    /* Find first property record of sob ( = spropfirst) 	*/
 
-	    spropfirst = sproplast = NULL;
+	    spropfirst = NULL;
 	    for (ob2 = sob; ob2->type > FIRSTPIN || ob2 == sob; ob2 = ob2->next)
 	       pob = ob2;
 	    if (ob2->type == PROPERTY) spropfirst = ob2;
-	    for (; ob2->type == PROPERTY; ob2 = ob2->next)
-	       sproplast = ob2;
 	    
             if (spropfirst == NULL) {
 	       /* Create new property instance record if one doesn't exist */
@@ -3372,8 +3369,9 @@ int CombineParallel(char *model, int file)
 	       nob->next = pob->next;
 	       pob->next = nob;
 
+	       /* Handle case of contiguous entries */
 	       if (lob == pob) lob = nob;
-	       spropfirst = sproplast = nob;
+	       spropfirst = nob;
 	    }
 	    if (propfirst == NULL) {
 	       /* Create new property instance record if one doesn't exist */
@@ -3396,27 +3394,26 @@ int CombineParallel(char *model, int file)
 	       kv->type = PROP_ENDLIST;
 	       kv->value.ival = 0;
 
-	       /* Append to sob's property list */
-	       nob->next = sproplast->next;
-	       sproplast->next = nob;
-	       if (lob == sproplast) lob = nob;
+	       /* Prepend to sob's property list */
+	       nob->next = pob->next;
+	       pob->next = nob;
+	       /* Handle case of contiguous entries */
+	       if (lob == pob) lob = nob;
 	    }
-		
-	    if (propfirst != NULL) {
+	    else {
 
 	       // Series/Parallel logic:
-	       // If propfirst has _tag in properties,
-	       // then add an "open" tag at propfirst
-               add_prop_tag(propfirst, '(');
+	       // If spropfirst has _tag in properties,
+	       // then add an "open" tag at spropfirst
+               add_prop_tag(spropfirst, '(');
 
-	       // if spropfirst has _tag in properties then add an "open" tag
-	       // to spropfirst and a "close" tag to propfirst
-	       if (add_prop_tag(spropfirst, '(')) add_prop_tag(propfirst, ')');
+	       // if propfirst has _tag in properties then add an "open" tag
+	       // to propfirst and a "close" tag to spropfirst
+	       if (add_prop_tag(propfirst, '(')) add_prop_tag(spropfirst, ')');
 
-	       /* Append ob's property list to sob */
-	       proplast->next = sproplast->next;
-	       sproplast->next = propfirst;
-	       if (lob == sproplast) lob = proplast;
+	       /* Prepend ob's property list to sob */
+	       proplast->next = pob->next;
+	       pob->next = propfirst;
 	    }
 
             /* Link up around object to be removed */
@@ -3429,7 +3426,6 @@ int CombineParallel(char *model, int file)
 	       obr = nob;
 	    }
 	    dcnt++;
-
 	 }
 	 FREE((char *)pstr);
       }
