@@ -4921,6 +4921,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    // Now combine records with same properties by summing M (S).
    if (comb == FALSE) {
       for (i = 0; i < run - 1; i++) {
+	 int nr_empty = 0;
 	 for (j = i + 1; j < run; j++) {
 	    pmatch = 0;
 	    for (p = 1; p < pcount; p++) {
@@ -5044,8 +5045,14 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		  vlist[0][i]->value.ival += vlist[0][j]->value.ival;
 		  vlist[0][j]->value.ival = 0;
 	       }
+	       else
+		  nr_empty++;
 	    }
 	 }
+	 // If everything from i to the end of the run has been matched
+	 // and zeroed out, then nothing more can be merged.
+	 if (nr_empty == (run - (i + 1)))
+	    break;
       }
    }
 
