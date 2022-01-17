@@ -3123,6 +3123,47 @@ struct nlist *LookupPrematchedClass(struct nlist *tc1, int file2)
 }
 
 /*----------------------------------------------------------------------*/
+/* Scan the property list of a device to find the number of devices	*/
+/* implied by the total of M records.  If the device does not have a	*/
+/* property list, then return 1.  If any property list does not have an	*/
+/* "M" record, treat it as 1.						*/
+/*----------------------------------------------------------------------*/
+
+int GetNumDevices(struct objlist *ob)
+{
+    int p, found, M = 0;
+    struct objlist *obs;
+    struct valuelist *vl;
+    
+    obs = ob;
+    if (obs->type != PROPERTY)
+       for (obs = ob->next; obs && (obs->type != FIRSTPIN) &&
+		(obs->type != PROPERTY); obs = obs->next);
+
+    if ((obs == NULL) || (obs->type != PROPERTY)) return 1;
+
+    while (obs && (obs->type == PROPERTY)) {
+	found = FALSE;
+	for (p = 0; ; p++) {
+	    vl = &obs->instance.props[p];
+	    if (vl->type == PROP_ENDLIST) break;
+	    if (vl->key == NULL) continue;
+            if ((*matchfunc)(vl->key, "M")) {
+                if (vl->type == PROP_DOUBLE)
+	            M += (int)vl->value.dval;
+		else
+	            M += vl->value.ival;
+		found = TRUE;
+		break;
+	    }
+	}
+	if (found == FALSE) M++;
+	obs = obs->next;
+    }
+    return M;
+}
+
+/*----------------------------------------------------------------------*/
 /* Attempt to define FirstElementPass that will generate element	*/
 /* classes by names of pins, which will allow elements with different	*/
 /* cell names in different circuits to be grouped.  Ultimately we want	*/
@@ -3143,7 +3184,7 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
   struct Element *Esrch, *Ecorr;
   struct NodeList *n;
   struct nlist *tp1, *tp2, *tp;
-  int C1, C2, i;
+  int C1, C2, M1, M2, i;
   char *ostr;
   int needflat = 0;
 #ifdef TCL_NETGEN
@@ -3184,6 +3225,8 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 	Esrch->hashval = 1;
 	C1 = 1;
 	C2 = 0;
+	M2 = 0;
+	M1 = GetNumDevices(Esrch->object);
 	tp1 = LookupCellFile(Esrch->object->model.class, Circuit1->file);
 	tp2 = LookupClassEquivalent(Esrch->object->model.class, Circuit1->file,
 			Circuit2->file);
@@ -3195,6 +3238,7 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 		 if (tp && tp2 && (tp->classhash == tp2->classhash)) {
 		    Ecorr->hashval = 1;
 		    C2++;
+		    M2 += GetNumDevices(Ecorr->object);
 	         }
 	      }
 	      else if (Ecorr->graph == Circuit1->file) {
@@ -3203,6 +3247,7 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 		 if (tp && tp1 && (tp->classhash == tp1->classhash)) {
 		    Ecorr->hashval = 1;
 		    C1++;
+		    M1 += GetNumDevices(Ecorr->object);
 		 }
 	      }
 	   }
@@ -3219,10 +3264,19 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 
 	   for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
 	   for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
-           snprintf(ostr, left_col_end, "%s (%d)", Esrch->object->model.class, C1);
-	   if (C2 > 0)
-              snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d)%s", tp2->name, C2,
-			(C2 == C1) ? "" : " **Mismatch**");
+	   if (M1 == C1)
+           	snprintf(ostr, left_col_end, "%s (%d)", Esrch->object->model.class, C1);
+	   else
+           	snprintf(ostr, left_col_end, "%s (%d->%d)", Esrch->object->model.class,
+				M1, C1);
+	   if (C2 > 0) {
+	      if (M2 == C2)
+              	 snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d)%s", tp2->name,
+			C2, (C2 == C1) ? "" : " **Mismatch**");
+	      else
+              	 snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d->%d)%s",
+			tp2->name, M2, C2, (C2 == C1) ? "" : " **Mismatch**");
+	   }
 	   else {
               snprintf(ostr + left_col_end + 1, left_col_end, "(no matching element)");
 	   }
@@ -3261,6 +3315,7 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
      if (Esrch->graph == Circuit2->file && Esrch->hashval == 0) {
 	Esrch->hashval = 1;
 	C2 = 1;
+	M2 = GetNumDevices(Esrch->object);
 	tp2 = LookupCellFile(Esrch->object->model.class, Circuit2->file);
 	tp1 = LookupClassEquivalent(Esrch->object->model.class, Circuit2->file,
 			Circuit1->file);
@@ -3272,6 +3327,7 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 		 if (tp->classhash == tp2->classhash) {
 		    Ecorr->hashval = 1;
 		    C2++;
+		    M2 += GetNumDevices(Ecorr->object);
 	         }
 	      }
 	   }
@@ -3287,7 +3343,12 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 	   for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
 	   for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
            snprintf(ostr, left_col_end, "(no matching element)");
-           snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d)", Esrch->object->model.class, C2);
+	   if (C2 == M2)
+              snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d)",
+			Esrch->object->model.class, C2);
+	   else
+              snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d->%d)",
+			Esrch->object->model.class, M2, C2);
            for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
            Fprintf(stdout, ostr);
 	}
@@ -4860,6 +4921,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    // Now combine records with same properties by summing M (S).
    if (comb == FALSE) {
       for (i = 0; i < run - 1; i++) {
+	 int nr_empty = 0;
 	 for (j = i + 1; j < run; j++) {
 	    pmatch = 0;
 	    for (p = 1; p < pcount; p++) {
@@ -4983,8 +5045,14 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		  vlist[0][i]->value.ival += vlist[0][j]->value.ival;
 		  vlist[0][j]->value.ival = 0;
 	       }
+	       else
+		  nr_empty++;
 	    }
 	 }
+	 // If everything from i to the end of the run has been matched
+	 // and zeroed out, then nothing more can be merged.
+	 if (nr_empty == (run - (i + 1)))
+	    break;
       }
    }
 
