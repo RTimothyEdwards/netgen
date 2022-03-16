@@ -1931,9 +1931,17 @@ _netgen_log(ClientData clientData,
    switch(index) {
       case START_IDX:
 	 LoggingFile = fopen(LogFileName, "w");
+	 if (! LoggingFile) {
+	    Tcl_SetResult(interp, "Could not open log file.", NULL);
+	    return TCL_ERROR;
+	 }
 	 break;
       case RESUME_IDX:
 	 LoggingFile = fopen(LogFileName, "a");
+	 if (! LoggingFile) {
+	    Tcl_SetResult(interp, "Could not open log file.", NULL);
+	    return TCL_ERROR;
+	 }
 	 break;
       case END_IDX:
 	 fclose(LoggingFile);
@@ -1942,6 +1950,10 @@ _netgen_log(ClientData clientData,
       case RESET_IDX:
 	 fclose(LoggingFile);
 	 LoggingFile = fopen(LogFileName, "w");
+	 if (! LoggingFile) {
+	    Tcl_SetResult(interp, "Could not open log file.", NULL);
+	    return TCL_ERROR;
+	 }
 	 break;
       case SUSPEND_IDX:
 	 fclose(LoggingFile);
@@ -2483,6 +2495,38 @@ _netcmp_run(ClientData clientData,
 	    ExhaustiveSubdivision = 1;
 	    while (!Iterate() && !InterruptPending);
 	    automorphisms = VerifyMatching();
+            if (automorphisms > 0) {
+               // First try to resolve automorphisms uniquely using
+               // property matching
+               automorphisms = ResolveAutomorphsByProperty();
+               if (automorphisms > 0) {
+                  // Next, attempt to resolve automorphisms uniquely by
+                  // using the pin names
+                  automorphisms = ResolveAutomorphsByPin();
+               }
+               if (automorphisms > 0) {
+                  // Anything left is truly indistinguishable
+                  while (ResolveAutomorphisms() > 0);
+               }
+            }
+            if (automorphisms == -1)
+               Fprintf(stdout, "Netlists do not match.\n");
+            else if (automorphisms == -2)
+               Fprintf(stdout, "Netlists match uniquely with port errors.\n");
+            else {
+	       if (automorphisms == 0)
+                  Fprintf(stdout, "Netlists match uniquely");
+	       else
+                  Fprintf(stdout, "Netlists match with %d symmetr%s",
+                                   automorphisms, (automorphisms == 1) ? "y" : "ies");
+               if (PropertyErrorDetected) {
+                  Fprintf(stdout, " with property errors.\n");
+                  PrintPropertyResults(dolist);
+	       } else
+                  Fprintf(stdout, ".\n");
+            }
+            disable_interrupt();
+	    /*
 	    if (automorphisms == -1)
 	       Fprintf(stdout, "Netlists do not match.\n");
 	    else if (automorphisms == 0)
@@ -2518,6 +2562,7 @@ _netcmp_run(ClientData clientData,
 	       PrintPropertyResults(dolist);
 	    }
 	    disable_interrupt();
+	 */
          }
 	 break;
    }
@@ -2533,8 +2578,15 @@ _netcmp_run(ClientData clientData,
 /*		 all, or no option.			*/
 /* Formerly: v						*/
 /* Results:						*/
-/*	For only, equivalent, unique:  Return 1 if 	*/
-/*	verified, zero if not.				*/
+/*	For only, equivalent, unique:  Return 		*/
+/*      1: verified					*/
+/*      0: not verified   				*/
+/*	-1: no elements or no nodes			*/
+/*	-3: verified with property error		*/
+/*   equiv option					*/
+/*	n: number of automorphisms			*/
+/*   unique option					*/
+/*	-2: pin mismatch				*/
 /* Side Effects:					*/
 /*	For options elements, nodes, and all without	*/
 /*	option -list:  Write output to log file.	*/
@@ -2628,13 +2680,22 @@ _netcmp_verify(ClientData clientData,
 	 else
 	     Fprintf(stdout, "Netlists do not match.\n");
       }
+      else if (automorphisms == -2) {
+	 //result = MatchPins(Circuit1, Circuit2, dolist);
+	 if (index == EQUIV_IDX)
+	     Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
+	 else if (index == UNIQUE_IDX)
+	     Tcl_SetObjResult(interp, Tcl_NewIntObj(-2));
+	 else if (index > 0)
+             Fprintf(stdout, "Circuits match uniquely with port errors.\n");
+      }
       else {
 	 if (automorphisms) {
 	    if (index == EQUIV_IDX)
 	        Tcl_SetObjResult(interp, Tcl_NewIntObj((int)automorphisms));
 	    else if (index == UNIQUE_IDX)
 	        Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
-	    else
+	    else if (index > 0)
 	        Printf("Circuits match with %d symmetr%s.\n",
 			automorphisms, (automorphisms == 1) ? "y" : "ies");
 	 }
@@ -2643,12 +2704,14 @@ _netcmp_verify(ClientData clientData,
 		if (PropertyErrorDetected == 0)
 	           Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
 	        else
-	           Tcl_SetObjResult(interp, Tcl_NewIntObj(2));
+	           Tcl_SetObjResult(interp, Tcl_NewIntObj(-3));
 	    }
-	    else {
-	        Fprintf(stdout, "Circuits match uniquely.\n");
-		if (PropertyErrorDetected != 0)
-		   Fprintf(stdout, "Property errors were found.\n");
+	    else if (index > 0) {
+	        Fprintf(stdout, "Circuits match uniquely");
+		if (PropertyErrorDetected == 0)
+		   Fprintf(stdout, ".\n");
+		else
+		   Fprintf(stdout, " with property errors.\n");
 	    }
 	 }
 #if 0
@@ -3104,7 +3167,13 @@ _netcmp_equate(ClientData clientData,
 	 else if (result > 0) {
 	    Fprintf(stdout, "Cell pin lists are equivalent.\n");
 	 }
-	 else {
+	 else if (result == -1) {
+	    Fprintf(stdout, "Cell pin lists for %s and %s do not match.\n",
+			name1, name2);
+	 }
+	 else if (result == -2) {
+	    Fprintf(stdout, "Attempt to match empty cell to non-empty cell.\n");
+	 } else {
 	    Fprintf(stdout, "Cell pin lists for %s and %s altered to match.\n",
 			name1, name2);
 	 }
