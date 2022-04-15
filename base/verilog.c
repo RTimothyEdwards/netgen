@@ -1472,6 +1472,8 @@ skip_endmodule:
 			    rhs = LookupObject(assignname, CurrentCell);
 			    *aptr = '[';
 			}
+			else
+			    strcpy(assignroot, nexttok);
 		    }
 		    else {
 			j = -1;
