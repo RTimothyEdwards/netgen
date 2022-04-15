@@ -60,6 +60,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 // See netfile.c for explanation of delimiters.  'X'
 // separates single-character delimiters from two-character delimiters.
 #define VLOG_DELIMITERS "X///**/#((**)X,;:(){}[]="
+#define VLOG_EQUATION_DELIMITERS "X///**/#((**)X,;:(){}[]=+-*/"
 #define VLOG_PIN_NAME_DELIMITERS "X///**/(**)X()"
 #define VLOG_PIN_CHECK_DELIMITERS "X///**/(**)X,;(){}"
 
@@ -71,6 +72,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 struct hashdict verilogparams;
 // Global storage for verilog definitions
 struct hashdict verilogdefs;
+// Record file pointer that is associated with the hash tables
+int hashfile = -1;
 
 // Global storage for wire buses
 struct hashdict buses;
@@ -138,144 +141,142 @@ char *strvchr(char *string, char c)
 
 int GetBusTok(struct bus *wb)
 {
-    int result, start, end;
+    int result, start, end, value;
+    char oper;
     struct property *kl = NULL;
 
     if (wb == NULL) return 0;
-    else {
-        wb->start = -1;
-        wb->end = -1;
-    }
+
+    wb->start = -1;
+    wb->end = -1;
+
+    /* Parse a value for array bounds [a : b], including possible use	*/
+    /* of parameters, definitions, and basic arithmetic.		*/
 
     if (match(nexttok, "[")) {
-	SkipTokComments(VLOG_DELIMITERS);
-
-	result = sscanf(nexttok, "%d", &start);
-	if (result != 1) {
-	    char *aptr = NULL;
-	    char addin;
-
-	    // Check for "+/-(n)" at end of a parameter name
-	    aptr = strrchr(nexttok, '+');
-	    if (aptr == NULL) aptr = strrchr(nexttok, '-');
-	    if (aptr != NULL) {
-		addin = *aptr;
-		*aptr = '\0';
-	    }
-
-	    // Is name in the parameter list?
-	    kl = (struct property *)HashLookup(nexttok, &verilogparams);
-	    if (kl == NULL) {
-		Printf("Array value %s is not a number or a parameter.\n",
-				nexttok);
-		return 1;
-	    }
-	    else {
-		if (kl->type == PROP_STRING) {
-		    result = sscanf(kl->pdefault.string, "%d", &start);
-		    if (result != 1) {
-		        Printf("Parameter %s has value %s that cannot be parsed"
-				" as an integer.\n", nexttok, kl->pdefault.string);
-			return 1;
-		    }
-		}
-		else if (kl->type == PROP_INTEGER) {
-		    start = kl->pdefault.ival;
-		}
-		else if (kl->type == PROP_DOUBLE) {
-		    start = (int)kl->pdefault.dval;
-		    if ((double)start != kl->pdefault.dval) {
-		        Printf("Parameter %s has value %g that cannot be parsed"
-				" as an integer.\n", nexttok, kl->pdefault.dval);
-			return 1;
-		    }
-		}
-		else {
-		    Printf("Parameter %s has unknown type; don't know how"
-				" to parse.\n", nexttok);
+	start = end = -1;
+	oper = '\0';
+	while (nexttok) {
+	    SkipTokComments(VLOG_EQUATION_DELIMITERS);
+    	    if (match(nexttok, "]")) {
+	    	result = 1;
+		if (start == -1) {
+		    Printf("Empty array found.\n");
 		    return 1;
 		}
+		if (end == -1) end = start;	// Single bit
+		break;
 	    }
-	    if (aptr != NULL) {
-		int addval;
-		*aptr = addin;
-		if (sscanf(aptr + 1, "%d", &addval) != 1) {
-		    Printf("Unable to parse parameter increment '%s'\n", aptr);
+	    if (match(nexttok, ":")) {
+		if (start == -1) {
+		    Printf("Empty array start found.\n");
 		    return 1;
 		}
-		start += (addin == '+') ? addval : -addval;
-	    }
-	}
-	SkipTokComments(VLOG_DELIMITERS);
-	if (match(nexttok, "]")) {
-	    result = 1;
-	    end = start;	// Single bit
-	}
-	else if (!match(nexttok, ":")) {
-	    Printf("Badly formed array notation:  Expected colon, found %s\n", nexttok);
-	    return 1;
-	}
-	else {
-	    SkipTokComments(VLOG_DELIMITERS);
-
-	    result = sscanf(nexttok, "%d", &end);
-	    if (result != 1) {
-		char *aptr = NULL;
-		char addin;
-
-		// Check for "+/-(n)" at end of a parameter name
-		aptr = strrchr(nexttok, '+');
-		if (aptr == NULL) aptr = strrchr(nexttok, '-');
-		if (aptr != NULL) {
-		    addin = *aptr;
-		    *aptr = '\0';
+		if (oper != '\0') {
+		    Printf("Unfinished arithmetic operation found in array.\n");
+		    oper = '\0';
 		}
+		continue;
+	    }
+	    else if (match(nexttok, "+")) {
+		if (oper != '-') oper = *nexttok;
+		continue;
+	    }
+	    else if (match(nexttok, "-")) {
+		if (oper == '-') oper = '+';
+		else oper = *nexttok;
+		continue;
+	    }
+	    else if (match(nexttok, "*") || match(nexttok, "/")) {
+		oper = *nexttok;
+		continue;
+	    }
+	    else if (match(nexttok, "(") || match(nexttok, ")")) {
+		/* To do:  Track expression nesting */
+		continue;
+	    }
+	    if ((result = sscanf(nexttok, "%d", &value)) != 1) {
 
 		// Is name in the parameter list?
-	        kl = (struct property *)HashLookup(nexttok, &verilogparams);
+		kl = (struct property *)HashLookup(nexttok, &verilogparams);
 		if (kl == NULL) {
 		    Printf("Array value %s is not a number or a parameter.\n",
-					nexttok);
-		    return 1;
+				nexttok);
+		    value = 0;
+		    break;
 		}
 		else {
 		    if (kl->type == PROP_STRING) {
-			result = sscanf(kl->pdefault.string, "%d", &end);
+			result = sscanf(kl->pdefault.string, "%d", &value);
 			if (result != 1) {
 		            Printf("Parameter %s has value %s that cannot be parsed"
-					" as an integer.\n", nexttok,
-					kl->pdefault.string);
-			    return 1;
+					" as an integer.\n",
+					nexttok, kl->pdefault.string);
+		    	    value = 0;
+			    break;
 			}
 		    }
 		    else if (kl->type == PROP_INTEGER) {
-			end = kl->pdefault.ival;
+			value = kl->pdefault.ival;
 		    }
 		    else if (kl->type == PROP_DOUBLE) {
-		        end = (int)kl->pdefault.dval;
-		        if ((double)end != kl->pdefault.dval) {
-			    Printf("Cannot parse second digit from parameter "
-					"%s value %g\n", nexttok, kl->pdefault.dval);
-			    return 1;
+			value = (int)kl->pdefault.dval;
+			if ((double)value != kl->pdefault.dval) {
+		            Printf("Parameter %s has value %g that cannot be parsed"
+					" as an integer.\n",
+					nexttok, kl->pdefault.dval);
+		    	    value = 0;
+			    break;
 			}
 		    }
 		    else {
-		        Printf("Parameter %s has unknown type; don't know how"
-					" to parse.\n", nexttok);
-		        return 1;
+			Printf("Parameter %s has unknown type; don't know how"
+				" to parse.\n", nexttok);
+		    	value = 0;
+			break;
 		    }
-		}
-		if (aptr != NULL) {
-		    int addval;
-		    *aptr = addin;
-		    if (sscanf(aptr + 1, "%d", &addval) != 1) {
-			Printf("Unable to parse parameter increment '%s'\n", aptr);
-			return 1;
-		    }
-		    end += (addin == '+') ? addval : -addval;
 		}
 	    }
+	    switch (oper) {
+		case '\0':
+		    if (start == -1)
+			start = value;
+		    else
+			end = value;
+		    break;
+		case '+':
+		    if (end == -1)
+			start += value;
+		    else
+			end += value;
+		    break;
+		case '-':
+		    if (end == -1)
+		        start -= value;
+		    else
+		        end -= value;
+		    break;
+		case '*':
+		    if (end == -1)
+			start *= value;
+		    else
+			end *= value;
+		    break;
+		case '/':
+		    if (value == 0) {
+			Printf("Divide by zero in array expression.\n");
+		    }
+		    else {
+			if (end == -1)
+			    start /= value;
+			else
+			    end /= value;
+		    }
+		    break;
+	    }
+	    oper = '\0';
 	}
+
 	wb->start = start;
 	wb->end = end;
 
@@ -1127,13 +1128,6 @@ skip_endmodule:
 	 kl->type = PROP_INTEGER;
 	 kl->pdefault.ival = 1;
          kl->slop.ival = 0;
-      }
-      else if (nexttok[0] == '(') {
-	 /* For now, the netgen verilog parser doesn't handle `define f(X) ... */
-	 SkipNewLine(VLOG_DELIMITERS);
-	 FREE(kl->key);
-	 FREE(kl);
-	 kl = NULL;
       }
       else if (ConvertStringToInteger(nexttok, &ival) == 1) {
 	 /* Parameter parses as an integer */
@@ -2212,8 +2206,19 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
      hashfunc = hashcase;
   }
 
-  InitializeHashTable(&verilogparams, OBJHASHSIZE);
-  InitializeHashTable(&verilogdefs, OBJHASHSIZE);
+  if ((hashfile != -1) && (hashfile != *fnum)) {
+      /* Started a new file, so remove all the parameters and definitions */
+      RecurseHashTable(&verilogparams, freeprop);
+      HashKill(&verilogparams);
+      RecurseHashTable(&verilogdefs, freeprop);
+      HashKill(&verilogdefs);
+      hashfile = -1;
+  }
+  if (hashfile == -1) {
+      InitializeHashTable(&verilogparams, OBJHASHSIZE);
+      InitializeHashTable(&verilogdefs, OBJHASHSIZE);
+      hashfile = *fnum;
+  }
   definitions = &verilogdefs;
 
   /* Add the pre-defined key "LVS" to verilogdefs */
@@ -2233,10 +2238,6 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   // Cleanup
   while (CellStack != NULL) PopStack(&CellStack);
 
-  RecurseHashTable(&verilogparams, freeprop);
-  HashKill(&verilogparams);
-  RecurseHashTable(&verilogdefs, freeprop);
-  HashKill(&verilogdefs);
   definitions = (struct hashdict *)NULL;
 
   // Record the top level file.

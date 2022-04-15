@@ -331,77 +331,87 @@ int GetNextLineNoNewline(char *delimiter)
 	    linetok = (char *)MALLOC(linesize + 1);
 	}
 
-	/* Check for substitutions (verilog only).  Make sure linetok is    */
-	/* large enough to hold the entire line after substitutions.	    */
-
-	if (definitions != NULL) {
-	    char *s, *w, e;
-	    struct property *kl;
-	    int len, dlen, vlen, addin = 0;
-	    unsigned char found = FALSE;
-
-	    for (s = line; *s != '\0'; s++) {
-		if (*s == '`') {
-		    w = s + 1;
-		    while (isalnum(*w) || (*w == '_') || (*w == '$')) w++;
-		    e = *w;
-		    *w = '\0';
-		    kl = (struct property *)HashLookup(s + 1, definitions);
-		    if (kl != NULL) {
-			dlen = strlen(s);
-			if (kl->type == PROP_STRING) {
-			    vlen = strlen(kl->pdefault.string);
-			}
-			else vlen = 12;  /* Leave room for numeric conversion */
-			addin += vlen - dlen + 1;
-			found = TRUE;
-		    }
-		    *w = e;
-		}
-	    }
-	    if (found) {
-		len = strlen(line);
-		if (len + addin > linesize) {
-		    while (len + addin > linesize) linesize += 500;
-		    FREE(linetok);
-		    linetok = (char *)MALLOC(linesize);
-		}
-	    }
-	}
-
-	/* Make definition substitutions (verilog only) */
-
-	if (definitions != NULL) {
+	if (definitions == NULL)
+	    strcpy(linetok, line);
+	else {
 	    char *s, *t, *w, e;
 	    struct property *kl;
+	    int len, dlen, vlen, addin = 0;
+	    int oldlinesize = linesize;
+	    unsigned char found = TRUE;
 
-	    t = linetok;
-	    for (s = line; *s != '\0'; s++) {
-		if (*s == '`') {
-		    w = s + 1;
-		    while (isalnum(*w) || (*w == '_') || (*w == '$')) w++;
-		    e = *w;
-		    *w = '\0';
-		    kl = (struct property *)HashLookup(s + 1, definitions);
-		    if (kl != NULL) {
-			if (kl->type == PROP_STRING)
-			    strcpy(t, kl->pdefault.string);
-			else if (kl->type == PROP_INTEGER)
-			    sprintf(t, "%d", kl->pdefault.ival);
-			else if (kl->type == PROP_DOUBLE)
-			    sprintf(t, "%g", kl->pdefault.dval);
-			t += strlen(t);
-			s = w - 1;
+	    /* Check for substitutions (verilog only).  Make sure linetok is	*/
+	    /* large enough to hold the entire line after substitutions.	*/
+
+	    while (found) {	/* Do this recursively, for nested definitions */
+	       found = FALSE;
+
+	       for (s = line; *s != '\0'; s++) {
+		    if (*s == '`') {
+		        w = s + 1;
+		        while (isalnum(*w) || (*w == '_') || (*w == '$')) w++;
+		        e = *w;
+		        *w = '\0';
+		        kl = (struct property *)HashLookup(s + 1, definitions);
+		        if (kl != NULL) {
+			    dlen = strlen(s);
+			    if (kl->type == PROP_STRING) {
+			        vlen = strlen(kl->pdefault.string);
+			    }
+			    else vlen = 12;  /* Leave room for numeric conversion */
+			    addin += vlen - dlen + 1;
+			    found = TRUE;
+		        }
+		        *w = e;
+		    }
+	        }
+	        if (found) {
+		    len = strlen(line);
+		    if (len + addin > linesize) {
+		        while (len + addin > linesize) linesize += 500;
+		        FREE(linetok);
+		        linetok = (char *)MALLOC(linesize);
+		    }
+	        }
+
+		/* Make definition substitutions (verilog only) */
+
+	        t = linetok;
+	        for (s = line; *s != '\0'; s++) {
+		    if (*s == '`') {
+		        w = s + 1;
+		        while (isalnum(*w) || (*w == '_') || (*w == '$')) w++;
+		        e = *w;
+		        *w = '\0';
+		        kl = (struct property *)HashLookup(s + 1, definitions);
+		        if (kl != NULL) {
+			    if (kl->type == PROP_STRING)
+			        strcpy(t, kl->pdefault.string);
+			    else if (kl->type == PROP_INTEGER)
+			        sprintf(t, "%d", kl->pdefault.ival);
+			    else if (kl->type == PROP_DOUBLE)
+			        sprintf(t, "%g", kl->pdefault.dval);
+			    t += strlen(t);
+			    s = w - 1;
+		        }
+		        else *t++ = *s;
+		        *w = e;
 		    }
 		    else *t++ = *s;
-		    *w = e;
+	        }
+	        *t = '\0';
+
+		/* Copy substituted linetok back to line and repeat until */
+		/* there are no more substitutions to be made.		  */
+
+		if (oldlinesize != linesize) {
+		    FREE(line);
+	    	    line = (char *)MALLOC(linesize + 501);
+		    oldlinesize = linesize;
 		}
-		else *t++ = *s;
+		strcpy(line, linetok);
 	    }
-	    *t = '\0';
 	}
-	else
-	    strcpy(linetok, line);
 
 	TrimQuoted(linetok);
 	linenum++;
