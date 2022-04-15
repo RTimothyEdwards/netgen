@@ -130,6 +130,187 @@ char *strvchr(char *string, char c)
     return NULL;
 }
 
+/* Linked list, much like tokstack in netgen.c, but much simpler. */
+/* contents are either a value, if oper = 0, or an operator.	  */
+
+struct expr_stack {
+    int value;
+    char oper;
+    struct expr_stack *next;
+    struct expr_stack *last;
+};
+
+//-------------------------------------------------------------------------
+// Evaluate an expression for an array bound.  This is much like
+// ReduceOneExpression() in netgen.c, but only handles basic integer
+// arithmetic (+,-,*,/) and grouping by parentheses.
+//
+// Returns 1 if successful, 0 on error.
+// Evaluated result is placed in the integer pointed to by "valptr".
+//-------------------------------------------------------------------------
+
+int EvalExpr(struct expr_stack **stackptr, int *valptr)
+{
+    struct expr_stack *texp, *start, *tmp, *stack;
+    int modified, value;
+
+    stack = *stackptr;
+
+    /* Most expressions are going to be just one number, so treat
+     * that as a special case.
+     */
+    if ((stack->oper == '\0') && (stack->last == NULL)) {
+	*valptr = stack->value;
+	FREE(stack);
+	*stackptr = NULL;
+	return 1;
+    }
+
+    /* Move to the end of the stack, which is the beginning of the
+     * expression.
+     */
+    for (start = stack; start->last; start = start->last);
+
+    /* Run passes until no more modifications can be made */
+    modified = TRUE;
+
+    while (modified == TRUE) {
+	modified = FALSE;
+
+	/* Find any + or - that is used as a sign of a value */
+
+	for (texp = start; texp; texp = texp->next) {
+	    if ((texp->oper == '+') || (texp->oper == '-') || (texp->oper == '*') ||
+			(texp->oper == '/') || (texp->oper == '(')) {
+			
+		if ((texp->next != NULL) && (texp->next->next != NULL) &&
+			(texp->next->next->oper == '\0')) {
+		
+		    if (texp->next->oper == '+') {
+			/* Remove the unnecessary sign */
+			tmp = texp->next;
+			texp->next = tmp->next;
+			tmp->next->last = texp;
+			FREE(tmp);
+			modified = TRUE;
+		    }
+		    else if (texp->next->oper == '-') {
+			/* Remove the sign and negate the value */
+			tmp = texp->next;
+			texp->next->next->value = -texp->next->next->value;
+			texp->next = tmp->next;
+			tmp->next->last = texp;
+			FREE(tmp);
+			modified = TRUE;
+		    }
+		}
+	    }
+	}
+
+	/* Reduce (a * b) and (a / b) */
+
+	for (texp = start; texp; texp = texp->next) {
+	    if ((texp->last != NULL) && (texp->next != NULL) && (texp->oper != '\0')) {
+		if ((texp->last->oper == '\0') && (texp->next->oper == '\0')) {
+		    if (texp->oper == '*') {
+			/* Multiply */
+			texp->last->value *= texp->next->value;
+			/* Remove two items from the stack */
+			tmp = texp;
+			texp = texp->last;
+			texp->next = tmp->next->next;
+			if (tmp->next->next) tmp->next->next->last = texp;
+			FREE(tmp->next);
+			FREE(tmp);
+			modified = TRUE;
+		    }
+		    if (texp->oper == '/') {
+			/* Divide */
+			texp->last->value /= texp->next->value;
+			/* Remove two items from the stack */
+			tmp = texp;
+			texp = texp->last;
+			texp->next = tmp->next->next;
+			if (tmp->next->next) tmp->next->next->last = texp;
+			FREE(tmp->next);
+			FREE(tmp);
+			modified = TRUE;
+		    }
+		} 
+	    }
+	}
+
+	/* Reduce (a + b) and (a - b) */
+
+	for (texp = start; texp; texp = texp->next) {
+	    if ((texp->last != NULL) && (texp->next != NULL) && (texp->oper != '\0')) {
+		if ((texp->last->oper == '\0') && (texp->next->oper == '\0')) {
+		    if (texp->oper == '-') {
+			/* Subtract */
+			texp->last->value -= texp->next->value;
+			/* Remove two items from the stack */
+			tmp = texp;
+			texp = texp->last;
+			texp->next = tmp->next->next;
+			if (tmp->next->next) tmp->next->next->last = texp;
+			FREE(tmp->next);
+			FREE(tmp);
+			modified = TRUE;
+		    }
+		    if (texp->oper == '+') {
+			/* Add */
+			texp->last->value += texp->next->value;
+			/* Remove two items from the stack */
+			tmp = texp;
+			texp = texp->last;
+			texp->next = tmp->next->next;
+			if (tmp->next->next) tmp->next->next->last = texp;
+			FREE(tmp->next);
+			FREE(tmp);
+			modified = TRUE;
+		    }
+		} 
+	    }
+	}
+
+	/* Reduce (a) */
+
+	for (texp = start; texp; texp = texp->next) {
+	    if ((texp->last != NULL) && (texp->next != NULL) && (texp->oper == '\0')) {
+		if ((texp->last->oper == '(') && (texp->next->oper == ')')) {
+		    tmp = texp->last;
+		    texp->last->oper = '\0';
+		    texp->last->value = texp->value;
+		    texp->last->next = texp->next->next;
+		    if (texp->next->next) texp->next->next->last = texp->last;
+		    FREE(texp->next);
+		    FREE(texp);
+		    texp = tmp;
+		    modified = TRUE;
+		}
+	    }
+	}
+    }
+
+    /* If only one numerical item remains, then place it in valptr and return 1 */
+    texp = start;
+    if ((texp->oper == '\0') && (texp->next == NULL)) {
+	*valptr = texp->value;
+	FREE(texp);
+	*stackptr = NULL;
+	return 1;
+    }
+
+    /* Clean up the stack before returning error status */
+    while (texp) {
+	tmp = texp;
+	texp = texp->next;
+	FREE(tmp);
+    }
+    *stackptr = NULL;
+    return 0;
+}
+
 //-------------------------------------------------------------------------
 // Get bus indexes from the notation name[a:b].  If there is only "name"
 // then look up the name in the bus hash list and return the index bounds.
@@ -144,11 +325,13 @@ int GetBusTok(struct bus *wb)
     int result, start, end, value;
     char oper;
     struct property *kl = NULL;
+    struct expr_stack *stack, *newexp;
 
     if (wb == NULL) return 0;
 
     wb->start = -1;
     wb->end = -1;
+    stack = NULL;
 
     /* Parse a value for array bounds [a : b], including possible use	*/
     /* of parameters, definitions, and basic arithmetic.		*/
@@ -160,39 +343,38 @@ int GetBusTok(struct bus *wb)
 	    SkipTokComments(VLOG_EQUATION_DELIMITERS);
     	    if (match(nexttok, "]")) {
 	    	result = 1;
-		if (start == -1) {
+		if (stack == NULL) {
 		    Printf("Empty array found.\n");
 		    return 1;
 		}
-		if (end == -1) end = start;	// Single bit
+		if (EvalExpr(&stack, &end) != 1) {
+		    Printf("Bad expression found in array.\n");
+		    return 1;
+		}
+		if (start == -1) start = end;	// Single bit
 		break;
 	    }
 	    if (match(nexttok, ":")) {
-		if (start == -1) {
+		if (stack == NULL) {
 		    Printf("Empty array start found.\n");
 		    return 1;
 		}
-		if (oper != '\0') {
-		    Printf("Unfinished arithmetic operation found in array.\n");
-		    oper = '\0';
+		if (EvalExpr(&stack, &start) != 1) {
+		    Printf("Bad expression found in array.\n");
+		    return 1;
 		}
 		continue;
 	    }
-	    else if (match(nexttok, "+")) {
-		if (oper != '-') oper = *nexttok;
-		continue;
-	    }
-	    else if (match(nexttok, "-")) {
-		if (oper == '-') oper = '+';
-		else oper = *nexttok;
-		continue;
-	    }
-	    else if (match(nexttok, "*") || match(nexttok, "/")) {
-		oper = *nexttok;
-		continue;
-	    }
-	    else if (match(nexttok, "(") || match(nexttok, ")")) {
-		/* To do:  Track expression nesting */
+	    else if (match(nexttok, "+") || match(nexttok, "-")
+	    		|| match(nexttok, "*") || match(nexttok, "/")
+	    		|| match(nexttok, "(") || match(nexttok, ")")) {
+		newexp = (struct expr_stack *)MALLOC(sizeof(struct expr_stack));
+		newexp->oper = *nexttok;
+		newexp->value = 0;
+		newexp->next = NULL;
+		newexp->last = stack;
+		if (stack) stack->next = newexp;
+		stack = newexp;
 		continue;
 	    }
 	    if ((result = sscanf(nexttok, "%d", &value)) != 1) {
@@ -237,48 +419,25 @@ int GetBusTok(struct bus *wb)
 		    }
 		}
 	    }
-	    switch (oper) {
-		case '\0':
-		    if (start == -1)
-			start = value;
-		    else
-			end = value;
-		    break;
-		case '+':
-		    if (end == -1)
-			start += value;
-		    else
-			end += value;
-		    break;
-		case '-':
-		    if (end == -1)
-		        start -= value;
-		    else
-		        end -= value;
-		    break;
-		case '*':
-		    if (end == -1)
-			start *= value;
-		    else
-			end *= value;
-		    break;
-		case '/':
-		    if (value == 0) {
-			Printf("Divide by zero in array expression.\n");
-		    }
-		    else {
-			if (end == -1)
-			    start /= value;
-			else
-			    end /= value;
-		    }
-		    break;
-	    }
-	    oper = '\0';
+
+	    newexp = (struct expr_stack *)MALLOC(sizeof(struct expr_stack));
+	    newexp->oper = '\0';
+	    newexp->value = value;
+	    newexp->next = NULL;
+	    newexp->last = stack;
+	    if (stack) stack->next = newexp;
+	    stack = newexp;
 	}
 
 	wb->start = start;
 	wb->end = end;
+
+	/* In case of error, stack may need cleaning up */
+	while (stack != NULL) {
+	    newexp = stack;
+	    stack = stack->last;
+	    FREE(newexp);
+	}
 
 	while (!match(nexttok, "]")) {
 	    SkipTokComments(VLOG_DELIMITERS);
