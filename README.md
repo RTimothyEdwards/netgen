@@ -91,6 +91,8 @@ and IRSIM version 9.7:
 
 Note: For FreeBSD, use 'gmake' instead.
 
+Note: On Ubuntu, **do not** install using `apt-get install netgen`, since it installs a different (unknown) package.
+
 Note: On MacOS (Big Sur) follow the following procedure. If you have installed `xschem` and `magic` already on MacOS then steps (1) and (2) can likely be skipped.
 
 **1) Build Tcl for X11**
