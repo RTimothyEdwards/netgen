@@ -82,6 +82,9 @@ of CVS check-in notes on http://opencircuitdesign.com/netgen/.
 
 BUILDING NETGEN:
 ----------------
+
+> **NOTE**: In Ubuntu, **do not** install using `apt-get netgen`, as it installs a different (unknown) package.
+
 NETGEN version 1.5 uses the same "make" procedure as Magic version 8.1
 and IRSIM version 9.7:
 
