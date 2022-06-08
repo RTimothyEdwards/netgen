@@ -7223,7 +7223,7 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 {
    char *cover, *ctemp;
-   char *bangptr1, *bangptr2;
+   char *bangptr1, *bangptr2, *backslashptr1, *backslashptr2;
    struct objlist *ob1, *ob2, *obn, *obp, *ob1s, *ob2s, *obt;
    struct NodeClass *NC;
    struct Node *N1, *N2;
@@ -7449,14 +7449,21 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* This should not happen if unconnected pins are eliminated	*/
    /* so apply only to black-box (CELL_PLACEHOLDER) entries.	*/ 
    /* (Semi-hack: Allow "!" global flag) */
+   /* (Another semi-hack: Ignore the leading backslash in	*/
+   /* backslash-escaped verilog names.  Removing the backslash	*/
+   /* and ending space character is a common way to convert to	*/
+   /* legal SPICE.						*/
 
    ob1 = tc1->cell;
-   bangptr1 = strrchr(ob1->name, '!');
-   if (bangptr1 && (*(bangptr1 + 1) == '\0'))
-      *bangptr1 = '\0';
-   else bangptr1 = NULL;
   
    for (i = 0; i < numorig; i++) {
+      bangptr1 = strrchr(ob1->name, '!');
+      if (bangptr1 && (*(bangptr1 + 1) == '\0'))
+         *bangptr1 = '\0';
+      else bangptr1 = NULL;
+
+      backslashptr1 = (*(ob1->name) == '\\') ? ob1->name + 1 : ob1->name;
+
       if (*(cover + i) == (char)0) {
 	 j = 0;
          for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
@@ -7469,8 +7476,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       *bangptr2 = '\0';
 	    else bangptr2 = NULL;
 
-	    name1 = ob1->name;
-	    name2 = ob2->name;
+   	    backslashptr2 = (*(ob2->name) == '\\') ? ob2->name + 1 : ob2->name;
+
+	    name1 = backslashptr1;
+	    name2 = backslashptr2;
 
 	    /* Recognize proxy pins as matching unconnected pins */
 	    if (!strncmp(name1, "proxy", 5) && (ob2->node == -1)) name1 +=5;
