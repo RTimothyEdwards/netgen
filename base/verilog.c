@@ -1669,7 +1669,7 @@ nextinst:
 
 	 // Read the pin list
          while (nexttok != NULL) {
-	    SkipTokComments(VLOG_DELIMITERS);
+	    SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 	    if (match(nexttok, ")")) break;
 	    else if (match(nexttok, ",")) continue;
 
