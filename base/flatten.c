@@ -1128,12 +1128,32 @@ int UniquePins(char *name, int filenum)
    firstport = (struct objlist **)CALLOC(maxnode + 1, sizeof(struct objlist *));
 
    portcount = FIRSTPIN;
+   lob = NULL;
    for (ob = ThisCell->cell; ob != NULL; ob = ob->next) {
       if (ob->type != PORT) break;
       if (ob->node > 0) {
 	 nodecount[ob->node]++;
 	 if (nodecount[ob->node] == 2) {
-	    Printf("Duplicate pin %s in cell %s\n", ob->name, ThisCell->name);
+	    if (!(*matchfunc)(firstport[ob->node]->name, ob->name)) {
+	       Printf("Pins %s and %s are shorted in cell %s (%d)\n", ob->name,
+			firstport[ob->node]->name, ThisCell->name, ThisCell->file);
+	       /* Do not count this as a duplicate pin. */
+	       nodecount[ob->node]--;
+	       /* Move the pin adjacent to the one it is shorted to (if it	
+		* isn't already);  this will make the work of MatchPins() easier.
+		*/
+	       if (firstport[ob->node]->next != ob) {
+	          lob->next = ob->next;
+	          ob->next = firstport[ob->node]->next;
+		  firstport[ob->node]->next = ob;
+	          ob = lob;
+	       }
+	       lob = ob;
+	       continue;
+	    }
+	    else {
+	       Printf("Duplicate pin %s in cell %s\n", ob->name, ThisCell->name);
+	    }
 	 }
 	 if (nodecount[ob->node] > 1) {
 	    /* Remove this node;  prep for removal by marking with UNKNOWN */
@@ -1148,6 +1168,7 @@ int UniquePins(char *name, int filenum)
 	 }
       }
       portcount++;
+      lob = ob;
    }
 
    if (needscleanup)

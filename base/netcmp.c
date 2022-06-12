@@ -7297,8 +7297,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    if (IsPort(obn)) {
 	       i = 0;
 	       for (ob1 = tc1->cell; ob1 != NULL; ob1 = ob1->next, i++) {
-	          if ((IsPort(ob1))
-				&& (*matchfunc)(ob1->name, obn->name)) {
+	          if ((IsPort(ob1)) && (ob1->node == obn->node)) {
 		     b = 0;
                      for (N2 = NC->nodes; N2 != NULL; N2 = N2->next) {
 	                if (N2->graph != Circuit1->file) {
@@ -7323,20 +7322,41 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 		     obp = N2->object;
 		     j = 0;
 	             for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next, j++) {
-	                if ((IsPort(ob2))
-					&& (*matchfunc)(ob2->name, obp->name)) {
+	          	if ((IsPort(ob2)) && (ob2->node == obp->node)) {
 			   if (Debug == 0) {
 			      for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
 			      for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-			      snprintf(ostr, left_col_end, "%s", obn->name);
-			      if ((*matchfunc)(obn->name, obp->name))
-			         snprintf(ostr + left_col_end + 1, left_col_end, "%s", obp->name);
+			      snprintf(ostr, left_col_end, "%s", ob1->name);
+			      if ((*matchfunc)(ob1->name, ob2->name))
+			         snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
 			      else {
-			         snprintf(ostr + left_col_end + 1, left_col_end, "%s **Mismatch**", obp->name);
-				 /* Pins with different names are on different nets,
-				  * so this should trigger an error return code.
+				 /* Check remainder of ports to see if there is a name match on the
+				  * same net number (multiple ports tied to the same net)
 				  */
-				 result = 0;
+				 struct objlist *ob3;
+				 for (ob3 = ob2->next, ++j; ob3 != NULL; ob3 = ob3->next, j++) {
+				     if ((IsPort(ob3)) && (ob3->node == ob2->node)) {
+					if ((*matchfunc)(ob3->name, ob1->name)) {
+					   ob2 = ob3;
+			         	   snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
+					   break;
+					}
+				     }
+				     else {
+					ob3 = NULL;
+					break;	/* All pins w/the same node should be together */
+				     }
+				 }
+				 if (ob3 == NULL) {
+				    if (ob2->model.port == -1)
+				       snprintf(ostr + left_col_end + 1, left_col_end, "%s **Mismatch**", ob2->name);
+				    else
+				       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
+				    /* Pins with different names are on different nets,
+				     * so this should trigger an error return code.
+				     */
+				    result = 0;
+				 }
 			      }
 			      for (m = 0; m < right_col_end + 1; m++)
 				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
@@ -7358,7 +7378,16 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 #endif
 			   ob2->model.port = i;		/* save order */
 			   *(cover + i) = (char)1;
-			   break;
+
+			   /* If there are multiple pins on the same net, cycle through them;	*/
+			   /* otherwise, move to the next entry in the partition.		*/
+			   if (ob1->next && (ob1->next->node == ob1->node)) {
+			      ob1 = ob1->next;
+			      ob2 = tc2->cell;	/* Restart search for matching pin */
+			      i++;
+			   }
+			   else
+			      break;
 			}
 		     }
 		     if (ob2 == NULL) {
