@@ -1449,7 +1449,20 @@ skip_ends:
       if (LookupObject(pos, CurrentCell) == NULL) Node(pos);
       if (LookupObject(neg, CurrentCell) == NULL) Node(neg);
 
-      /* Any device properties? */
+      /* Get voltage value (if present); save as property "value" */
+
+      if (nexttok != NULL) {
+	 if (matchnocase(nexttok, "DC")) {
+	     SpiceTokNoNewline();
+	 }
+      }
+      if (nexttok != NULL) {
+	 if (StringIsValueOrExpression(nexttok)) {
+	     AddProperty(&kvlist, "value", nexttok);
+	 }
+      }
+
+      /* Any other device properties? */
       while (nexttok != NULL)
       {
 	 SpiceTokNoNewline();
@@ -1477,7 +1490,7 @@ skip_ends:
       else if (CountPorts(model, filenum) != 2) {
 	 /* Modeled device:  Make sure it has the right number of ports */
 	 Fprintf(stderr, "Device \"%s\" has wrong number of ports for a "
-			"voltage source.\n");
+			"voltage source.\n", inst);
 	 goto baddevice;
       }
       Cell(instname, model, pos, neg);
