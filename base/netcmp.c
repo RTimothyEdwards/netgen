@@ -7381,7 +7381,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
 			   /* If there are multiple pins on the same net, cycle through them;	*/
 			   /* otherwise, move to the next entry in the partition.		*/
-			   if (ob1->next && (ob1->next->node == ob1->node)) {
+			   if (ob1->next && (ob1->next->type == PORT) && (ob1->next->node == ob1->node)) {
 			      ob1 = ob1->next;
 			      ob2 = tc2->cell;	/* Restart search for matching pin */
 			      i++;
