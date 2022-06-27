@@ -1709,13 +1709,21 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		if (ecomp->cell2) {
-		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
+
+		/* Don't flatten if cell1 is a black box, because it	*/
+		/* can't also be flattened.				*/
+
+		if ((ecomp->num1 == 0) || (ecomp->cell1->class !=
+				CLASS_MODULE)) {
+
+		    if (ecomp->cell2) {
+		    	Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell2->name,
 				name2, file2);
-		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
+		    	flattenInstancesOf(name2, file2, ecomp->cell2->name); 
+		    }
+		    modified++;
 		}
-		modified++;
 	    }
 
 	    /* Reset or apply the count adjustments */
@@ -1739,7 +1747,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 	}
 	
 	/* Case 3:  Cell1 class is a subcircuit, and flattening	*/
-	/* it (without regard to cell1) improves the matching.	*/
+	/* it (without regard to cell2) improves the matching.	*/
 
 	else if ((ecomp->num1 != ecomp->num2) && (ecomp->cell1 != NULL) &&
 			(ecomp->num1 != 0) && (ecomp->cell1->class == CLASS_SUBCKT)) {
@@ -1767,13 +1775,21 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		if (ecomp->cell1) {
-		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
+
+		/* Don't flatten if cell2 is a black box, because it	*/
+		/* can't also be flattened.				*/
+
+		if ((ecomp->num2 == 0) || (ecomp->cell2->class !=
+				CLASS_MODULE)) {
+
+		    if (ecomp->cell1) {
+		    	Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell1->name,
 				name1, file1);
-		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
+		    	flattenInstancesOf(name1, file1, ecomp->cell1->name); 
+		    }
+		    modified++;
 		}
-		modified++;
 	    }
 
 	    /* Reset or apply the count adjustments */

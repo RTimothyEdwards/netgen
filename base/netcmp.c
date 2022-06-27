@@ -875,7 +875,11 @@ struct FormattedList *FormatBadNodeFragment(struct Node *N)
       for (n = pins[i]->subelement->element->nodelist; n != NULL; n = n->next){
 	if (n->pin_magic == pins[i]->subelement->pin_magic) {
 	  if ((permute == 0) && (ob->instance.name != NULL)) {
-	     pinname = ob->name + strlen(ob->instance.name) + 1;
+	     /* Handle "port_match_error" */
+	     if ((ob->name[0] == 'p') && !strcmp(ob->name, "port_match_error"))
+		pinname = ob->name;
+	     else
+	        pinname = ob->name + strlen(ob->instance.name) + 1;
 	  }
 	  else if (ob->instance.name != NULL) {
 	     char *pinsave = pinname;
