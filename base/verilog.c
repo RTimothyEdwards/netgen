@@ -2228,11 +2228,13 @@ nextinst:
 			   obptr->next = nobj;
       			   HashPtrInstall(nobj->name, nobj, &(CurrentCell->objdict));
 
+			   /* Ensure that CurrentTail is correct */
+			   if (obptr == CurrentTail) CurrentTail = nobj;
+
 	           	   if (LookupObject(scan->net, CurrentCell) == NULL)
 			      Node(scan->net);
 	           	   join(scan->net, nobj->name);
 	             	   scan->flags |= PORT_FOUND;
-			   obptr = nobj;
 
 			   /* Now any previous instance of the same cell must	*/
 			   /* insert the same additional pin as a no-connect.	*/
@@ -2270,6 +2272,7 @@ nextinst:
 				 }
 			      }
 			   }
+			   obptr = obptr->next;
 		        }
 		        else {
 		           Fprintf(stderr, "Error:  Instance %s has pin %s which is "
