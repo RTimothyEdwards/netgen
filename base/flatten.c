@@ -69,6 +69,10 @@ void flattenCell(char *name, int file)
     Printf("No cell %s found.\n", name);
     return;
   }
+
+  /* Placeholder cells must not be flattened */
+  if (ThisCell->flags & CELL_PLACEHOLDER) return;
+
   FreeNodeNames(ThisCell);
 
   ParentParams = ThisCell->cell;
@@ -288,6 +292,9 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       return 0;
     }
   }
+  /* Placeholder cells must not be flattened */
+  if (ThisCell->flags & CELL_PLACEHOLDER) return 0;
+
   FreeNodeNames(ThisCell);
 
   ParentParams = ThisCell->cell;
@@ -1620,19 +1627,22 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		}
 	    }
 	    if (match) {
-		if (ecomp->cell1 && (ecomp->num1 > 0)) {
+		if (ecomp->cell1 && (ecomp->num1 > 0) &&
+				(!(ecomp->cell1->flags & CELL_PLACEHOLDER))) {
 		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell1->name,
 				name1, file1);
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
+		    modified++;
 		}
-		if (ecomp->cell2 && (ecomp->num2 > 0)) {
+		if (ecomp->cell2 && (ecomp->num2 > 0) &&
+				(!(ecomp->cell2->flags & CELL_PLACEHOLDER))) {
 		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell2->name,
 				name2, file2);
 		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
+		    modified++;
 		}
-		modified++;
 	    }
 
 	    /* Reset or apply the count adjustments */
@@ -1716,13 +1726,13 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		if ((ecomp->num1 == 0) || (ecomp->cell1->class !=
 				CLASS_MODULE)) {
 
-		    if (ecomp->cell2) {
+		    if (ecomp->cell2 && !(ecomp->cell2->flags & CELL_PLACEHOLDER)) {
 		    	Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell2->name,
 				name2, file2);
 		    	flattenInstancesOf(name2, file2, ecomp->cell2->name); 
+		    	modified++;
 		    }
-		    modified++;
 		}
 	    }
 
@@ -1782,13 +1792,13 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		if ((ecomp->num2 == 0) || (ecomp->cell2->class !=
 				CLASS_MODULE)) {
 
-		    if (ecomp->cell1) {
+		    if (ecomp->cell1 && !(ecomp->cell1->flags & CELL_PLACEHOLDER)) {
 		    	Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
 				" makes a better match\n", ecomp->cell1->name,
 				name1, file1);
 		    	flattenInstancesOf(name1, file1, ecomp->cell1->name); 
+		        modified++;
 		    }
-		    modified++;
 		}
 	    }
 
