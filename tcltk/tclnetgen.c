@@ -1937,9 +1937,17 @@ _netgen_log(ClientData clientData,
    switch(index) {
       case START_IDX:
 	 LoggingFile = fopen(LogFileName, "w");
+	 if (!LoggingFile) {
+	    Tcl_SetResult(interp, "Could not open log file.", NULL);
+	    return TCL_ERROR;
+	 }
 	 break;
       case RESUME_IDX:
 	 LoggingFile = fopen(LogFileName, "a");
+	 if (!LoggingFile) {
+	    Tcl_SetResult(interp, "Could not open log file.", NULL);
+	    return TCL_ERROR;
+	 }
 	 break;
       case END_IDX:
 	 fclose(LoggingFile);
@@ -1948,6 +1956,10 @@ _netgen_log(ClientData clientData,
       case RESET_IDX:
 	 fclose(LoggingFile);
 	 LoggingFile = fopen(LogFileName, "w");
+	 if (!LoggingFile) {
+	    Tcl_SetResult(interp, "Could not open log file.", NULL);
+	    return TCL_ERROR;
+	 }
 	 break;
       case SUSPEND_IDX:
 	 fclose(LoggingFile);
@@ -2209,11 +2221,11 @@ _netcmp_compare(ClientData clientData,
    hascontents2 = HasContents(tp2);
 
    if (hascontents1 && !hascontents2 && (tp2->flags & CELL_PLACEHOLDER)) {
-       Fprintf(stdout, "Circuit 2 cell %s is a black box; will not flatten "
+       Fprintf(stdout, "\nCircuit 2 cell %s is a black box; will not flatten "
                         "Circuit 1\n", name2);
    }
    else if (hascontents2 && !hascontents1 && (tp1->flags & CELL_PLACEHOLDER)) {
-       Fprintf(stdout, "Circuit 1 cell %s is a black box; will not flatten "
+       Fprintf(stdout, "\nCircuit 1 cell %s is a black box; will not flatten "
                         "Circuit 2\n", name1);
    }
    else if (hascontents1 || hascontents2) {
@@ -2228,6 +2240,10 @@ _netcmp_compare(ClientData clientData,
           FlattenUnmatched(tp2, name2, 1, 0);
           DescribeContents(name1, fnum1, name2, fnum2);
        }
+   }
+   else {	/* Two empty subcircuits */
+       Fprintf(stdout, "\nCircuit 1 cell %s and Circuit 2 cell %s are black"
+			" boxes.\n", name1, name2);
    }
    CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
 
@@ -2485,39 +2501,37 @@ _netcmp_run(ClientData clientData,
 	    ExhaustiveSubdivision = 1;
 	    while (!Iterate() && !InterruptPending);
 	    automorphisms = VerifyMatching();
-	    if (automorphisms == -1)
-	       Fprintf(stdout, "Netlists do not match.\n");
-	    else if (automorphisms == 0)
-	       Fprintf(stdout, "Netlists match uniquely.\n");
-	    else {
+	    if (automorphisms > 0) {
 	       // First try to resolve automorphisms uniquely using
 	       // property matching
 	       automorphisms = ResolveAutomorphsByProperty();
-	       if (automorphisms == 0)
-	          Fprintf(stdout, "Netlists match uniquely.\n");
-	       else if (automorphisms > 0) {
+	       if (automorphisms > 0) {
 	          // Next, attempt to resolve automorphisms uniquely by
 	          // using the pin names
 		  automorphisms = ResolveAutomorphsByPin();
 	       }
-
-	       if (automorphisms == 0)
-	          Fprintf(stdout, "Netlists match uniquely.\n");
-	       else if (automorphisms > 0) {
+	       if (automorphisms > 0) {
 	          // Anything left is truly indistinguishable
-	          Fprintf(stdout, "Netlists match with %d symmetr%s.\n",
-				automorphisms, (automorphisms == 1) ? "y" : "ies");
-
-		  while ((automorphisms = ResolveAutomorphisms()) > 0);
+		  while (ResolveAutomorphisms() > 0);
 	       }
-	       if (automorphisms == -1)
-		  Fprintf(stdout, "Netlists do not match.\n");
-	       else
-		  Fprintf(stdout, "Circuits match correctly.\n");
 	    }
-	    if (PropertyErrorDetected) {
-	       Fprintf(stdout, "There were property errors.\n");
-	       PrintPropertyResults(dolist);
+
+	    if (automorphisms == -1)
+	       Fprintf(stdout, "Netlists do not match.\n");
+	    else if (automorphisms == -2)
+	       Fprintf(stdout, "Netlists match uniquely with port errors.\n");
+	    else {
+	       if (automorphisms == 0)
+	          Fprintf(stdout, "Netlists match uniquely");
+	       else
+	          Fprintf(stdout, "Netlists match with %d symmetr%s",
+				automorphisms, (automorphisms == 1) ? "y" : "ies");
+	       if (PropertyErrorDetected) {
+	          Fprintf(stdout, " with property errors.\n");
+	          PrintPropertyResults(dolist);
+	       }
+	       else
+		  Fprintf(stdout, ".\n");
 	    }
 	    disable_interrupt();
          }
@@ -2535,8 +2549,14 @@ _netcmp_run(ClientData clientData,
 /*		 all, or no option.			*/
 /* Formerly: v						*/
 /* Results:						*/
-/*	For only, equivalent, unique:  Return 1 if 	*/
-/*	verified, zero if not.				*/
+/*	For only, equivalent, unique:  Return 		*/
+/*	 1: verified					*/
+/*	 0: not verified				*/
+/*	-1: no elements or nodes			*/
+/*	-3: verified with property error		*/
+/*   equiv option					*/
+/*	-2: pin mismatch				*/
+/*							*/
 /* Side Effects:					*/
 /*	For options elements, nodes, and all without	*/
 /*	option -list:  Write output to log file.	*/
@@ -2636,7 +2656,7 @@ _netcmp_verify(ClientData clientData,
 	        Tcl_SetObjResult(interp, Tcl_NewIntObj((int)automorphisms));
 	    else if (index == UNIQUE_IDX)
 	        Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
-	    else
+	    else if (index > 0)
 	        Printf("Circuits match with %d symmetr%s.\n",
 			automorphisms, (automorphisms == 1) ? "y" : "ies");
 	 }
@@ -2645,11 +2665,13 @@ _netcmp_verify(ClientData clientData,
 		if (PropertyErrorDetected == 0)
 	           Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
 	        else
-	           Tcl_SetObjResult(interp, Tcl_NewIntObj(2));
+	           Tcl_SetObjResult(interp, Tcl_NewIntObj(-3));
 	    }
-	    else {
+	    else if (index > 0) {
 	        Fprintf(stdout, "Circuits match uniquely.\n");
-		if (PropertyErrorDetected != 0)
+		if (PropertyErrorDetected == 0)
+		   Fprintf(stdout, ".\n");
+		else
 		   Fprintf(stdout, "Property errors were found.\n");
 	    }
 	 }
@@ -3072,7 +3094,11 @@ _netcmp_equate(ClientData clientData,
 		tp1->flags |= CELL_PLACEHOLDER;
 		tp2->flags |= CELL_PLACEHOLDER;
 	    }
-	    else {
+	    else if (doforce != TRUE) {
+		/* When doforce is TRUE, ElementClass has been set to NULL
+		 * even though circuits contain elements, so this message
+		 * is not correct.
+		 */
 		Fprintf(stdout, "Equate pins:  cell %s and/or %s "
 			"has no elements.\n", name1, name2);
 		/* This is not necessarily an error, so go ahead and match pins. */
@@ -3103,6 +3129,13 @@ _netcmp_equate(ClientData clientData,
 	 }
 	 else if (result > 0) {
 	    Fprintf(stdout, "Cell pin lists are equivalent.\n");
+	 }
+	 else if (result == -1) {
+	    Fprintf(stdout, "Cell pin lists for %s and %s do not match.\n",
+			name1, name2);
+	 }
+	 else if (result == -2) {
+	    Fprintf(stdout, "Attempt to match empty cell to non-empty cell.\n");
 	 }
 	 else {
 	    Fprintf(stdout, "Cell pin lists for %s and %s altered to match.\n",

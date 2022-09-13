@@ -6185,7 +6185,8 @@ void PrintPropertyResults(int do_list)
 
 /*----------------------------------------------------------------------*/
 /* Return 0 if perfect matching found, else return number of		*/
-/* automorphisms, and return -1 if invalid matching found. 		*/
+/* automorphisms, and return -1 if invalid matching found, 		*/
+/* and return -2 if there is a port count mismatch.			*/
 /*----------------------------------------------------------------------*/
 
 int VerifyMatching(void)
@@ -6196,6 +6197,9 @@ int VerifyMatching(void)
   struct Element *E;
   struct Node *N;
   int C1, C2, result;
+  int P1, P2;
+  struct objlist *ob1, *ob2;
+  int portMismatch = 0;
 
   if (BadMatchDetected) return(-1);
   
@@ -6216,13 +6220,39 @@ int VerifyMatching(void)
     }
   }
 
+  P1 = P2 = 0;
   for (NC = NodeClasses; NC != NULL; NC = NC->next) {
     C1 = C2 = 0;
     for (N = NC->nodes; N != NULL; N = N->next) {
       (N->graph == Circuit1->file) ? C1++ : C2++;
+      if (IsPort(N->object)) (N->graph == Circuit1->file) ? P1++ : P2++;
     }
     if (C1 != C2) return(-1);
+    if (P1 != P2) portMismatch = 1;
     if (C1 != 1) ret++;
+  }
+
+  P1 = P2 = 0;
+  if (ret == 0) {	/* automorphisms have precedence over port count mismatch */
+     if (portMismatch) return -2;
+
+     /* Count ports in each subcircuit including disconnected ports */
+     for (ob1 = Circuit1->cell; ob1 && IsPort(ob1); ob1 = ob1->next, P1++);
+     for (ob2 = Circuit2->cell; ob2 && IsPort(ob2); ob2 = ob2->next, P2++);
+     if (P1 == P2) {	// pin counts match.  Make sure disconnected pins match, too.
+	for (ob1 = Circuit1->cell; ob1 && IsPort(ob1); ob1 = ob1->next) {
+	   if (ob1->node == -1) {	// disconnected pin
+	      for (ob2 = Circuit2->cell; ob2 && IsPort(ob2); ob2 = ob2->next) {
+		 if (ob2->node == -1 && (*matchfunc)(ob1->name, ob2->name))
+		     break;	// disconnected pin match 
+	      }
+	      if (ob2 == NULL) return -2;
+	   }
+	}
+     }
+     else {	// pin count mismatch
+	return -2;
+     }
   }
   return(ret);
 }
@@ -6322,7 +6352,7 @@ int ResolveAutomorphsByPin()
     FractureElementClass(&ElementClasses); 
     FractureNodeClass(&NodeClasses); 
     ExhaustiveSubdivision = 1;
-    while (!Iterate() && VerifyMatching() != -1); 
+    while (!Iterate() && VerifyMatching() >= 0); 
     return(VerifyMatching());
 }
 
@@ -6425,7 +6455,7 @@ int ResolveAutomorphsByProperty()
     FractureElementClass(&ElementClasses); 
     FractureNodeClass(&NodeClasses); 
     ExhaustiveSubdivision = 1;
-    while (!Iterate() && VerifyMatching() != -1); 
+    while (!Iterate() && VerifyMatching() >= 0); 
     return(VerifyMatching());
 }
 
@@ -6502,7 +6532,7 @@ int ResolveAutomorphisms()
   FractureElementClass(&ElementClasses);
   FractureNodeClass(&NodeClasses);
   ExhaustiveSubdivision = 1;
-  while (!Iterate() && VerifyMatching() != -1);
+  while (!Iterate() && VerifyMatching() >= 0);
   return(VerifyMatching());
 }
 
@@ -7197,32 +7227,31 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
     return NULL;	/* Keep the search going */
 }
 
-/*------------------------------------------------------*/
-/* Declare that the device class "name1" is equivalent	*/
-/* to class "name2".  This is the same as the above	*/
-/* routine, except that the cells must be at the top	*/
-/* of the compare queue, and must already be proven	*/
-/* equivalent by LVS.  Determine a pin correspondence,	*/
-/* then modify all instances of "name2" to match all	*/
-/* instances of "name1" by pin reordering.  If either	*/
-/* cell has disconnected pins, they are shuffled to the	*/
-/* end of the pin list.  If two or more pins correspond	*/
-/* to net automorphisms, then they are added to the	*/
-/* list of permuted pins.				*/
-/*							*/
-/* NOTE:  This routine must not be called on any	*/
-/* circuit pair that has not been matched.  If a 	*/
-/* circuit pair has been matched with automorphisms,	*/
-/* then some pins may be matched arbitrarily.		*/
-/*							*/
-/* If "dolist" is 1, append the list representing the	*/
-/* output (if any) to variable tcl_out, if it exists.	*/
-/*							*/
-/* Return codes:					*/
-/* 2: Neither cell had pins, so matching is unnecessary	*/
-/* 1: Exact match					*/
-/* 0: Inexact match resolved by proxy pin insertion	*/
-/*------------------------------------------------------*/
+/*--------------------------------------------------------------*/
+/* Declare that the device class "name1" is equivalent to class	*/
+/* "name2".  This is the same as the above routine, except that	*/
+/* the cells must be at the top	of the compare queue, and must	*/
+/* already be proven equivalent by LVS.  Determine a pin	*/
+/* correspondence, then modify all instances of "name2" to	*/
+/* match all instances of "name1" by pin reordering.  If either	*/
+/* cell has disconnected pins, they are shuffled to the	end of	*/
+/* the pin list.  If two or more pins correspond to net		*/
+/* automorphisms, then they are added to the list of permuted	*/
+/* pins.							*/
+/*								*/
+/* NOTE:  This routine must not be called on any circuit pair	*/
+/* that has not been matched.  If a circuit pair has been	*/
+/* matched with automorphisms, then some pins may be matched	*/
+/* arbitrarily.							*/
+/*								*/
+/* If "dolist" is 1, append the list representing the output	*/
+/* (if any) to variable tcl_out, if it exists.			*/
+/*								*/
+/* Return codes:						*/
+/*  2: Neither cell had pins, so matching is unnecessary	*/
+/*  1: Exact match						*/
+/*  0: Inexact match resolved by proxy pin insertion.		*/
+/*--------------------------------------------------------------*/
 
 int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 {
@@ -7817,7 +7846,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    }
 
    /* Check for ports that did not get ordered */
-   for (obn = tc2->cell; obn && (obn->type == PORT); obn = obn->next) {
+   for (obn = tc2->cell; obn && IsPort(obn); obn = obn->next) {
       if (obn->model.port == -1) {
 	 if (obn->node == -1) {
 	    // This only happens when pins have become separated from any net.
@@ -7995,10 +8024,12 @@ int EquivalentElement(char *name, struct nlist *circuit, struct objlist **retobj
 void FlattenCurrent()
 {
    if (Circuit1 != NULL && Circuit2 != NULL) {
-      Fprintf(stdout, "Flattening subcell %s\n", Circuit1->name);
+      Fprintf(stdout, "Flattening subcell %s (%d)\n", Circuit1->name,
+		Circuit1->file);
       FlattenInstancesOf(Circuit1->name, Circuit1->file);
 
-      Fprintf(stdout, "Flattening subcell %s\n", Circuit2->name);
+      Fprintf(stdout, "Flattening subcell %s (%d)\n", Circuit2->name,
+		Circuit2->file);
       FlattenInstancesOf(Circuit2->name, Circuit2->file);
    }
 }
@@ -8069,7 +8100,25 @@ int Compare(char *cell1, char *cell2)
     PrintIllegalClasses();
     return(0);
   }
-  if (automorphisms == 0) Fprintf(stdout, "Circuits match correctly.\n");
+
+  if (automorphisms > 0) {
+     Fprintf(stdout, "Circuits match with %d symmetries.\n", automorphisms);
+     if (VerboseOutput) PrintAutomorphisms();
+
+     /* arbitrarily resolve automorphisms */
+     Fprintf(stdout, "\n");
+     Fprintf(stdout, "Resolving automorphisms by arbitrary symmetry breaking:\n");
+     while ((automorphisms = ResolveAutomorphisms()) > 0) ;
+     if (automorphisms == -1) {
+	MatchFail(cell1, cell2);
+	Fprintf(stdout, "Circuits do not match.\n");
+	return 0;
+     }
+  }
+  if (automorphisms == -2) {	// Port count mismatch
+     Fprintf(stderr, "Port counts do not match.\n");
+     return 0;
+  }
   if (PropertyErrorDetected == 1) {
      Fprintf(stdout, "There were property errors.\n");
      PrintPropertyResults(0);
@@ -8078,22 +8127,10 @@ int Compare(char *cell1, char *cell2)
      Fprintf(stdout, "There were missing properties.\n");
      PrintPropertyResults(0);
   }
-  if (automorphisms == 0) return(1);
+  else
+     Fprintf(stdout, "Circuits match correctly.\n");
 
-  Fprintf(stdout, "Circuits match with %d automorphisms.\n", automorphisms);
-  if (VerboseOutput) PrintAutomorphisms();
-
-  /* arbitrarily resolve automorphisms */
-  Fprintf(stdout, "\n");
-  Fprintf(stdout, "Resolving automorphisms by arbitrary symmetry breaking:\n");
-  while ((automorphisms = ResolveAutomorphisms()) > 0) ;
-  if (automorphisms == -1) {
-    MatchFail(cell1, cell2);
-    Fprintf(stdout, "Circuits do not match.\n");
-    return(0);
-  }
-  Fprintf(stdout, "Circuits match correctly.\n");
-  return(1);
+  return 1;
 }
 
 
@@ -8147,9 +8184,12 @@ void NETCOMP(void)
 	  PrintIllegalClasses();
 	  Fprintf(stdout, "Netlists do not match.\n");
 	}
+	else if (automorphisms == -2) {		// port count mismatch
+	   Fprintf(stdout, "Port counts do not match.\n");
+	}
 	else {
 	  if (automorphisms) 
-	    Printf("Circuits match with %d automorphisms.\n", automorphisms);
+	    Printf("Circuits match with %d symmetries.\n", automorphisms);
 	  else Printf("Circuits match correctly.\n");
 	}
       }
@@ -8162,11 +8202,13 @@ void NETCOMP(void)
 	while (!Iterate()) ; 
 	automorphisms = VerifyMatching();
 	if (automorphisms == -1) Fprintf(stdout, "Netlists do not match.\n");
+	else if (automorphisms == -2) Fprintf(stdout, "Port counts do not match.\n");
 	else {
-	  Printf("Netlists match with %d automorphisms.\n", automorphisms);
+	  Printf("Netlists match with %d symmetries.\n", automorphisms);
 	  while ((automorphisms = ResolveAutomorphisms()) > 0)
 	    Printf("  automorphisms = %d.\n", automorphisms);
 	  if (automorphisms == -1) Fprintf(stdout, "Netlists do not match.\n");
+	  else if (automorphisms == -2) Fprintf(stdout, "Port counts do not match.\n");
 	  else Printf("Circuits match correctly.\n");
 	}
       }
