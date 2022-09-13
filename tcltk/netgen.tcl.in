@@ -393,7 +393,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	 # If argument is a filename then read the list of cells from it;
 	 # otherwise, argument is the list of files itself in quotes or
 	 # braces.
-	 if {![catch {file exists $value}]} {
+	 if {[file exists $value]} {
 	    if {![catch {open $value r} fnf]} {
 	       while {[gets $fnf line] >= 0} {
 		  if {[lindex $line 0] != "#"} {
@@ -569,6 +569,8 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	           netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
 		   lappend matcherr [lindex $endval 0]"($fnum1)"
 		   lappend matcherr [lindex $endval 1]"($fnum2)"
+		   netgen::flatten prohibit "[lindex $endval 0] $fnum1"
+		   netgen::flatten prohibit "[lindex $endval 1] $fnum2"
 	           # Match pins
                    netgen::log echo off
 	           if {$dolist == 1} {

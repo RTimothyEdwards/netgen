@@ -1056,6 +1056,12 @@ _netgen_flatten(ClientData clientData,
             FlattenInstancesOf(repstr, filenum);
 	 }
       }
+      else if (!strcmp(argv, "prohibit") || !strcmp(argv, "deny")) {
+	 tp = GetTopCell(filenum);
+	 Printf("Will not flatten instances of %s in file %s\n", repstr, tp->name);
+	 /* Mark cell as placeholder so it will not be flattened */
+	 tp->flags |= CELL_PLACEHOLDER;
+      }
       else {
 	 Tcl_WrongNumArgs(interp, 1, objv, "class valid_cellname");
 	 return TCL_ERROR;
