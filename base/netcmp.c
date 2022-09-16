@@ -7250,20 +7250,23 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 /* Return codes:						*/
 /*  2: Neither cell had pins, so matching is unnecessary	*/
 /*  1: Exact match						*/
-/*  0: Inexact match resolved by proxy pin insertion.		*/
+/*  0: Circuit match w/pin name mismatch.  Force a match.	*/
+/* -1: Pin mismatch.  Flatten cell.				*/
 /*--------------------------------------------------------------*/
 
 int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 {
-   char *cover, *ctemp;
+   char *cover1, *cover2, *ctemp;
    char *bangptr1, *bangptr2, *backslashptr1, *backslashptr2;
    struct objlist *ob1, *ob2, *obn, *obp, *ob1s, *ob2s, *obt;
    struct NodeClass *NC;
    struct Node *N1, *N2;
-   int i, j, k, m, a, b, swapped, numnodes, numorig;
+   int i, j, k, m, a, b, swapped, numnodes, numnodes2, numorig;
    int result = 1, haspins = 0, notempty = 0;
    int hasproxy1 = 0, hasproxy2 = 0;
    int needclean1 = 0, needclean2 = 0;
+   int hasDevices1, hasDevices2;
+   int isBlackBox1, isBlackBox2;
    char *ostr;
 #ifdef TCL_NETGEN
    Tcl_Obj *mlist, *plist1, *plist2;
@@ -7272,10 +7275,12 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    if (tc1 == NULL) tc1 = Circuit1;
    if (tc2 == NULL) tc2 = Circuit2;
 
+   numnodes2 = 0;
    for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
       if (ob2->type != PORT) break;
       else haspins = 1;
       ob2->model.port = -1;
+      numnodes2++;
    }
    numnodes = 0;
    for (ob1 = tc1->cell; ob1 != NULL; ob1 = ob1->next) {
@@ -7290,7 +7295,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       return 2;
    }
 
-   cover = (char *)CALLOC(numnodes, sizeof(char));
+   cover1 = (char *)CALLOC(numnodes, sizeof(char));
+   cover2 = (char *)CALLOC(numnodes2, sizeof(char));
    numorig = numnodes;
 
 #ifdef TCL_NETGEN
@@ -7323,194 +7329,159 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    }
 
    for (NC = NodeClasses; NC != NULL; NC = NC->next) {
-      a = 0;
+      a = 0;	// circuit1 node offset
       for (N1 = NC->nodes; N1 != NULL; N1 = N1->next) {
          if (N1->graph == Circuit1->file) {
 	    obn = N1->object;
+	    b = 0;	// circuit2 node offset
+            for (N2 = NC->nodes; N2 != NULL; N2 = N2->next) {
+	       if (N2->graph != Circuit1->file) {
+		   if (b == a) break;
+		   else b++;
+	       }
+	    }
+	    if (N2 == NULL) {	// This should never occur in matched nets
+	       continue;
+	    }
+	    else {
+	       obp = N2->object;
+	    }
+	    ob1 = NULL;
 	    if (IsPort(obn)) {
 	       i = 0;
 	       for (ob1 = tc1->cell; ob1 != NULL; ob1 = ob1->next, i++) {
-	          if ((IsPort(ob1)) && (ob1->node == obn->node)) {
-		     b = 0;
-                     for (N2 = NC->nodes; N2 != NULL; N2 = N2->next) {
-	                if (N2->graph != Circuit1->file) {
-			   if (b == a) break;
-			   else b++;
-			}
-	             }
-	             if (N2 == NULL) {
-#ifdef TCL_NETGEN
-			if (dolist) {
-			   Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL,
-					Tcl_NewStringObj("pins", -1),
-					TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
-			   Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, mlist,
-					TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
-			}
-#endif
-			FREE(ostr);
-			return 1;
-		     }
-
-		     obp = N2->object;
-		     j = 0;
-	             for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next, j++) {
-	          	if ((IsPort(ob2)) && (ob2->node == obp->node)) {
-			   if (Debug == 0) {
-			      for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-			      for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-			      snprintf(ostr, left_col_end, "%s", ob1->name);
-			      if ((*matchfunc)(ob1->name, ob2->name))
-			         snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-			      else {
-				 /* Check remainder of ports to see if there is a name match on the
-				  * same net number (multiple ports tied to the same net)
-				  */
-				 struct objlist *ob3;
-				 for (ob3 = ob2->next, ++j; ob3 != NULL; ob3 = ob3->next, j++) {
-				     if ((IsPort(ob3)) && (ob3->node == ob2->node)) {
-					if ((*matchfunc)(ob3->name, ob1->name)) {
-					   ob2 = ob3;
-			         	   snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-					   break;
-					}
-				     }
-				     else {
-					ob3 = NULL;
-					break;	/* All pins w/the same node should be together */
-				     }
-				 }
-				 if (ob3 == NULL) {
-				    if (ob2->model.port == -1)
-				       snprintf(ostr + left_col_end + 1, left_col_end, "%s **Mismatch**", ob2->name);
-				    else
-				       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
-				    /* Pins with different names are on different nets,
-				     * so this should trigger an error return code.
-				     */
-				    result = 0;
-				 }
-			      }
-			      for (m = 0; m < right_col_end + 1; m++)
-				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-			      Fprintf(stdout, ostr);
-			   }
-			   else {
-			      Fprintf(stdout, "Circuit %s port %d \"%s\""
-					" = cell %s port %d \"%s\"\n",
-					tc1->name, i, obn->name,
-					tc2->name, j, obp->name);
-			   }
-#ifdef TCL_NETGEN
-			   if (dolist) {
-		              Tcl_ListObjAppendElement(netgeninterp, plist1,
-					Tcl_NewStringObj(obn->name, -1));
-		              Tcl_ListObjAppendElement(netgeninterp, plist2,
-					Tcl_NewStringObj(obp->name, -1));
-			   }
-#endif
-			   ob2->model.port = i;		/* save order */
-			   *(cover + i) = (char)1;
-
-			   /* If there are multiple pins on the same net, cycle through them;	*/
-			   /* otherwise, move to the next entry in the partition.		*/
-			   if (ob1->next && (ob1->next->type == PORT) && (ob1->next->node == ob1->node)) {
-			      ob1 = ob1->next;
-			      ob2 = tc2->cell;	/* Restart search for matching pin */
-			      i++;
-			   }
-			   else
-			      break;
-			}
-		     }
-		     if (ob2 == NULL) {
-			if (Debug == 0) {
-			   // If first cell has no pins but 2nd cell
-			   // does, then "no matching pin" entries will
-			   // be generated for all pins in the 2nd cell,
-			   // so don't print out the "no pins" entry.
-
-			   if (strcmp(obn->name, "(no pins)")) {
-			      for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-			      for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-			      snprintf(ostr, 32, "%s", obn->name);
-			      snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
-			      for (m = 0; m < right_col_end + 1; m++)
-				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-			      Fprintf(stdout, ostr);
-			   }
-			}
-			else {
-		           Fprintf(stderr, "No matching pin in cell %s for "
-					"cell %s pin %s\n",
-					tc2->name, tc1->name, obn->name);
-			}
-#ifdef TCL_NETGEN
-			if (dolist && strcmp(obn->name, "(no pins)")) {
-		           Tcl_ListObjAppendElement(netgeninterp, plist1,
-				Tcl_NewStringObj(obn->name, -1));
-		           Tcl_ListObjAppendElement(netgeninterp, plist2,
-				Tcl_NewStringObj("(no matching pin)", -1));
-			}
-#endif
-			result = 0;
-
-			/* Make a pass through circuit 1 to find out if	*/
-			/* the pin really is connected to anything, or	*/
-			/* has been left orphaned after flattening.  If	*/
-			/* disconnected, set its node number to -2.	*/
-
-			notempty = 0;
-			for (obt = ob1->next; obt; obt = obt->next) {
-			   if (obt->type >= FIRSTPIN) {
-			      notempty = 1;
-			      if (obt->node == ob1->node)
-				 break;
-			   }
-			}
-		        if ((obt == NULL) && (notempty == 1)) {
-			   ob1->node = -2;	// Will run this through cleanuppins
-			   needclean1 = 1;
-			}
-		     }
+		  if ((IsPort(ob1)) && (*matchfunc)(ob1->name, obn->name)) {
 		     break;
 		  }
 	       }
+	       *(cover1 + i) = (char)1;
+	    }
+	    ob2 = NULL;
+	    if (obp && IsPort(obp)) {
+	       j = 0;
+	       for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next, j++) {
+		  if ((IsPort(ob2)) && (*matchfunc)(ob2->name, obp->name)) {
+		     break;
+		  }
+	       }
+	       *(cover2 + j) = (char)1;
+	    }
 
-	       if (ob1 == NULL) {
-		  if (Debug == 0) {
-		     for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-		     for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
+	    if (Debug == 0) {
+	       for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
+	       for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
+	       if (ob1 && ob2) {	// both pins are in both circuits
+		  if (NC->legalpartition) {	// nets match
 		     snprintf(ostr, left_col_end, "%s", obn->name);
-		     snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
-		     for (m = 0; m < right_col_end + 1; m++)
-			if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-		     Fprintf(stdout, ostr);
+		     if ((*matchfunc)(obn->name, obp->name))
+			/* MatchPins - case 1: portA(0) = portA(1)
+			 * Pin names match
+			 */
+			snprintf(ostr + left_col_end + 1, left_col_end,
+					"%s", obp->name);
+		     else {
+			/* MatchPins - case 2: portA(0) = portb(1)
+			 * circuits match but the pin names don't.
+			 */
+			snprintf(ostr + left_col_end + 1, left_col_end,
+					"%s **Mismatch**", obp->name);
+			/* Pins with different names are on different nets,
+			 * so this should trigger an error return code.
+			 */
+			result = (result == 1) ? 0 : result;	// only set if 1
+		     }
+		     ob2->model.port = i;	/* save the order */
 		  }
 		  else {
-		     Fprintf(stderr, "No netlist match for cell %s pin %s\n",
-				tc1->name, obn->name);
+		     snprintf(ostr, left_col_end, "*%s", obn->name);
+		     snprintf(ostr + left_col_end + 1, left_col_end,
+				"*%s **Mismatch**", obp->name);
+		     for (m = 0; m < right_col_end + 1; m++)
+			if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+		     result = -1;
 		  }
-#ifdef TCL_NETGEN
-		  if (dolist) {
-		     Tcl_ListObjAppendElement(netgeninterp, plist1,
-				Tcl_NewStringObj(obn->name, -1));
-		     Tcl_ListObjAppendElement(netgeninterp, plist2,
-				Tcl_NewStringObj("(no matching pin)", -1));
+	       }
+	       else if (ob1) {		// implies (&& !ob2)
+		  /* MatchPins - case 3: portA(0) = netA(1)
+		   * circuits match but circuit2 is missing pin
+		   */
+		  snprintf(ostr, left_col_end, "%s", obn->name);
+		  if (NC->legalpartition) {	// net match
+		     snprintf(ostr + left_col_end + 1, left_col_end,
+				"*%s **not a pin**", obp->name);
 		  }
-#endif
-		  result = 0;
+		  else {
+		     snprintf(ostr + left_col_end + 1, left_col_end,
+				"*%s **Mismatch**", obp->name);
+		  }
+		  result = -1;
+	       }
+	       else if (ob2) {		// imples (&& !ob1)
+		  /* MatchPins - case 4: netA(0) = portA(1)
+		   * circuits match but circuit1 is missing pin
+		   */
+		  if (NC->legalpartition) {	// net match
+		     snprintf(ostr, left_col_end, "*%s **not pin**", obn->name);
+		  }
+		  else {
+		     snprintf(ostr, left_col_end, "*%s **Mismatch**", obn->name);
+		  }
+		  snprintf(ostr + left_col_end + 1, left_col_end, "%s", obp->name);
+		  result = -1;
+	       }
+	       if (ob1 || ob2) {
+		  for (m = 0; m < right_col_end + 1; m++)
+		     if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+		  Fprintf(stdout, ostr);
 	       }
 	    }
+	    else {
+	       Fprintf(stdout, "Circuit %s port %d \"%s\""
+			" = cell %s port %d \"%s\"\n",
+			tc1->name, i, (obn) ? obn->name : "",
+			tc2->name, j, (obp) ? obp->name : "");
+	    }
+
+
+#ifdef TCL_NETGEN
+	    if (dolist) {
+	       Tcl_ListObjAppendElement(netgeninterp, plist1,
+			Tcl_NewStringObj((obn) ? obn->name : "", -1));
+	       Tcl_ListObjAppendElement(netgeninterp, plist2,
+			Tcl_NewStringObj((obp) ? obp->name : "", -1));
+	    }
+#endif
 	    a++;
 	 }
+      }
+   }
+
+   /* Check for unconnected nodes in tc1 */
+   for (ob1 = tc1->cell; ob1 && IsPort(ob1); ob1 = ob1->next) {
+      if (ob1->node >= 0) {
+	 /* Check if ob1->node might really be disconnected */
+	 for (obn = ob1->next; obn; obn = obn->next) {
+	    if (obn->node == ob1->node) break;
+	 }
+	 if (obn == NULL) ob1->node = -1;	// Make disconnected
+      }
+   }
+
+   /* Check for unconnected nodes in tc2 */
+   for (ob2 = tc2->cell; ob2 && IsPort(ob2); ob2 = ob2->next) {
+      if (ob2->node >= 0) {
+	 /* Check if ob2->node might really be disconnected */
+	 for (obp = ob2->next; obp; obp = obp->next) {
+	    if (obp->node == ob2->node) break;
+	 }
+	 if (obp == NULL) ob2->node = -1;	// Make disconnected
       }
    }
 
    /* Do any unmatched pins have the same name? 		*/
    /* This should not happen if unconnected pins are eliminated	*/
    /* so apply only to black-box (CELL_PLACEHOLDER) entries.	*/ 
-   /* (Semi-hack: Allow "!" global flag) */
+   /* (Semi-hack: Allow "!" global flag) 			*/
    /* (Another semi-hack: Ignore the leading backslash in	*/
    /* backslash-escaped verilog names.  Removing the backslash	*/
    /* and ending space character is a common way to convert to	*/
@@ -7518,7 +7489,11 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
    ob1 = tc1->cell;
   
+   isBlackBox1 = (tc1->flags & CELL_PLACEHOLDER);
+   isBlackBox2 = (tc2->flags & CELL_PLACEHOLDER);
+
    for (i = 0; i < numorig; i++) {
+
       bangptr1 = strrchr(ob1->name, '!');
       if (bangptr1 && (*(bangptr1 + 1) == '\0'))
          *bangptr1 = '\0';
@@ -7526,12 +7501,13 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
       backslashptr1 = (*(ob1->name) == '\\') ? ob1->name + 1 : ob1->name;
 
-      if (*(cover + i) == (char)0) {
+      if (*(cover1 + i) == (char)0) {
 	 j = 0;
-         for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
+         for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next, j++) {
 	    char *name1, *name2;
 
 	    if (!IsPort(ob2)) break;
+	    if (*(cover2 + j) == (char)1) continue;	// port was processed
 
 	    bangptr2 = strrchr(ob2->name, '!');
 	    if (bangptr2 && (*(bangptr2 + 1) == '\0'))
@@ -7555,18 +7531,23 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       /* matched by name.					*/
 
 	       if (((ob1->node == -1) && (ob2->node == -1)) ||
-			(((tc1->flags & CELL_PLACEHOLDER) &&
-			(tc2->flags & CELL_PLACEHOLDER)) ||
-			(NodeClasses == NULL))) {
+			(isBlackBox1 && isBlackBox2) ||
+			(NodeClasses == NULL)) {
 
 	          ob2->model.port = i;		/* save order */
-	          *(cover + i) = (char)1;
+	          *(cover1 + i) = (char)1;
+	          *(cover2 + j) = (char)1;
 
 	          if (Debug == 0) {
 		     for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
 		     for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-		     snprintf(ostr, left_col_end, "%s", ob1->name);
-		     snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
+		     snprintf(ostr, left_col_end, "%s%s", ob1->name,
+				(ob1->node == -1 && !isBlackBox1) ?
+				" (disconnected)" : "");
+		     snprintf(ostr + left_col_end + 1, left_col_end,
+				"%s%s", ob2->name,
+				(ob2->node == -1 && !isBlackBox2) ?
+				" (disconnected)" : "");
 		     for (m = 0; m < right_col_end + 1; m++)
 		        if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 		     Fprintf(stdout, ostr);
@@ -7590,7 +7571,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       }
 	    }
 	    if (bangptr2) *bangptr2 = '!';
-	    j++;
          }
       }
       ob1 = ob1->next;
@@ -7609,8 +7589,9 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* connections in the cell to the end.  Create pins	*/
    /* in tc1 to match.					*/
 
-   for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
+   for (j = 0, ob2 = tc2->cell; ob2 != NULL; j++, ob2 = ob2->next) {
       if (ob2->type != PORT) break;
+      if (*(cover2 + j) == (char)1) continue;	// port was processed
       if (ob2->model.port == -1) {
 
 	 if (Debug == 0) {
@@ -7618,8 +7599,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    if (strcmp(ob2->name, "(no pins)")) {
 	       for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
 	       for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-	       snprintf(ostr, left_col_end, "(no matching pin)");
-	       snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
+	       snprintf(ostr, left_col_end, "**no match**");
+	       snprintf(ostr + left_col_end + 1, left_col_end,
+			"%s%s", ob2->name,
+			(ob2->node == -1) ? " (disconnected)" : "");
 	       for (m = 0; m < right_col_end + 1; m++)
 		  if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 	       Fprintf(stdout, ostr);
@@ -7630,80 +7613,12 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 				tc2->name, ob2->name);
 	 }
 
-	 /* Before making a proxy pin, check to see if	*/
-	 /* flattening instances has left a port with a	*/
-	 /* net number that doesn't connect to anything	*/
-
-         notempty = 0;
-	 for (obt = ob2->next; obt; obt = obt->next) {
-	    if (obt->type >= FIRSTPIN) {
-               notempty = 1;
-	       if (obt->node == ob2->node)
-		  break;
-	    }
-	 }
-	 if ((obt == NULL) && (notempty == 1)) {
-	    ob2->node = -2;	// Will run this through cleanuppins
-	    needclean2 = 1;
-
-	    /* On the top level, missing pins are an error, even if	*/
-	    /* they appear to match unconnected pins on the other side. */
-	    if (CompareQueue == NULL)
-		result = 0;
-
-#ifdef TCL_NETGEN
-            if (dolist) {
-	       Tcl_ListObjAppendElement(netgeninterp, plist1,
-			Tcl_NewStringObj("(no pin)", -1));
-	       Tcl_ListObjAppendElement(netgeninterp, plist2,
-			Tcl_NewStringObj(ob2->name, -1));
-            }
-#endif
-	    continue;
-	 }
-	 else if (notempty == 1) {
-	    /* Flag this as an error */
-	    result = 0;
-#ifdef TCL_NETGEN
-            if (dolist) {
-	       Tcl_ListObjAppendElement(netgeninterp, plist1,
-			Tcl_NewStringObj("(no matching pin)", -1));
-	       Tcl_ListObjAppendElement(netgeninterp, plist2,
-			Tcl_NewStringObj(ob2->name, -1));
-            }
-#endif
-	 }
 	 ob2->model.port = numnodes++;	// Assign a port order
-
-	 /* Add a proxy pin to tc1 */
-	 /* Technically, this should have a matching net number. */
-	 /* But nothing connects to it, so it is only needed to  */
-	 /* make sure the "pin magic" numbers are correctly	 */
-	 /* assigned to both cells.				 */
-
-         obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
-         obn->name = (char *)MALLOC(6 + strlen(ob2->name));
-         sprintf(obn->name, "proxy%s", ob2->name);
-         obn->type = UNKNOWN;
-         // obn->model.port = -1;
-         obn->instance.name = NULL;
-         obn->node = -1;
-	 if (ob1 == tc1->cell) {
-	    obn->next = ob1;
-	    tc1->cell = obn;
-	 }
-	 else {
-            obn->next = ob1->next;
-            ob1->next = obn;
-	 }
-         ob1 = obn;
-	 hasproxy1 = 1;
-
-	 HashPtrInstall(obn->name, obn, &(tc1->objdict));
+	 result = -1;
       }
    }
 
-   /* Find the end of the pin list in tc2, for adding proxy pins */
+   /* Find the end of the pin list in tc2 */
 
    for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
       if (ob2 && ((ob2->next && ob2->next->type != PORT) || ob2->next == NULL))
@@ -7716,96 +7631,54 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* sequence, then fill in the missing numbers.  Otherwise, add the	   */
    /* extra nodes to the end.						   */
 
-   j = 0;
-   for (i = 0; i < numorig; i++) {
-      if (*(cover + i) == (char)1) continue;
+   for (i = 0, ob1 = tc1->cell; i < numorig; i++, ob1 = ob1->next) {
+      if (*(cover1 + i) == (char)1) continue;
 
-      /* If the equivalent node in tc1 is not disconnected	*/
-      /* (node != -1) then we should report a match error,	*/
-      /* although this does not necessarily imply an error in	*/
-      /* netlist connectivity.					*/ 
-
-      ob1 = tc1->cell;
-      for (k = i; k > 0 && ob1 != NULL; k--)
-	 ob1 = ob1->next;
-
-      if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0) {
-	 /* Check if ob1->node might really be disconnected */
-	 for (obn = ob1->next; obn; obn = obn->next) {
-	    if (obn->node == ob1->node) break;
+      /* Note:  Has this pin already been accounted for? */
+      if (Debug == 0) {
+	 if (strcmp(ob1->name, "(no pins)")) {
+	    for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
+	    for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
+	    snprintf(ostr, left_col_end, "%s%s", ob1->name,
+			(ob1->node == -1) ? " (disconnected)" : "");
+	    snprintf(ostr + left_col_end + 1, left_col_end, "**no match**");
+	    for (m = 0; m < right_col_end + 1; m++)
+	       if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+	    Fprintf(stdout, ostr);
 	 }
-	 if (obn == NULL) ob1->node = -1;	/* Make disconnected */
+	 result = -1;
       }
-
-      if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0
-		|| (ob1->node < 0 && tc1->class == CLASS_MODULE)
-		|| (ob1->node < 0 && ob1->model.port == -1)) {
-
-	 /* Add a proxy pin to tc2 */
-         obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
-	 if (ob1 == NULL) {
-	    obn->name = (char *)MALLOC(15);
-            sprintf(obn->name, "proxy%d", rand() & 0x3ffffff);
-	 }
-	 else {
-            obn->name = (char *)MALLOC(6 + strlen(ob1->name));
-            sprintf(obn->name, "proxy%s", ob1->name);
-	 }
-         obn->type = UNKNOWN;
-         obn->model.port = (i - j);
-         obn->instance.name = NULL;
-         obn->node = -1;
-
-	 /* Note:  Has this pin already been accounted for? */
-	 if (Debug == 0) {
-	    if (strcmp(ob1->name, "(no pins)")) {
-	       for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-	       for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-	       snprintf(ostr, left_col_end, "%s", ob1->name);
-	       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
-	       for (m = 0; m < right_col_end + 1; m++)
-		  if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-	       Fprintf(stdout, ostr);
-	    }
-	 }
-	 else {
-	    Fprintf(stderr, "No netlist match for cell %s pin %s\n",
-				tc1->name, ob1->name);
-	 }
-
-	 if (ob2 == tc2->cell) {
-	    obn->next = ob2;
-	    tc2->cell = obn;
-	 }
-	 else {
-            obn->next = ob2->next;
-            ob2->next = obn;
-	 }
-         ob2 = obn;
-	 hasproxy2 = 1;
-
-	 HashPtrInstall(obn->name, obn, &(tc2->objdict));
-      }
-
-      else if (ob1 != NULL && ob1->type == PORT) {
-	 /* Disconnected node was not meaningful, has no pin match in	*/
-	 /* the compared circuit, and so should be discarded.		*/
-	 ob1->node = -2;
-	 needclean1 = 1;
-
-	 /* Adjust numbering around removed node */
-	 for (ob2s = tc2->cell; ob2s != NULL && ob2s->type == PORT; ob2s = ob2s->next) {
-	    if (ob2s->model.port > (i - j)) ob2s->model.port--;
-	 }
-	 j++;
+      else {
+	 Fprintf(stderr, "No netlist match for cell %s pin %s\n",
+			tc1->name, ob1->name);
       }
    }
-   FREE(cover);
+   FREE(cover1);
+   FREE(cover2);
 
    if (Debug == 0) {
       for (i = 0; i < right_col_end; i++) *(ostr + i) = '-';
       Fprintf(stdout, ostr);
    }
+
+   hasDevices1 = hasDevices2 = 0;
+
+   for (ob1 = tc1->cell; ob1 != NULL; ob1 = ob1->next) {
+      if (ob1->type == FIRSTPIN) {
+	 hasDevices1 = 1;
+	 break;
+      }
+   }
+   for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
+      if (ob2->type == FIRSTPIN) {
+	 hasDevices2 = 1;
+	 break;
+      }
+   }
+   if (hasDevices1 != hasDevices2)
+      result = -2;	// Attempt to compare empty cell to non-empty cell
+
+   if (result < 0) return result;
 
    /* Run cleanuppins on circuit 1 */
    if (needclean1) {
