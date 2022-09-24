@@ -7675,8 +7675,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 break;
       }
    }
-   if (hasDevices1 != hasDevices2)
-      result = -2;	// Attempt to compare empty cell to non-empty cell
+   if (hasDevices1 != hasDevices2 && result != 1)
+      result = -2;	// Attempt to compare empty cell to non-empty cell fails if pins don't match exactly
 
    if (result < 0) return result;
 
