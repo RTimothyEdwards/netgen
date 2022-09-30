@@ -62,18 +62,16 @@ proc netgen::convert_to_json {filename lvs_final} {
 	          puts $fjson "      \["
 		  set cktval [lindex $value 0]
 		  foreach pin [lrange $cktval 0 end-1] {
-		     set pinstr [string map  {"\\" "\\\\"} $pin]
-		     puts $fjson "        \"$pinstr\","
+		     puts $fjson "        \"$pin\","
 		  }
-		  set pin [string map {"\\" "\\\\"} [lindex $cktval end]]
+		  set pin [lindex $cktval end]
 		  puts $fjson "        \"$pin\""
 	          puts $fjson "      \], \["
 		  set cktval [lindex $value 1]
 		  foreach pin [lrange $cktval 0 end-1] {
-		     set pinstr [string map  {"\\" "\\\\"} $pin]
-		     puts $fjson "        \"$pinstr\","
+		     puts $fjson "        \"$pin\","
 		  }
-		  set pin [string map {"\\" "\\\\"} [lindex $cktval end]]
+		  set pin [lindex $cktval end]
 		  puts $fjson "        \"$pin\""
 	          puts $fjson "      \]"
 		  if {$kidx == $nkeys} {

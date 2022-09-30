@@ -2650,14 +2650,6 @@ _netcmp_verify(ClientData clientData,
 	 else
 	     Fprintf(stdout, "Netlists do not match.\n");
       }
-      else if (automorphisms == -2) {
-	 if (index == EQUIV_IDX)
-	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
-	 else if (index == UNIQUE_IDX)
-	    Tcl_SetObjResult(interp, Tcl_NewIntObj(-2));
-	 else if (index > 0)
-	    Fprintf(stdout, "Circuits match uniquely with port errors.\n");
-      }
       else {
 	 if (automorphisms) {
 	    if (index == EQUIV_IDX)
