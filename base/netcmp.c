@@ -5005,6 +5005,11 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		  // find ith record in ob
 		  p = 0;
 		  for (ob2 = ob; p != i; ob2 = ob2->next, p++);
+		  /* Sanity check */
+		  if (ob2->type != PROPERTY) {
+    		     Fprintf(stderr, "Incorrect property run count!\n");
+		     continue;
+		  }
 		  // Count entries, add one, reallocate
 		  for (p = 0;; p++) {
 		     vl = &ob2->instance.props[p];
