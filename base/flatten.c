@@ -243,6 +243,13 @@ void flattenCell(char *name, int file)
   ThisCell->dumped = 1;		/* indicate cell has been flattened */
 }
 
+/* Structure used to keep track of nodes needing checking */
+
+struct linkednode {
+    int node;
+    struct linkednode *next;
+};
+
 /*--------------------------------------------------------------*/
 /* flattenInstancesOf --					*/
 /*								*/
@@ -265,6 +272,7 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
   struct nlist *ThisCell;
   struct  nlist *ChildCell;
   struct objlist *tmp, *ob2, *ob3;
+  struct linkednode *checknodes = NULL, *newlnode, *chknode;
   int	notdone, rnodenum;
   char	tmpstr[1024];
   int	nextnode, oldmax, numflat = 0;
@@ -415,6 +423,16 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	             Printf("Update node %d --> %d\n", tmp->node, ob2->node);
 	          }
 	          UpdateNodeNumbers(ChildStart, tmp->node, ob2->node);
+	     }
+	     else if (tmp->node == -1) {
+		 /* Opposite case:  If child port is an unconnected node, then	*/
+		 /* removing the instance may make the parent node become	*/
+		 /* unconnected.  For now, just record the node number.  At the	*/
+		 /* end we'll check if these nodes are actually disconnected.	*/
+		 newlnode = (struct linkednode *)MALLOC(sizeof(struct linkednode));
+		 newlnode->node = ob2->node;
+		 newlnode->next = checknodes;
+		 checknodes = newlnode;
 	     }
 
 	     /* in pathological cases, the lengths of the port lists may
@@ -598,6 +616,29 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
       NextObj = ParentParams;
     }				/* repeat until no more instances found */
   }
+
+  /* Check nodes that may have become disconnected after child flattening */
+  while (checknodes != NULL) {
+     struct objlist *portnode = NULL;
+
+     chknode = checknodes;
+     checknodes = checknodes->next;
+
+     for (ob3 = ThisCell->cell; ob3; ob3 = ob3->next) {
+	if ((ob3->type != PORT) && (portnode == NULL))
+	   break;
+	else if ((ob3->type == PORT) && (ob3->node == chknode->node))
+	   portnode = ob3;
+	else if ((ob3->type >= FIRSTPIN) && (ob3->node == chknode->node))
+	   break;
+     }
+     if ((ob3 == NULL) && (portnode != NULL)) {
+        /* Port became disconnected when child was flattened */
+        portnode->node = -1;
+     }
+     FREE(chknode);
+  }
+
   CacheNodeNames(ThisCell);
   ThisCell->dumped = 1;		/* indicate cell has been flattened */
   return numflat;
