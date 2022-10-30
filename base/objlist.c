@@ -440,10 +440,25 @@ void RemoveShorted(char *class, int file)
    RecurseCellFileHashTable(removeshorted, file);
 }
 
+/* Structure used to keep track of nodes needing checking */
+
+struct linkednode {
+    int node;
+    struct linkednode *next;
+};
+
+/* Remove instances of a deleted class from the database.	*/
+/* NOTE:  This treats deleted classes as not existing, so it	*/
+/* needs to take care of disconnected ports in the same manner	*/
+/* as flattenInstancesOf() in disconnecting the port of a	*/
+/* parent cell if it connected to nothing other than the	*/
+/* deleted instance.						*/
+
 int deleteclass(struct hashlist *p, int file)
 {
    struct nlist *ptr;
    struct objlist *ob, *lob, *nob;
+   struct linkednode *checknodes = NULL, *newlnode, *chknode;
 
    ptr = (struct nlist *)(p->ptr);
 
@@ -456,6 +471,12 @@ int deleteclass(struct hashlist *p, int file)
 	 if ((*matchfunc)(ob->model.class, OldCell->name)) {
 	    HashDelete(ob->instance.name, &(ptr->instdict));
 	    while (1) {
+	       if (ob->type >= FIRSTPIN) {
+		  newlnode = (struct linkednode *)MALLOC(sizeof(struct linkednode));
+		  newlnode->node = ob->node;
+		  newlnode->next = checknodes;
+		  checknodes = newlnode;
+	       }
 	       FreeObjectAndHash(ob, ptr);
 	       ob = nob;
 	       if (ob == NULL) break;
@@ -476,6 +497,27 @@ int deleteclass(struct hashlist *p, int file)
          lob = ob;
          ob = nob;
       }
+   }
+
+   while (checknodes != NULL) {
+      struct objlist *portnode = NULL;
+
+      chknode = checknodes;
+      checknodes = checknodes->next;
+
+      for (ob = ptr->cell; ob != NULL; ob = ob->next) {
+	if ((ob->type != PORT) && (portnode == NULL))
+	   break;
+	else if ((ob->type == PORT) && (ob->node == chknode->node))
+	   portnode = ob;
+	else if ((ob->type >= FIRSTPIN) && (ob->node == chknode->node))
+	   break;
+      }
+      if ((ob == NULL) && (portnode != NULL)) {
+	 /* Port became disconnected when child was deleted */
+	 portnode->node = -1;
+      }
+      FREE(chknode);
    }
 }
 
