@@ -5999,10 +5999,12 @@ PropertyMatch(struct objlist *ob1, int file1,
       else if ((t2type != PROPERTY) && (checked_one == TRUE)) {
 	 // t1 has more property records than t2, and they did not get
 	 // merged equally by PropertySortAndCombine().
-	 Fprintf(stdout, "Circuit 2 parallel/series network does not match"
+	 if (do_print) {
+	    Fprintf(stdout, "Circuit 2 parallel/series network does not match"
 			" Circuit 1\n");
-	 DumpNetwork(ob1, 1);
-	 DumpNetwork(ob2, 2);
+	    DumpNetwork(ob1, 1);
+	    DumpNetwork(ob2, 2);
+	 }
 	 mismatches++;
       }
       else if (t2type != PROPERTY) {
