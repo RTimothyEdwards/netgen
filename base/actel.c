@@ -131,7 +131,7 @@ if format = 1, use the actel .pin file format
   struct nlist *tp;
   struct objlist *ob, *ob2;
   char *ptr;
-  char physicalpin[200];
+  char physicalpin[MAX_STR_LEN];
 
   tp = LookupCell(name);
   if (tp == NULL) return;

@@ -37,7 +37,7 @@ extern int ColumnBase;
 
 struct filestr {
   FILE *f;
-  char buffer[200];
+  char buffer[MAX_STR_LEN];
   int wrap;  /* column to wrap around in, or 0 if no wrap */
 } file_buffers[MAXFILES];
 
@@ -107,7 +107,7 @@ void Fprintf(FILE *f, char *format, ...)
 {
   va_list ap;
   int FileIndex;
-  char tmpstr[200];
+  char tmpstr[MAX_STR_LEN];
   int bufferlongenough;
   int linewrapexceeded;
 
@@ -203,7 +203,7 @@ void Printf(char *format, ...)
 void Printf(char *format, ...)
 {
   va_list ap;
-  char tmpstr[200];
+  char tmpstr[MAX_STR_LEN];
 
   va_start(ap, format);
   vsprintf(tmpstr, format, ap);

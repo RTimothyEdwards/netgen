@@ -8144,8 +8144,8 @@ int Compare(char *cell1, char *cell2)
 void NETCOMP(void)
 /* a simple command interpreter to manage embedding/routing */
 {
-  char name[100];
-  char name2[100];
+  char name[MAX_STR_LEN];
+  char name2[MAX_STR_LEN];
   char ch;
   
   setjmp(jmpenv);
@@ -8243,7 +8243,7 @@ void NETCOMP(void)
       break;
     case 'p':
       {
-	char model[100];
+	char model[MAX_STR_LEN];
 	/* equivalence two pins on a given class of element */
 	Printf("Allow permutation of two pins.\n");
 	promptstring("Enter cellname: ",model);

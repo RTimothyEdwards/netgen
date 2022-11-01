@@ -47,7 +47,7 @@ void STRCPY(char *dest, char *source)
 
 int main(int argc, char *argv[])
 {
-  char cellname[200];
+  char cellname[MAX_STR_LEN];
   int filenum = -1;
 
   Debug = 0;

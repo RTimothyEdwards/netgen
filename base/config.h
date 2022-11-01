@@ -176,4 +176,6 @@ extern int open(char *path, int oflag, ...); /* HPUX has it in <sys/fcntl.h> */
 #define FALSE 0
 #endif
 
+#define MAX_STR_LEN 256
+
 #endif /* _CONFIG_H */

@@ -914,7 +914,7 @@ char *ReadNetlist(char *fname, int *fnum)
   }
   /* try appending extensions in sequence, and testing for file existance */
   for (index = 0; formats[index].extension != NULL; index++) {
-    char testname[200];
+    char testname[MAX_STR_LEN];
     strcpy(testname, fname);
     strcat(testname, formats[index].extension);
     if (OpenParseFile(testname, *fnum) >= 0) {
@@ -1019,7 +1019,7 @@ void WriteNetgenFile(char *name, char *filename)
 
 char *ReadNetgenFile (char *fname, int *fnum)
 {
-  char name[100];
+  char name[MAX_STR_LEN];
   char *LastCellRead = NULL;
   int filenum;
 
@@ -1255,7 +1255,7 @@ int READ(void *buf, int bytes)
 
 char *ReadNetgenFile (char *fname, int *fnum)
 {
-  char name[100];
+  char name[MAX_STR_LEN];
   int len, chars;
   char *LastCellRead = NULL;
 

@@ -629,7 +629,7 @@ struct embed *FlattenEmbeddingTree(struct embed *E)
 int LenEmbed(char *prefix, struct nlist *np, struct embed *E, int flatten)
 /* return the number of characters required to print element E */
 {
-  char longstr[200];
+  char longstr[MAX_STR_LEN];
 
   if (E == NULL) return(0);
   if (E->left == NULL && E->right == NULL) {
@@ -668,7 +668,7 @@ void PrintEmb(FILE *outfile, char *prefix, struct nlist *np,
     struct objlist *ob;
     char *instancename;
     struct nlist *np2;
-    char name[200];
+    char name[MAX_STR_LEN];
 
     ob = InstanceNumber(np,E->instancenumber);
     instancename = ob->instance.name;
@@ -706,7 +706,7 @@ void PrintEmbed(FILE *outfile, char *prefix, struct nlist *np,
     struct objlist *ob;
     char *instancename;
     struct nlist *np2;
-    char name[200];
+    char name[MAX_STR_LEN];
 
     ob = InstanceNumber(np,E->instancenumber);
     instancename = ob->instance.name;
