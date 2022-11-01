@@ -33,7 +33,7 @@ void STRCPY(char *dest, char *source)
 
 int main(int argc, char *argv[])
 {
-  char cell1[200], cell2[200];
+  char cell1[MAX_STR_LEN], cell2[MAX_STR_LEN];
 
   Debug = 0;
   if (argc != 1) {

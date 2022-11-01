@@ -518,13 +518,13 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   int warnings = 0, update = 0, hasports = 0;
   char *eqptr, devtype, in_subckt;
   struct keyvalue *kvlist = NULL;
-  char inst[256], model[256], instname[256];
+  char inst[MAX_STR_LEN], model[MAX_STR_LEN], instname[MAX_STR_LEN];
   struct nlist *tp;
   struct objlist *parent, *sobj, *nobj, *lobj, *pobj;
 
-  inst[255] = '\0';
-  model[255] = '\0';
-  instname[255] = '\0';
+  inst[MAX_STR_LEN-1] = '\0';
+  model[MAX_STR_LEN-1] = '\0';
+  instname[MAX_STR_LEN-1] = '\0';
   in_subckt = (char)0;
   
   while (!EndParseFile()) {
@@ -555,7 +555,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 
       /* Check for existence of the cell.  We may need to rename it. */
 
-      snprintf(model, 99, "%s", nexttok);
+      snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
       tp = LookupCellFile(nexttok, filenum);
 
       /* Check for name conflict with duplicate cell names	*/
@@ -703,7 +703,7 @@ skip_ends:
 
       SpiceTokNoNewline();
       if (nexttok == NULL) continue;	/* Ignore if no model name */
-      snprintf(model, 99, "%s", nexttok);
+      snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
       SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
 
@@ -887,29 +887,29 @@ skip_ends:
     }
 
     else if (toupper(nexttok[0]) == 'Q') {
-      char emitter[100], base[100], collector[100];
-      emitter[99] = '\0';
-      base[99] = '\0';
-      collector[99] = '\0';
+      char emitter[MAX_STR_LEN], base[MAX_STR_LEN], collector[MAX_STR_LEN];
+      emitter[MAX_STR_LEN-1] = '\0';
+      base[MAX_STR_LEN-1] = '\0';
+      collector[MAX_STR_LEN-1] = '\0';
 
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
-      strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+      strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
       if (nexttok == NULL) goto baddevice;
-      strncpy(collector, nexttok, 99); SpiceTokNoNewline();
+      strncpy(collector, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(base, nexttok, 99);   SpiceTokNoNewline();
+      strncpy(base, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(emitter, nexttok, 99);  SpiceTokNoNewline();
+      strncpy(emitter, nexttok, MAX_STR_LEN-1);  SpiceTokNoNewline();
       /* make sure all the nodes exist */
       if (LookupObject(collector, CurrentCell) == NULL) Node(collector);
       if (LookupObject(base, CurrentCell) == NULL) Node(base);
       if (LookupObject(emitter, CurrentCell) == NULL) Node(emitter);
 
       /* Read the device model */
-      snprintf(model, 99, "%s", nexttok);
+      snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
 
       while (nexttok != NULL)
       {
@@ -940,30 +940,30 @@ skip_ends:
 	 goto baddevice;
       }
 
-      snprintf(instname, 255, "%s:%s", model, inst);
+      snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, collector, base, emitter);
       pobj = LinkProperties(model, kvlist);
       ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'M') {
-      char drain[100], gate[100], source[100], bulk[100];
-      drain[99] = '\0';
-      gate[99] = '\0';
-      source[99] = '\0';
-      bulk[99] = '\0';
+      char drain[MAX_STR_LEN], gate[MAX_STR_LEN], source[MAX_STR_LEN], bulk[MAX_STR_LEN];
+      drain[MAX_STR_LEN-1] = '\0';
+      gate[MAX_STR_LEN-1] = '\0';
+      source[MAX_STR_LEN-1] = '\0';
+      bulk[MAX_STR_LEN-1] = '\0';
 
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
-      strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+      strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
       if (nexttok == NULL) goto baddevice;
-      strncpy(drain, nexttok, 99);  SpiceTokNoNewline();
+      strncpy(drain, nexttok, MAX_STR_LEN-1);  SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(gate, nexttok, 99);   SpiceTokNoNewline();
+      strncpy(gate, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(source, nexttok, 99); SpiceTokNoNewline();
+      strncpy(source, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
       /* make sure all the nodes exist */
       if (LookupObject(drain, CurrentCell) == NULL) Node(drain);
@@ -971,11 +971,11 @@ skip_ends:
       if (LookupObject(source, CurrentCell) == NULL) Node(source);
 
       /* handle the substrate node */
-      strncpy(bulk, nexttok, 99); SpiceTokNoNewline();
+      strncpy(bulk, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       if (LookupObject(bulk, CurrentCell) == NULL) Node(bulk);
 
       /* Read the device model */
-      snprintf(model, 99, "%s", nexttok);
+      snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
 
       while (nexttok != NULL)
       {
@@ -1013,7 +1013,7 @@ skip_ends:
 	 goto baddevice;
       }
 
-      snprintf(instname, 255, "%s:%s", model, inst);
+      snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, drain, gate, source, bulk);
       pobj = LinkProperties(model, kvlist);
       ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
@@ -1027,19 +1027,19 @@ skip_ends:
 	 SpiceSkipNewLine();
       }
       else {
-        char ctop[100], cbot[100];
-        ctop[99] = '\0';
-        cbot[99] = '\0';
+        char ctop[MAX_STR_LEN], cbot[MAX_STR_LEN];
+        ctop[MAX_STR_LEN-1] = '\0';
+        cbot[MAX_STR_LEN-1] = '\0';
 
         if (!(*CellStackPtr)) {
 	  CellDef(fname, filenum);
 	  PushStack(fname, CellStackPtr);
         }
-        strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+        strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
         if (nexttok == NULL) goto baddevice;
-        strncpy(ctop, nexttok, 99); SpiceTokNoNewline();
+        strncpy(ctop, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
         if (nexttok == NULL) goto baddevice;
-        strncpy(cbot, nexttok, 99); SpiceTokNoNewline();
+        strncpy(cbot, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
 
         /* make sure all the nodes exist */
         if (LookupObject(ctop, CurrentCell) == NULL) Node(ctop);
@@ -1058,7 +1058,7 @@ skip_ends:
 
 	model[0] = '\0';
 	if ((nexttok != NULL) && ((eqptr = strchr(nexttok, '=')) == NULL))
-	   snprintf(model, 99, "%s", nexttok);
+	   snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
 
 	/* Any other device properties? */
         while (nexttok != NULL)
@@ -1071,7 +1071,7 @@ skip_ends:
 	   }
 	   else if (!strncmp(nexttok, "$[", 2)) {
 	      // Support for CDL modeled capacitor format
-	      snprintf(model, 99, "%s", nexttok + 2);
+	      snprintf(model, MAX_STR_LEN-1, "%s", nexttok + 2);
 	      if ((eqptr = strchr(model, ']')) != NULL)
 		 *eqptr = '\0';
 	   }
@@ -1104,7 +1104,7 @@ skip_ends:
 	   usemodel = 1;
 	}
 
-	snprintf(instname, 255, "%s:%s", model, inst);
+	snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
 	if (usemodel)
            Cell(instname, model, ctop, cbot);
 	else
@@ -1121,19 +1121,19 @@ skip_ends:
 	 SpiceSkipNewLine();
       }
       else {
-        char rtop[100], rbot[100];
-	rtop[99] = '\0';
-	rbot[99] = '\0';
+        char rtop[MAX_STR_LEN], rbot[MAX_STR_LEN];
+	rtop[MAX_STR_LEN-1] = '\0';
+	rbot[MAX_STR_LEN-1] = '\0';
 
         if (!(*CellStackPtr)) {
 	  CellDef(fname, filenum);
 	  PushStack(fname, CellStackPtr);
         }
-        strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+        strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
         if (nexttok == NULL) goto baddevice;
-        strncpy(rtop, nexttok, 99);  SpiceTokNoNewline();
+        strncpy(rtop, nexttok, MAX_STR_LEN-1);  SpiceTokNoNewline();
         if (nexttok == NULL) goto baddevice;
-        strncpy(rbot, nexttok, 99);   SpiceTokNoNewline();
+        strncpy(rbot, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
         /* make sure all the nodes exist */
         if (LookupObject(rtop, CurrentCell) == NULL) Node(rtop);
         if (LookupObject(rbot, CurrentCell) == NULL) Node(rbot);
@@ -1152,7 +1152,7 @@ skip_ends:
 
 	model[0] = '\0';
 	if ((nexttok != NULL) && ((eqptr = strchr(nexttok, '=')) == NULL))
-	   snprintf(model, 99, "%s", nexttok);
+	   snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
 
 	/* Any other device properties? */
         while (nexttok != NULL) {
@@ -1164,7 +1164,7 @@ skip_ends:
 	   }
 	   else if (!strncmp(nexttok, "$[", 2)) {
 	      // Support for CDL modeled resistor format
-	      snprintf(model, 99, "%s", nexttok + 2);
+	      snprintf(model, MAX_STR_LEN-1, "%s", nexttok + 2);
 	      if ((eqptr = strchr(model, ']')) != NULL)
 		 *eqptr = '\0';
 	   }
@@ -1197,7 +1197,7 @@ skip_ends:
 	else
 	   strcpy(model, "r");		/* Use default resistor model */
 
-	snprintf(instname, 255, "%s:%s", model, inst);
+	snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
 	if (usemodel)
 	   Cell(instname, model, rtop, rbot);
 	else
@@ -1208,25 +1208,25 @@ skip_ends:
       }
     }
     else if (toupper(nexttok[0]) == 'D') {	/* diode */
-      char cathode[100], anode[100];
-      cathode[99] = '\0';
-      anode[99] = '\0';
+      char cathode[MAX_STR_LEN], anode[MAX_STR_LEN];
+      cathode[MAX_STR_LEN-1] = '\0';
+      anode[MAX_STR_LEN-1] = '\0';
 
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
-      strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+      strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
       if (nexttok == NULL) goto baddevice;
-      strncpy(anode, nexttok, 99);   SpiceTokNoNewline();
+      strncpy(anode, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(cathode, nexttok, 99); SpiceTokNoNewline();
+      strncpy(cathode, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       /* make sure all the nodes exist */
       if (LookupObject(anode, CurrentCell) == NULL) Node(anode);
       if (LookupObject(cathode, CurrentCell) == NULL) Node(cathode);
 
       /* Read the device model */
-      snprintf(model, 99, "%s", nexttok);
+      snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
 
       while (nexttok != NULL)
       {
@@ -1255,7 +1255,7 @@ skip_ends:
 	 Fprintf(stderr, "Device \"%s\" has wrong number of ports for a diode.\n");
 	 goto baddevice;
       }
-      snprintf(instname, 255, "%s:%s", model, inst);
+      snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, anode, cathode);
       pobj = LinkProperties(model, kvlist);
       ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
@@ -1268,25 +1268,25 @@ skip_ends:
 	 SpiceSkipNewLine();
       }
       else {
-        char node1[100], node2[100], node3[100], node4[100];
-	node1[99] = '\0';
-	node2[99] = '\0';
-	node3[99] = '\0';
-	node4[99] = '\0';
+        char node1[MAX_STR_LEN], node2[MAX_STR_LEN], node3[MAX_STR_LEN], node4[MAX_STR_LEN];
+	node1[MAX_STR_LEN-1] = '\0';
+	node2[MAX_STR_LEN-1] = '\0';
+	node3[MAX_STR_LEN-1] = '\0';
+	node4[MAX_STR_LEN-1] = '\0';
 
         if (!(*CellStackPtr)) {
 	  CellDef(fname, filenum);
 	  PushStack(fname, CellStackPtr);
         }
-        strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+        strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
         if (nexttok == NULL) goto baddevice;
-        strncpy(node1, nexttok, 99);  SpiceTokNoNewline();
+        strncpy(node1, nexttok, MAX_STR_LEN-1);  SpiceTokNoNewline();
         if (nexttok == NULL) goto baddevice;
-        strncpy(node2, nexttok, 99);   SpiceTokNoNewline();
+        strncpy(node2, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
         if (nexttok == NULL) goto baddevice;
-        strncpy(node3, nexttok, 99);   SpiceTokNoNewline();
+        strncpy(node3, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
         if (nexttok == NULL) goto baddevice;
-        strncpy(node4, nexttok, 99);   SpiceTokNoNewline();
+        strncpy(node4, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
         /* make sure all the nodes exist */
         if (LookupObject(node1, CurrentCell) == NULL) Node(node1);
         if (LookupObject(node2, CurrentCell) == NULL) Node(node2);
@@ -1298,7 +1298,7 @@ skip_ends:
 
 	model[0] = '\0';
 	if ((nexttok != NULL) && ((eqptr = strchr(nexttok, '=')) == NULL))
-	   snprintf(model, 99, "%s", nexttok);
+	   snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
 
 	/* Any other device properties? */
         while (nexttok != NULL) {
@@ -1334,7 +1334,7 @@ skip_ends:
 	else
 	   strcpy(model, "t");		/* Use default xline model */
 
-	snprintf(instname, 255, "%s:%s", model, inst);
+	snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
 
 	if (usemodel)
 	   Cell(instname, model, node1, node2, node3, node4);
@@ -1347,20 +1347,20 @@ skip_ends:
       }
     }
     else if (toupper(nexttok[0]) == 'L') {	/* inductor */
-      char end_a[100], end_b[100];
+      char end_a[MAX_STR_LEN], end_b[MAX_STR_LEN];
       int usemodel = 0;
-      end_a[99] = '\0';
-      end_b[99] = '\0';
+      end_a[MAX_STR_LEN-1] = '\0';
+      end_b[MAX_STR_LEN-1] = '\0';
 
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
-      strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+      strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
       if (nexttok == NULL) goto baddevice;
-      strncpy(end_a, nexttok, 99);   SpiceTokNoNewline();
+      strncpy(end_a, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(end_b, nexttok, 99); SpiceTokNoNewline();
+      strncpy(end_b, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       /* make sure all the nodes exist */
       if (LookupObject(end_a, CurrentCell) == NULL) Node(end_a);
       if (LookupObject(end_b, CurrentCell) == NULL) Node(end_b);
@@ -1379,7 +1379,7 @@ skip_ends:
 
       model[0] = '\0';
       if ((nexttok != NULL) && ((eqptr = strchr(nexttok, '=')) == NULL))
-	  snprintf(model, 99, "%s", nexttok);
+	  snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
 
       /* Any other device properties? */
       while (nexttok != NULL)
@@ -1417,7 +1417,7 @@ skip_ends:
       else
 	 strcpy(model, "l");		/* Use default inductor model */
 
-      snprintf(instname, 255, "%s:%s", model, inst);
+      snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       if (usemodel)
 	 Cell(instname, model, end_a, end_b);
       else
@@ -1431,19 +1431,19 @@ skip_ends:
     /* black-box subcircuits (class MODULE):  V, I, E	*/
 
     else if (toupper(nexttok[0]) == 'V') {	/* voltage source */
-      char pos[100], neg[100];
-      pos[99] = '\0';
-      neg[99] = '\0';
+      char pos[MAX_STR_LEN], neg[MAX_STR_LEN];
+      pos[MAX_STR_LEN-1] = '\0';
+      neg[MAX_STR_LEN-1] = '\0';
 
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
-      strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+      strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
       if (nexttok == NULL) goto baddevice;
-      strncpy(pos, nexttok, 99);   SpiceTokNoNewline();
+      strncpy(pos, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(neg, nexttok, 99); SpiceTokNoNewline();
+      strncpy(neg, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
       /* make sure all the nodes exist */
       if (LookupObject(pos, CurrentCell) == NULL) Node(pos);
@@ -1499,19 +1499,19 @@ skip_ends:
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'I') {	/* current source */
-      char pos[100], neg[100];
-      pos[99] = '\0';
-      neg[99] = '\0';
+      char pos[MAX_STR_LEN], neg[MAX_STR_LEN];
+      pos[MAX_STR_LEN-1] = '\0';
+      neg[MAX_STR_LEN-1] = '\0';
 
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
-      strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+      strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
       if (nexttok == NULL) goto baddevice;
-      strncpy(pos, nexttok, 99);   SpiceTokNoNewline();
+      strncpy(pos, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(neg, nexttok, 99); SpiceTokNoNewline();
+      strncpy(neg, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       /* make sure all the nodes exist */
       if (LookupObject(pos, CurrentCell) == NULL) Node(pos);
       if (LookupObject(neg, CurrentCell) == NULL) Node(neg);
@@ -1553,25 +1553,25 @@ skip_ends:
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'E') {	/* controlled voltage source */
-      char pos[100], neg[100], ctrlp[100], ctrln[100];
-      pos[99] = '\0';
-      neg[99] = '\0';
-      ctrlp[99] = '\0';
-      ctrln[99] = '\0';
+      char pos[MAX_STR_LEN], neg[MAX_STR_LEN], ctrlp[MAX_STR_LEN], ctrln[MAX_STR_LEN];
+      pos[MAX_STR_LEN-1] = '\0';
+      neg[MAX_STR_LEN-1] = '\0';
+      ctrlp[MAX_STR_LEN-1] = '\0';
+      ctrln[MAX_STR_LEN-1] = '\0';
 
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
       }
-      strncpy(inst, nexttok + 1, 99); SpiceTokNoNewline(); 
+      strncpy(inst, nexttok + 1, MAX_STR_LEN-1); SpiceTokNoNewline(); 
       if (nexttok == NULL) goto baddevice;
-      strncpy(pos, nexttok, 99);   SpiceTokNoNewline();
+      strncpy(pos, nexttok, MAX_STR_LEN-1);   SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(neg, nexttok, 99); SpiceTokNoNewline();
+      strncpy(neg, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(ctrlp, nexttok, 99); SpiceTokNoNewline();
+      strncpy(ctrlp, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
       if (nexttok == NULL) goto baddevice;
-      strncpy(ctrln, nexttok, 99); SpiceTokNoNewline();
+      strncpy(ctrln, nexttok, MAX_STR_LEN-1); SpiceTokNoNewline();
 
       /* make sure all the nodes exist */
       if (LookupObject(pos, CurrentCell) == NULL) Node(pos);
@@ -1619,11 +1619,11 @@ skip_ends:
     }
 
     else if (toupper(nexttok[0]) == 'X') {	/* subcircuit instances */
-      char instancename[100], subcktname[100];
+      char instancename[MAX_STR_LEN], subcktname[MAX_STR_LEN];
       int itype, in_props;
 
-      instancename[99] = '\0';
-      subcktname[99] = '\0';
+      instancename[MAX_STR_LEN-1] = '\0';
+      subcktname[MAX_STR_LEN-1] = '\0';
 
       struct portelement {
 	char *name;
@@ -1633,8 +1633,8 @@ skip_ends:
       struct portelement *head, *tail, *scan, *scannext;
       struct objlist *obptr;
 
-      snprintf(instancename, 99, "%s", nexttok + 1);
-      strncpy(instancename, nexttok + 1, 99);
+      snprintf(instancename, MAX_STR_LEN-1, "%s", nexttok + 1);
+      strncpy(instancename, nexttok + 1, MAX_STR_LEN-1);
       if (!(*CellStackPtr)) {
 	CellDef(fname, filenum);
 	PushStack(fname, CellStackPtr);
@@ -1742,14 +1742,14 @@ skip_ends:
       /* names.								  */
 
       if (strncmp(instancename, scan->name, strlen(scan->name))) {
-         snprintf(subcktname, 99, "%s:%s", scan->name, instancename);
+         snprintf(subcktname, MAX_STR_LEN-1, "%s:%s", scan->name, instancename);
          strcpy(instancename, subcktname);
       }
       else {
-         snprintf(subcktname, 99, "/%s", instancename);
+         snprintf(subcktname, MAX_STR_LEN-1, "/%s", instancename);
          strcpy(instancename, subcktname);
       }
-      snprintf(subcktname, 99, "%s", scan->name);
+      snprintf(subcktname, MAX_STR_LEN-1, "%s", scan->name);
 
       if (scan == head) {
 	 head = NULL;
@@ -1985,7 +1985,7 @@ void IncludeSpice(char *fname, int parent, struct cellstack **CellStackPtr,
 		int blackbox)
 {
   int filenum = -1;
-  char name[256];
+  char name[MAX_STR_LEN];
 
   /* If fname does not begin with "/", then assume that it is	*/
   /* in the same relative path as its parent.			*/

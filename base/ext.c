@@ -167,7 +167,7 @@ char *ReadExt(char *fname, int doflat, int *fnum)
   int filenum;
 
   if ((filenum = OpenParseFile(fname, *fnum)) < 0) {
-    char name[100];
+    char name[MAX_STR_LEN];
 
     SetExtension(name, fname, EXT_EXTENSION);
     if ((filenum = OpenParseFile(name, *fnum)) < 0) {
@@ -208,7 +208,7 @@ char *ReadExt(char *fname, int doflat, int *fnum)
     else if (match(nexttok, "style"))  SkipNewLine(NULL);
     else if (match(nexttok, "resistclasses"))  SkipNewLine(NULL);
     else if (match(nexttok, "node")) {
-      char name[200];
+      char name[MAX_STR_LEN];
 
       /* No cell is generated until at least one valid "node" or "use"	*/
       /* has been read in the file.					*/
@@ -223,8 +223,8 @@ char *ReadExt(char *fname, int doflat, int *fnum)
       SkipNewLine(NULL);
     }
     else if (match(nexttok, "equiv")) {
-      char name[200];
-      char name2[200];
+      char name[MAX_STR_LEN];
+      char name2[MAX_STR_LEN];
       SkipTok(NULL);
       GetExtName(name, nexttok);
       if (LookupObject(name,CurrentCell) == NULL) Node(name);
@@ -235,8 +235,8 @@ char *ReadExt(char *fname, int doflat, int *fnum)
       SkipNewLine(NULL);
     }
     else if (match(nexttok, "device")) {
-      char dev_name[100], dev_class[100];
-      char gate[200], drain[200], source[200], subs[200];
+      char dev_name[MAX_STR_LEN], dev_class[MAX_STR_LEN];
+      char gate[MAX_STR_LEN], drain[MAX_STR_LEN], source[MAX_STR_LEN], subs[MAX_STR_LEN];
       char inststr[64];
       SkipTok(NULL);
       strcpy(dev_class, nexttok);
@@ -306,8 +306,8 @@ char *ReadExt(char *fname, int doflat, int *fnum)
       SkipNewLine(NULL);
     }
     else if (match(nexttok, "fet")) {	/* old-style FET record */
-      char fet_class[100];
-      char gate[200], drain[200], source[200], subs[200];
+      char fet_class[MAX_STR_LEN];
+      char gate[MAX_STR_LEN], drain[MAX_STR_LEN], source[MAX_STR_LEN], subs[MAX_STR_LEN];
       char inststr[64];
       SkipTok(NULL);
       strcpy(fet_class, nexttok);
@@ -365,7 +365,7 @@ char *ReadExt(char *fname, int doflat, int *fnum)
 	SkipNewLine(NULL);
       }
       else {
-        char ctop[200], cbot[200], cdummy[200];
+        char ctop[MAX_STR_LEN], cbot[MAX_STR_LEN], cdummy[MAX_STR_LEN];
 	SkipTok(NULL);
         GetExtName(ctop, nexttok);
 	SkipTok(NULL);
@@ -375,8 +375,8 @@ char *ReadExt(char *fname, int doflat, int *fnum)
       }
     }
     else if (match(nexttok, "use")) {
-      char name[200];
-      char instancename[200];
+      char name[MAX_STR_LEN];
+      char instancename[MAX_STR_LEN];
       char *basename;
 
       /* No cell is generated until at least one valid "node" or "use"	*/
@@ -390,7 +390,7 @@ char *ReadExt(char *fname, int doflat, int *fnum)
       SkipTok(NULL);
       GetExtName(name, nexttok);
       if ((basename = strrchr(name,'/')) != NULL) {
-	char tmp[200];
+	char tmp[MAX_STR_LEN];
 	strcpy(tmp, basename+1);
 	strcpy(name, tmp);
       }
@@ -405,8 +405,8 @@ char *ReadExt(char *fname, int doflat, int *fnum)
       SkipNewLine(NULL);
     }
     else if (match(nexttok, "merge")) {
-      char name[200];
-      char name2[200];
+      char name[MAX_STR_LEN];
+      char name2[MAX_STR_LEN];
       SkipTok(NULL);
       GetExtName(name, nexttok);
       SkipTok(NULL);
@@ -640,7 +640,7 @@ char *ReadSim(char *fname, int *fnum)
   double simscale = 1.0;
 
   if ((filenum = OpenParseFile(fname, *fnum)) < 0) {
-    char name[100];
+    char name[MAX_STR_LEN];
 
     SetExtension(name, fname, SIM_EXTENSION);
     if (OpenParseFile(name, *fnum) < 0) {
@@ -670,7 +670,7 @@ char *ReadSim(char *fname, int *fnum)
       SkipNewLine(NULL);
     }
     else if (match(nexttok, "n")) {
-      char gate[200], drain[200], source[200];
+      char gate[MAX_STR_LEN], drain[MAX_STR_LEN], source[MAX_STR_LEN];
       char inststr[25], *instptr = NULL;
 
       SkipTok(NULL);
@@ -714,7 +714,7 @@ char *ReadSim(char *fname, int *fnum)
       LinkProperties("n", kvlist);
     }
     else if (match(nexttok, "p")) {
-      char gate[200], drain[200], source[200];
+      char gate[MAX_STR_LEN], drain[MAX_STR_LEN], source[MAX_STR_LEN];
       char inststr[25], *instptr = NULL;
       SkipTok(NULL);
       GetExtName(gate, nexttok);
@@ -754,7 +754,7 @@ char *ReadSim(char *fname, int *fnum)
       LinkProperties("p", kvlist);
     }
     else if (match(nexttok, "e")) {	/* 3-port capacitors (poly/poly2) */
-      char gate[200], drain[200], source[200];
+      char gate[MAX_STR_LEN], drain[MAX_STR_LEN], source[MAX_STR_LEN];
       char inststr[25], *instptr = NULL;
       SkipTok(NULL);
       GetExtName(gate, nexttok);
@@ -788,7 +788,7 @@ char *ReadSim(char *fname, int *fnum)
       E(fname, instptr, gate, drain, source);
     }
     else if (match(nexttok, "b")) {		/* bipolars added by Tim 7/16/96 */
-      char base[200], emitter[200], collector[200];
+      char base[MAX_STR_LEN], emitter[MAX_STR_LEN], collector[MAX_STR_LEN];
       char inststr[25], *instptr = NULL;
       SkipTok(NULL);
       GetExtName(base, nexttok);
@@ -826,7 +826,7 @@ char *ReadSim(char *fname, int *fnum)
 	SkipNewLine(NULL);
       }
       else {
-        char ctop[200], cbot[200], cdummy[200];
+        char ctop[MAX_STR_LEN], cbot[MAX_STR_LEN], cdummy[MAX_STR_LEN];
         SkipTok(NULL);
         GetExtName(ctop, nexttok);
         if (LookupObject(ctop, CurrentCell) == NULL)
@@ -851,7 +851,7 @@ char *ReadSim(char *fname, int *fnum)
 	SkipNewLine(NULL);
       }
       else {
-        char rtop[200], rbot[200];
+        char rtop[MAX_STR_LEN], rbot[MAX_STR_LEN];
         SkipTok(NULL);
         GetExtName(rtop, nexttok);
         if (LookupObject(rtop, CurrentCell) == NULL)
@@ -875,7 +875,7 @@ char *ReadSim(char *fname, int *fnum)
 	SkipNewLine(NULL);
       }
       else {
-        char rtop[200], rbot[200], rdummy[200];
+        char rtop[MAX_STR_LEN], rbot[MAX_STR_LEN], rdummy[MAX_STR_LEN];
 	char inststr[25], *instptr = NULL;
         SkipTok(NULL);
         GetExtName(rdummy, nexttok);
@@ -917,7 +917,7 @@ char *ReadSim(char *fname, int *fnum)
       SkipNewLine(NULL);
     }
     else if (match(nexttok, "=")) {
-      char node1[200], node2[200];
+      char node1[MAX_STR_LEN], node2[MAX_STR_LEN];
       SkipTok(NULL);
       GetExtName(node1, nexttok);
       SkipTok(NULL);

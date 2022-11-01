@@ -739,7 +739,7 @@ struct nlist *RecurseCellHashTable2(struct nlist *(*foo)(struct hashlist *,
 		
 char *FixTemplate(char *t)
 {
-	char buffer[200];
+	char buffer[MAX_STR_LEN];
 	char *rstr;
 	int i,j;
 	int InsideBrace;
@@ -1250,7 +1250,7 @@ static char *OldNodeName(struct nlist *tp, int node)
   struct objlist *firstuniqueglobal;
   struct objlist *firstglobal;
   struct objlist *firstpin;
-  static char StrBuffer[100];
+  static char StrBuffer[MAX_STR_LEN];
 
 #if 0
   /* make second pass, looking for ports */

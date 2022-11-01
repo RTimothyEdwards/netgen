@@ -65,10 +65,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 Widget toplevel = NULL;
 
-char GlobalFileName[100], 
-  GlobalCellName[100], 
-  GlobalOtherName[100],
-  GlobalDataName[100];
+char GlobalFileName[MAX_STR_LEN], 
+  GlobalCellName[MAX_STR_LEN], 
+  GlobalOtherName[MAX_STR_LEN],
+  GlobalDataName[MAX_STR_LEN];
 
 /*********************************************************
  * Menu structure:  attaches label string to a function,
@@ -1708,7 +1708,7 @@ void X_main_loop(int argc, char *argv[])
 
 XmStringCharSet cs = "ISOLatin1";
 
-static char prompt_response[100];
+static char prompt_response[MAX_STR_LEN];
 int prompt_done;
 int calling_editor;  /* which string are we trying to get ? */
 #define FILE_NAME 1

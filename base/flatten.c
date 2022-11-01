@@ -53,7 +53,7 @@ void flattenCell(char *name, int file)
   struct nlist *ChildCell;
   struct objlist *tmp, *ob2, *ob3;
   int	notdone, rnodenum;
-  char	tmpstr[200];
+  char	tmpstr[MAX_STR_LEN];
   int	nextnode, oldmax;
 #if !OLDPREFIX
   int     prefixlength;

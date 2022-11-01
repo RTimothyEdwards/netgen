@@ -51,7 +51,7 @@ void STRCPY(char *dest, char *source)
 int main(int argc, char *argv[])
 {
 #ifndef HAVE_GETOPT
-  char cell1[200], cell2[200];
+  char cell1[MAX_STR_LEN], cell2[MAX_STR_LEN];
   int filenum = -1;
 
   Debug = 0;
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
   STRCPY(cell2, ReadNetlist(argv[2], &filenum));
   if (argc == 5) STRCPY(cell2, argv[4]);  /* if explicit cell name specified */
 #else
-  char cell1[200], cell2[200];
+  char cell1[MAX_STR_LEN], cell2[MAX_STR_LEN];
   int usage = 0;
   int args;
   int c;

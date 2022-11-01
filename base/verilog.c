@@ -816,13 +816,13 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   char devtype, in_module, in_param;
   char *eqptr, *matchptr;
   struct keyvalue *kvlist = NULL;
-  char inst[256], model[256], instname[256], portname[256], pkey[256];
+  char inst[MAX_STR_LEN], model[MAX_STR_LEN], instname[MAX_STR_LEN], portname[MAX_STR_LEN], pkey[MAX_STR_LEN];
   struct nlist *tp;
   struct objlist *parent, *sobj, *nobj, *lobj, *pobj;
 
-  inst[255] = '\0';
-  model[255] = '\0';
-  instname[255] = '\0';
+  inst[MAX_STR_LEN-1] = '\0';
+  model[MAX_STR_LEN-1] = '\0';
+  instname[MAX_STR_LEN-1] = '\0';
   in_module = (char)0;
   in_param = (char)0;
 
@@ -947,7 +947,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 
       /* Check for existence of the cell.  We may need to rename it. */
 
-      snprintf(model, 99, "%s", nexttok);
+      snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
       tp = LookupCellFile(nexttok, filenum);
 
       /* Check for name conflict with duplicate cell names	*/
@@ -1340,7 +1340,7 @@ skip_endmodule:
     }
     else if (match(nexttok, "wire") || match(nexttok, "assign")) {	/* wire = node */
 	struct bus wb, wb2, *nb;
-	char nodename[128], noderoot[100];
+	char nodename[MAX_STR_LEN], noderoot[MAX_STR_LEN];
 	int is_wire = match(nexttok, "wire");
 	int j;
 	struct objlist *lhs, *rhs;
@@ -1438,7 +1438,7 @@ skip_endmodule:
 	//    "assign" using any boolean arithmetic is not structural verilog.
 
 	if (nexttok && match(nexttok, "=")) {
-	    char assignname[128], assignroot[100];
+	    char assignname[MAX_STR_LEN], assignroot[MAX_STR_LEN];
 
 	    i = wb.start;
 	    while (1) {
@@ -1552,12 +1552,12 @@ skip_endmodule:
       goto skip_endmodule;
     }
     else {	/* module instances */
-      char instancename[100], modulename[100];
+      char instancename[MAX_STR_LEN], modulename[MAX_STR_LEN];
       int itype, arraystart, arrayend, arraymax, arraymin;
       char ignore;
 
-      instancename[99] = '\0';
-      modulename[99] = '\0';
+      instancename[MAX_STR_LEN-1] = '\0';
+      modulename[MAX_STR_LEN-1] = '\0';
 
       struct portelement {
 	char *name;	// Name of port in subcell
@@ -1570,7 +1570,7 @@ skip_endmodule:
       struct portelement *head, *tail, *scan, *last, *scannext;
       struct objlist *obptr;
 
-      strncpy(modulename, nexttok, 99);
+      strncpy(modulename, nexttok, MAX_STR_LEN-1);
 
       /* If module name is a verilog primitive, then treat the module as a  */
       /* black box (this is not a complete list.  Preferable to use hash    */
@@ -1648,7 +1648,7 @@ nextinst:
 	 }
       }
 
-      strncpy(instancename, nexttok, 99);
+      strncpy(instancename, nexttok, MAX_STR_LEN-1);
       /* Printf("Diagnostic:  new instance is %s\n", instancename); */
       SkipTokComments(VLOG_DELIMITERS);
 
@@ -1698,7 +1698,7 @@ nextinst:
 	       }
 	       SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 	       if (match(nexttok, ")")) {
-		  char localnet[100];
+		  char localnet[MAX_STR_LEN];
 		  // Empty parens, so create a new local node
 		  savetok = (char)1;
 		  if (arraystart != -1) {
@@ -1830,7 +1830,7 @@ nextinst:
       tp = LookupCellFile(modulename, filenum);
       if (tp == NULL) {
          struct bus wb, pb;
-	 char defport[128];
+	 char defport[MAX_STR_LEN];
 
 	 Fprintf(stdout, "Creating placeholder cell definition for "
 			"module %s.\n", modulename);
@@ -1921,7 +1921,7 @@ nextinst:
 	 if (portstart != -1) {
 	    struct bus wb;
 	    struct portelement *new_port;
-	    char vname[256];
+	    char vname[MAX_STR_LEN];
 	    int j, result;
 	    struct objlist *bobj;
 	    char *bptr;
@@ -2074,7 +2074,7 @@ nextinst:
       for (i = arraymin; i <= arraymax; i++) {
 	 char *brackptr;
 	 int j;
-	 char locinst[128];
+	 char locinst[MAX_STR_LEN];
 
          if (i != -1)
 	    sprintf(locinst, "%s[%d]", instancename, i);
@@ -2109,7 +2109,7 @@ nextinst:
 		  scan = scan->next;
 	       }
 	       if (scan == NULL) {
-		  char localnet[100];
+		  char localnet[MAX_STR_LEN];
 
 		  /* Assume an implicit unconnected pin */
 		  sprintf(localnet, "_noconnect_%d_", localcount++);
@@ -2129,7 +2129,7 @@ nextinst:
 		   if (arraystart == -1) {
 		       // Port may be an array
 		       int range;
-		       char pinname[128];
+		       char pinname[MAX_STR_LEN];
 
 		       // Check if port is an array
 		       if (obpinidx == -1) {
@@ -2154,7 +2154,7 @@ nextinst:
 		   }
 		   else {
 		       // Instance must be an array
-		       char netname[128];
+		       char netname[MAX_STR_LEN];
 		       int slice, portlen, siglen;
 
 		       /* Get the array size of the port for bit slicing */
@@ -2204,7 +2204,7 @@ nextinst:
 	          for (scan = head; scan; scan = scan->next) {
 	             if (!(scan->flags & PORT_FOUND)) {
 		        if (tp->flags & CELL_PLACEHOLDER) {
-			   char tempname[128];
+			   char tempname[MAX_STR_LEN];
 			   int maxnode;
 
 		           /* This pin was probably implicit in the first call */
@@ -2432,7 +2432,7 @@ void IncludeVerilog(char *fname, int parent, struct cellstack **CellStackPtr,
 		int blackbox)
 {
   int filenum = -1;
-  char name[256];
+  char name[MAX_STR_LEN];
 
   /* If fname does not begin with "/", then assume that it is	*/
   /* in the same relative path as its parent.			*/

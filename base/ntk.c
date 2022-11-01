@@ -181,7 +181,7 @@ void Ntk(char *name, char *filename)
 
 char *ReadNtk (char *fname, int *fnum)
 {
-  char	model[100], instancename[100], name[100];
+  char	model[MAX_STR_LEN], instancename[MAX_STR_LEN], name[MAX_STR_LEN];
   struct objlist *ob;
   int CellDefInProgress = 0;
   int filenum;
@@ -218,7 +218,7 @@ char *ReadNtk (char *fname, int *fnum)
       }
     } 
     else if (match(nexttok, "s")) {
-      char last[100];
+      char last[MAX_STR_LEN];
       *last = '\0';
       if (!CellDefInProgress) {
 	/* fake cell declaration for top-level call */
