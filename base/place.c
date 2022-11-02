@@ -511,8 +511,8 @@ int OpenEmbeddingFile(char *cellname, char *filename)
 /* returns 1 if OK */
 {
   struct nlist *tp;
-  char outfilename[200];
-  char logfilename[200];
+  char outfilename[MAX_STR_LEN];
+  char logfilename[MAX_STR_LEN];
 
   tp = LookupCell(cellname);
   if (tp == NULL) {
@@ -783,7 +783,7 @@ void SetupArray(char *prompt1, char *prompt2, char *prompt3, int *data,
                 void (*proc)(void))
 {
   int i, oldfanout;
-  char name[100];
+  char name[MAX_STR_LEN];
 
   Printf(prompt1);
   for (i = 1; i <= MAX_TREE_DEPTH; i++) 
@@ -792,7 +792,7 @@ void SetupArray(char *prompt1, char *prompt2, char *prompt3, int *data,
 
   oldfanout = 1;
   for (i = 1; i <= MAX_TREE_DEPTH; i++) {
-    char prompt[100];
+    char prompt[MAX_STR_LEN];
     int newfanout;
     sprintf(prompt, prompt2, i);
     promptstring(prompt, name);
@@ -822,7 +822,7 @@ void SetupArrayFromString(char *prompt1, char *prompt3, int *data,
                 void (*proc)(void), char *text)
 {
   int i, oldfanout, newfanout;
-  char string[100];
+  char string[MAX_STR_LEN];
   char *ch;
   char *endch;
 
@@ -962,7 +962,7 @@ void ProtoPrintParameters(void)
 void PROTOCHIP(void)
 /* a simple command interpreter to manage embedding/routing */
 {
-  char name[100];
+  char name[MAX_STR_LEN];
   char ch;
   
   InitializeFanout();
@@ -1136,7 +1136,7 @@ void PROTOCHIP(void)
 
       oldfanout = 1;
       for (i = 1; i <= MAX_TREE_DEPTH; i++) {
-	char prompt[100];
+	char prompt[MAX_STR_LEN];
 	int newfanout;
 	sprintf(prompt,"Fanout for level %d (0 to quit): ",i);
 	promptstring(prompt, name);
@@ -1168,7 +1168,7 @@ void PROTOCHIP(void)
 
       oldfanout = 1;
       for (i = 1; i <= MAX_TREE_DEPTH; i++) {
-	char prompt[100];
+	char prompt[MAX_STR_LEN];
 	int newfanout;
 	sprintf(prompt,"Common nodes for level %d (0 to quit): ",i);
 	promptstring(prompt, name);
@@ -1200,7 +1200,7 @@ void PROTOCHIP(void)
 
       oldfanout = 1;
       for (i = 1; i <= MAX_TREE_DEPTH; i++) {
-	char prompt[100];
+	char prompt[MAX_STR_LEN];
 	int newfanout;
 	sprintf(prompt,"Used leaves for level %d (0 to quit): ",i);
 	promptstring(prompt, name);

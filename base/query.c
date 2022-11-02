@@ -52,7 +52,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 /*************************************************************************/
 
 static int SuppressPrompts = 0;
-static char InputLine[200];
+static char InputLine[MAX_STR_LEN];
 
 void typeahead(char *str)
 {
@@ -73,7 +73,7 @@ but reads from 'promptstring_infile' if nec. */
 /* If interactive, puts out 'prompt' */
 {
   char *nexttok;
-  char tmpstr[200];
+  char tmpstr[MAX_STR_LEN];
   int echo;
 
   if (promptstring_infile == NULL)
@@ -959,8 +959,8 @@ void Query(void)
 {
   /* little interactive debugger */
   char reply;
-  char repstr[100];
-  char repstr2[100];
+  char repstr[MAX_STR_LEN];
+  char repstr2[MAX_STR_LEN];
   float StartTime;   /* for elapsed CPU times */
   int Timing;  /* if true, print times of each command */
   int filenum = -1;

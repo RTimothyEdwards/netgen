@@ -57,7 +57,7 @@ int AddToExistingDefinition = 0;  /* default: overwrite cell when reopened */
 extern int errno;	/* Defined in stdlib.h */
 
 #define MAX_STATIC_STRINGS 5
-static char staticstrings[MAX_STATIC_STRINGS][200];
+static char staticstrings[MAX_STATIC_STRINGS][MAX_STR_LEN];
 static int laststring;
 
 extern struct hashdict spiceparams;	/* From spice.c */

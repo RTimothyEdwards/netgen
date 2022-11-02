@@ -6952,7 +6952,8 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
       /* conflicting names exist, then alter the classhash to make it	*/
       /* unique.  In the case of duplicate cells, don't do this.	*/
 
-      if (!(tp->flags & CELL_DUPLICATE) && !(tp2->flags & CELL_DUPLICATE)) {
+      if (!(tp->flags & CELL_DUPLICATE) && !(tp2->flags & CELL_DUPLICATE) &&
+			!(*matchfunc)(name1, name2)) {
 	 tpx = LookupCellFile(name1, file2);
 	 if (tpx != NULL) need_new_seed = 1;
 	 tpx = LookupCellFile(name2, file1);
@@ -8144,8 +8145,8 @@ int Compare(char *cell1, char *cell2)
 void NETCOMP(void)
 /* a simple command interpreter to manage embedding/routing */
 {
-  char name[100];
-  char name2[100];
+  char name[MAX_STR_LEN];
+  char name2[MAX_STR_LEN];
   char ch;
   
   setjmp(jmpenv);
@@ -8243,7 +8244,7 @@ void NETCOMP(void)
       break;
     case 'p':
       {
-	char model[100];
+	char model[MAX_STR_LEN];
 	/* equivalence two pins on a given class of element */
 	Printf("Allow permutation of two pins.\n");
 	promptstring("Enter cellname: ",model);
