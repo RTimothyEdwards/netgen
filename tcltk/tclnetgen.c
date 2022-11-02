@@ -2228,7 +2228,13 @@ _netcmp_compare(ClientData clientData,
        Fprintf(stdout, "\nCircuit 1 cell %s is a black box; will not flatten "
                         "Circuit 2\n", name1);
    }
-   else if (hascontents1 || hascontents2) {
+   else if (!hascontents1 && !hascontents2 && (tp1->flags & CELL_PLACEHOLDER)
+		&& (tp2->flags & CELL_PLACEHOLDER)) {
+       /* Two empty subcircuits, don't flatten anything */
+       Fprintf(stdout, "\nCircuit 1 cell %s and Circuit 2 cell %s are black"
+			" boxes.\n", name1, name2);
+   }
+   else {
        FlattenUnmatched(tp1, name1, 1, 0);
        FlattenUnmatched(tp2, name2, 1, 0);
        DescribeContents(name1, fnum1, name2, fnum2);
@@ -2240,10 +2246,6 @@ _netcmp_compare(ClientData clientData,
           FlattenUnmatched(tp2, name2, 1, 0);
           DescribeContents(name1, fnum1, name2, fnum2);
        }
-   }
-   else {	/* Two empty subcircuits */
-       Fprintf(stdout, "\nCircuit 1 cell %s and Circuit 2 cell %s are black"
-			" boxes.\n", name1, name2);
    }
    CreateTwoLists(name1, fnum1, name2, fnum2, dolist);
 
