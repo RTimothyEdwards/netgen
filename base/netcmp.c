@@ -5911,7 +5911,7 @@ PropertyMatch(struct objlist *ob1, int file1,
        * single node) has non-zero flags.  A non-node entry in the cache
        * implies a node with zero flags.
        */
-      if (node1->flags != node1->flags) {
+      if (node1->flags != node2->flags) {
 	 Fprintf(stdout, "  Parallelized instances disagree on pin connections.\n");
 	 Fprintf(stdout, "    Circuit1 instance %s pin %s connections are %s (%d)\n",
 		    tp1->instance.name, node1->name,
@@ -5932,8 +5932,11 @@ PropertyMatch(struct objlist *ob1, int file1,
    // PropertySortAndCombine can move the first property, so recompute it
    // for each circuit.
 
-   for (tp1 = ob1; (tp1 != NULL) && tp1->type >= FIRSTPIN; tp1 = tp1->next);
-   for (tp2 = ob2; (tp2 != NULL) && tp2->type >= FIRSTPIN; tp2 = tp2->next);
+   tp1 = tp2 = NULL;
+   if (t1type == PROPERTY)
+      for (tp1 = ob1; (tp1 != NULL) && tp1->type >= FIRSTPIN; tp1 = tp1->next);
+   if (t2type == PROPERTY)
+      for (tp2 = ob2; (tp2 != NULL) && tp2->type >= FIRSTPIN; tp2 = tp2->next);
 
    // Find name for printing, removing leading slash if needed.
    inst1 = ob1->instance.name;
@@ -5963,12 +5966,16 @@ PropertyMatch(struct objlist *ob1, int file1,
 	    if (vl2->type == PROP_ENDLIST) break;
 	    if (vl2 == NULL) continue;
 	    if (vl2->key == NULL) continue;
-	    kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
-	    if (kl2 != NULL) {
-		// Allowed for one instance to be missing "M" or "S".
-		if (!(*matchfunc)(vl2->key, "M") && !(*matchfunc)(vl2->key, "S"))
+
+	    // Allowed for one instance to be missing "M" or "S" if the other
+	    // has value 1.
+	    if (!(*matchfunc)(vl2->key, "M") && !(*matchfunc)(vl2->key, "S")) {
+	        kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
+	    	if (kl2 != NULL)
 		    break;	// Property is required
 	    }
+	    else if (vl2->value.ival != 1)
+		break;	// Property M != 1 or S != 1 is a mismatch.
 	 }
 	 if (vl2->type != PROP_ENDLIST) {
 	    mismatches++;
@@ -6016,12 +6023,16 @@ PropertyMatch(struct objlist *ob1, int file1,
 	    if (vl1->type == PROP_ENDLIST) break;
 	    if (vl1 == NULL) continue;
 	    if (vl1->key == NULL) continue;
-	    kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
-	    if (kl1 != NULL) {
-		// Allowed for one instance to be missing "M" or "S".
-		if (!(*matchfunc)(vl1->key, "M") && !(*matchfunc)(vl1->key, "S"))
+
+	    // Allowed for one instance to be missing "M" or "S" if the other
+	    // has value 1.
+	    if (!(*matchfunc)(vl1->key, "M") && !(*matchfunc)(vl1->key, "S")) {
+	        kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
+	        if (kl1 != NULL)
 		    break;	// Property is required
 	    }
+	    else if (vl1->value.ival != 1)
+		break;	// Property M != 1 or S != 1 is a mismatch.
 	 }
 	 if (vl1->type != PROP_ENDLIST) {
 	    mismatches++;
@@ -6321,7 +6332,7 @@ int ResolveAutomorphsByPin()
     int portnum;
 
     /* Diagnostic */
-    Fprintf(stdout, "Resolving automorphisms by pin name.\n");
+    Fprintf(stdout, "Resolving symmetries by pin name.\n");
 
     for (NC = NodeClasses; NC != NULL; NC = NC->next) {
 	struct Node *N1, *N2;
@@ -6346,6 +6357,8 @@ int ResolveAutomorphsByPin()
 		for (N2 = N1->next; N2 != NULL; N2 = N2->next) {
 		    if ((N2->graph != N1->graph) &&
 				(*matchfunc)(N2->object->name, N1->object->name)) {
+  			if (Debug == TRUE)
+			    Printf("Symmetry group broken by name match (pin %s)\n", N2->object->name);
 			Magic(newhash);
 			N1->hashval = newhash;
 			N2->hashval = newhash;
@@ -6381,7 +6394,7 @@ int ResolveAutomorphsByProperty()
     unsigned long orighash, newhash;
 
     /* Diagnostic */
-    Fprintf(stdout, "Resolving automorphisms by property value.\n");
+    Fprintf(stdout, "Resolving symmetries by property value.\n");
 
     for (EC = ElementClasses; EC != NULL; EC = EC->next) {
 	struct Element *E1, *E2;
@@ -6422,6 +6435,8 @@ int ResolveAutomorphsByProperty()
 		    PropertyMatch(E1->object, E1->graph, E2->object, E2->graph,
 			    FALSE, FALSE, &result);
 		    if (result == 0) {
+  			if (Debug == TRUE)
+		            Printf("Symmetry group split by property (element %s)\n", E2->object->model.class);
 			E2->hashval = newhash;
 			if (E2->graph == E1->graph)
 			    C1++;
@@ -8115,7 +8130,7 @@ int Compare(char *cell1, char *cell2)
 
      /* arbitrarily resolve automorphisms */
      Fprintf(stdout, "\n");
-     Fprintf(stdout, "Resolving automorphisms by arbitrary symmetry breaking:\n");
+     Fprintf(stdout, "Resolving symmetries by arbitrary symmetry breaking:\n");
      while ((automorphisms = ResolveAutomorphisms()) > 0) ;
      if (automorphisms == -1) {
 	MatchFail(cell1, cell2);
@@ -8214,7 +8229,7 @@ void NETCOMP(void)
 	else {
 	  Printf("Netlists match with %d symmetries.\n", automorphisms);
 	  while ((automorphisms = ResolveAutomorphisms()) > 0)
-	    Printf("  automorphisms = %d.\n", automorphisms);
+	    Printf("  symmetries = %d.\n", automorphisms);
 	  if (automorphisms == -1) Fprintf(stdout, "Netlists do not match.\n");
 	  else if (automorphisms == -2) Fprintf(stdout, "Port counts do not match.\n");
 	  else Printf("Circuits match correctly.\n");
@@ -8281,7 +8296,7 @@ void NETCOMP(void)
       Printf("(c)reate internal data structure\n");
       Printf("do an (i)teration\n");
       Printf("(r)un to completion (convergence)\n");
-      Printf("(R)un to completion (resolve automorphisms)\n");
+      Printf("(R)un to completion (resolve symmetries)\n");
       Printf("(v)erify results\n");
       Printf("print (a)utomorphisms\n");
       Printf("equate two (d)evices\n");
