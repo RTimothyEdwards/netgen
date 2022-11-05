@@ -5788,14 +5788,15 @@ Tcl_Obj *
 #else
 void
 #endif
-PropertyMatch(struct objlist *ob1, int file1,
-		struct objlist *ob2, int file2,
+PropertyMatch(struct Element *E1, struct Element *E2,
 		int do_print, int do_list, int *retval)
 {
    struct nlist *tc1, *tc2;
-   struct objlist *tp1, *tp2, *obn1, *obn2, *tpc;
+   struct objlist *ob1, *ob2, *tp1, *tp2, *obn1, *obn2, *tpc;
    struct property *kl1, *kl2;
    struct valuelist *vl1, *vl2;
+   struct NodeList *nl1, *nl2;
+   int file1, file2;
    int t1type, t2type, run1, run2;
    int i, mismatches = 0, checked_one;
    int rval = 1;
@@ -5803,6 +5804,12 @@ PropertyMatch(struct objlist *ob1, int file1,
 #ifdef TCL_NETGEN
    Tcl_Obj *proplist = NULL, *mpair, *mlist;
 #endif
+
+   ob1 = E1->object;
+   ob2 = E2->object;
+
+   file1 = E1->graph;
+   file2 = E2->graph;
 
    tc1 = LookupCellFile(ob1->model.class, file1);
    tc2 = LookupCellFile(ob2->model.class, file2);
@@ -5891,11 +5898,13 @@ PropertyMatch(struct objlist *ob1, int file1,
 
    /* Check for no-connect pins in merged devices on both sides.	*/
    /* Both sides should either have no-connects marked, or neither.	*/
-   /* (Permutable pins may need to be handled correctly. . .		*/
+   /* Permutable pins need to be handled correctly.			*/
 
-   for (tp1 = ob1, tp2 = ob2; (tp1 != NULL) && tp1->type >= FIRSTPIN &&
-	    (tp2 != NULL) && tp2->type >= FIRSTPIN; tp1 = tp1->next, tp2 = tp2->next) {
+   for (tp1 = ob1, tp2 = ob2, nl1 = E1->nodelist; tp1 && tp2; tp1 = tp1->next, tp2 = tp2->next) {
       struct objlist *node1, *node2;
+
+      if ((tp1 != ob1) && (tp1->type <= FIRSTPIN)) break;
+      if ((tp2 != ob2) && (tp2->type <= FIRSTPIN)) break;
 
       if (file1 == Circuit1->file)
 	 node1 = Circuit1->nodename_cache[tp1->node];
@@ -5907,22 +5916,45 @@ PropertyMatch(struct objlist *ob1, int file1,
       else
          node2 = Circuit2->nodename_cache[tp2->node];
 
+      if (node1->flags != node2->flags) {
+	 struct objlist *tp2b; 
+
+	 /* Find if there is permutable pin node with matching flags */
+	 /* Note that this is not rigorous, and should be better handled. */
+
+	 for (tp2b = ob2, nl2 = E2->nodelist; tp2b; tp2b = tp2b->next, nl2 = nl2->next) {
+       	     if ((tp2b != ob2) && (tp2b->type <= FIRSTPIN)) break;
+	     if (tp2b == tp2) continue;
+	     if (nl2->pin_magic == nl1->pin_magic) {
+      		 if (file2 == Circuit1->file)
+		    node2 = Circuit1->nodename_cache[tp2b->node];
+		 else
+		    node2 = Circuit2->nodename_cache[tp2b->node];
+	     }
+	     if (node1->flags == node2->flags) break;
+	 }
+      }
+
       /* NOTE: A "no-connect" node (multiple no-connects represented by a
        * single node) has non-zero flags.  A non-node entry in the cache
        * implies a node with zero flags.
        */
-      if (node1->flags != node1->flags) {
-	 Fprintf(stdout, "  Parallelized instances disagree on pin connections.\n");
-	 Fprintf(stdout, "    Circuit1 instance %s pin %s connections are %s (%d)\n",
+      if (node1->flags != node2->flags) {
+	 if (do_print) {
+	    Fprintf(stdout, "  Parallelized instances disagree on pin connections.\n");
+	    Fprintf(stdout, "    Circuit1 instance %s pin %s connections are %s (%d)\n",
 		    tp1->instance.name, node1->name,
 		    (node1->flags == 0) ? "tied together" : "no connects",
 		    node1->flags);
-	 Fprintf(stdout, "    Circuit2 instance %s pin %s connections are %s (%d)\n",
+	    Fprintf(stdout, "    Circuit2 instance %s pin %s connections are %s (%d)\n",
 		    tp2->instance.name, node2->name,
 		    (node2->flags == 0) ? "tied together" : "no connects",
 		    node2->flags);
+	 }
 	 mismatches++;
       }
+
+      nl1 = nl1->next;
    }
 
    // Attempt to organize devices by series and parallel combination
@@ -5932,8 +5964,11 @@ PropertyMatch(struct objlist *ob1, int file1,
    // PropertySortAndCombine can move the first property, so recompute it
    // for each circuit.
 
-   for (tp1 = ob1; (tp1 != NULL) && tp1->type >= FIRSTPIN; tp1 = tp1->next);
-   for (tp2 = ob2; (tp2 != NULL) && tp2->type >= FIRSTPIN; tp2 = tp2->next);
+   tp1 = tp2 = NULL;
+   if (t1type == PROPERTY)
+      for (tp1 = ob1; (tp1 != NULL) && tp1->type >= FIRSTPIN; tp1 = tp1->next);
+   if (t2type == PROPERTY)
+      for (tp2 = ob2; (tp2 != NULL) && tp2->type >= FIRSTPIN; tp2 = tp2->next);
 
    // Find name for printing, removing leading slash if needed.
    inst1 = ob1->instance.name;
@@ -5963,12 +5998,16 @@ PropertyMatch(struct objlist *ob1, int file1,
 	    if (vl2->type == PROP_ENDLIST) break;
 	    if (vl2 == NULL) continue;
 	    if (vl2->key == NULL) continue;
-	    kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
-	    if (kl2 != NULL) {
-		// Allowed for one instance to be missing "M" or "S".
-		if (!(*matchfunc)(vl2->key, "M") && !(*matchfunc)(vl2->key, "S"))
+
+	    // Allowed for one instance to be missing "M" or "S" if the other
+	    // has value 1.
+	    if (!(*matchfunc)(vl2->key, "M") && !(*matchfunc)(vl2->key, "S")) {
+	        kl2 = (struct property *)HashLookup(vl2->key, &(tc2->propdict));
+	    	if (kl2 != NULL)
 		    break;	// Property is required
 	    }
+	    else if (vl2->value.ival != 1)
+		break;	// Property M != 1 or S != 1 is a mismatch.
 	 }
 	 if (vl2->type != PROP_ENDLIST) {
 	    mismatches++;
@@ -6016,12 +6055,16 @@ PropertyMatch(struct objlist *ob1, int file1,
 	    if (vl1->type == PROP_ENDLIST) break;
 	    if (vl1 == NULL) continue;
 	    if (vl1->key == NULL) continue;
-	    kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
-	    if (kl1 != NULL) {
-		// Allowed for one instance to be missing "M" or "S".
-		if (!(*matchfunc)(vl1->key, "M") && !(*matchfunc)(vl1->key, "S"))
+
+	    // Allowed for one instance to be missing "M" or "S" if the other
+	    // has value 1.
+	    if (!(*matchfunc)(vl1->key, "M") && !(*matchfunc)(vl1->key, "S")) {
+	        kl1 = (struct property *)HashLookup(vl1->key, &(tc1->propdict));
+	        if (kl1 != NULL)
 		    break;	// Property is required
 	    }
+	    else if (vl1->value.ival != 1)
+		break;	// Property M != 1 or S != 1 is a mismatch.
 	 }
 	 if (vl1->type != PROP_ENDLIST) {
 	    mismatches++;
@@ -6146,11 +6189,9 @@ PropertyCheck(struct ElementClass *EC, int do_print, int do_list, int *rval)
       E2 = Etmp;
    }
 #ifdef TCL_NETGEN
-   return PropertyMatch(E1->object, E1->graph, E2->object, E2->graph,
-		do_print, do_list, rval);
+   return PropertyMatch(E1, E2, do_print, do_list, rval);
 #else
-   PropertyMatch(E1->object, E1->graph, E2->object, E2->graph,
-		do_print, do_list, rval);
+   PropertyMatch(E1, E2, do_print, do_list, rval);
 #endif
 }
 
@@ -6321,7 +6362,7 @@ int ResolveAutomorphsByPin()
     int portnum;
 
     /* Diagnostic */
-    Fprintf(stdout, "Resolving automorphisms by pin name.\n");
+    Fprintf(stdout, "Resolving symmetries by pin name.\n");
 
     for (NC = NodeClasses; NC != NULL; NC = NC->next) {
 	struct Node *N1, *N2;
@@ -6346,6 +6387,8 @@ int ResolveAutomorphsByPin()
 		for (N2 = N1->next; N2 != NULL; N2 = N2->next) {
 		    if ((N2->graph != N1->graph) &&
 				(*matchfunc)(N2->object->name, N1->object->name)) {
+  			if (Debug == TRUE)
+			    Printf("Symmetry group broken by name match (pin %s)\n", N2->object->name);
 			Magic(newhash);
 			N1->hashval = newhash;
 			N2->hashval = newhash;
@@ -6381,7 +6424,7 @@ int ResolveAutomorphsByProperty()
     unsigned long orighash, newhash;
 
     /* Diagnostic */
-    Fprintf(stdout, "Resolving automorphisms by property value.\n");
+    Fprintf(stdout, "Resolving symmetries by property value.\n");
 
     for (EC = ElementClasses; EC != NULL; EC = EC->next) {
 	struct Element *E1, *E2;
@@ -6419,9 +6462,10 @@ int ResolveAutomorphsByProperty()
 		badmatch = FALSE;
 		for (E2 = E1->next; E2 != NULL; E2 = E2->next) {
 		    if (E2->hashval != orighash) continue;
-		    PropertyMatch(E1->object, E1->graph, E2->object, E2->graph,
-			    FALSE, FALSE, &result);
+		    PropertyMatch(E1, E2, FALSE, FALSE, &result);
 		    if (result == 0) {
+  			if (Debug == TRUE)
+		            Printf("Symmetry group split by property (element %s)\n", E2->object->model.class);
 			E2->hashval = newhash;
 			if (E2->graph == E1->graph)
 			    C1++;
@@ -6488,6 +6532,7 @@ int ResolveAutomorphisms()
   struct NodeClass *NC;
   struct Node *N;
   int C1, C2;
+  int automorphs;
 
   for (EC = ElementClasses; EC != NULL; EC = EC->next) {
     struct Element *E1, *E2;
@@ -6539,8 +6584,9 @@ int ResolveAutomorphisms()
   FractureElementClass(&ElementClasses);
   FractureNodeClass(&NodeClasses);
   ExhaustiveSubdivision = 1;
-  while (!Iterate() && VerifyMatching() >= 0);
-  return(VerifyMatching());
+  while (!Iterate() && (VerifyMatching() >= 0));
+
+  return VerifyMatching();
 }
 
 /*------------------------------------------------------*/
@@ -8115,7 +8161,7 @@ int Compare(char *cell1, char *cell2)
 
      /* arbitrarily resolve automorphisms */
      Fprintf(stdout, "\n");
-     Fprintf(stdout, "Resolving automorphisms by arbitrary symmetry breaking:\n");
+     Fprintf(stdout, "Resolving symmetries by arbitrary symmetry breaking:\n");
      while ((automorphisms = ResolveAutomorphisms()) > 0) ;
      if (automorphisms == -1) {
 	MatchFail(cell1, cell2);
@@ -8214,7 +8260,7 @@ void NETCOMP(void)
 	else {
 	  Printf("Netlists match with %d symmetries.\n", automorphisms);
 	  while ((automorphisms = ResolveAutomorphisms()) > 0)
-	    Printf("  automorphisms = %d.\n", automorphisms);
+	    Printf("  symmetries = %d.\n", automorphisms);
 	  if (automorphisms == -1) Fprintf(stdout, "Netlists do not match.\n");
 	  else if (automorphisms == -2) Fprintf(stdout, "Port counts do not match.\n");
 	  else Printf("Circuits match correctly.\n");
@@ -8281,7 +8327,7 @@ void NETCOMP(void)
       Printf("(c)reate internal data structure\n");
       Printf("do an (i)teration\n");
       Printf("(r)un to completion (convergence)\n");
-      Printf("(R)un to completion (resolve automorphisms)\n");
+      Printf("(R)un to completion (resolve symmetries)\n");
       Printf("(v)erify results\n");
       Printf("print (a)utomorphisms\n");
       Printf("equate two (d)evices\n");

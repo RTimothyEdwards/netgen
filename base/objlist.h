@@ -206,7 +206,7 @@ struct nlist {
   char *name;
   int number;		/* number of instances defined */
   int dumped;		/* instance count, and general-purpose marker */
-  unsigned char flags;
+  unsigned short flags;
   unsigned char class;
   unsigned long classhash;	/* randomized hash value for cell class */
   struct Permutation *permutes;	/* list of permuting pins */
@@ -222,17 +222,18 @@ struct nlist {
 
 /* Defined nlist structure flags */
 
-#define CELL_MATCHED		0x01	/* cell matched to another */
-#define CELL_NOCASE		0x02	/* cell is case-insensitive (e.g., SPICE) */
-#define CELL_TOP		0x04	/* cell is a top-level cell */
-#define CELL_PLACEHOLDER	0x08	/* cell is a placeholder cell */
-#define CELL_PROPSMATCHED	0x10	/* properties matched to matching cell */
-#define CELL_DUPLICATE		0x20	/* cell has a duplicate */
+#define CELL_MATCHED		0x001	/* cell matched to another */
+#define CELL_NOCASE		0x002	/* cell is case-insensitive (e.g., SPICE) */
+#define CELL_TOP		0x004	/* cell is a top-level cell */
+#define CELL_PLACEHOLDER	0x008	/* cell is a placeholder cell */
+#define CELL_PROPSMATCHED	0x010	/* properties matched to matching cell */
+#define CELL_DUPLICATE		0x020	/* cell has a duplicate */
+#define CELL_VERILOG		0x040	/* cell is verilog module */
 
 /* Flags for combination allowances and prohibitions */
 
-#define COMB_SERIES		0x40
-#define COMB_NO_PARALLEL	0x80
+#define COMB_SERIES		0x100
+#define COMB_NO_PARALLEL	0x200
 
 extern struct nlist *CurrentCell;
 extern struct objlist *CurrentTail;
