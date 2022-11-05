@@ -804,6 +804,56 @@ extern void PushStack(char *cellname, struct cellstack **top);
 extern void PopStack(struct cellstack **top);
 
 /*------------------------------------------------------*/
+/* Callback routine for FindInstanceOf()		*/
+/* NOTE:  This casts a (struct objlist) pointer to a	*/
+/* (struct nlist) pointer for the purpose of using	*/
+/* RecurseCellHashTable2().  FindInstanceOf() casts it	*/
+/* back into a (struct objlist) pointer.		*/
+/*------------------------------------------------------*/
+
+struct nlist *findInstance(struct hashlist *p, void *clientdata)
+{
+    struct nlist *ptr;
+    struct objlist *ob;
+    struct nlist *tref = (struct nlist *)clientdata;
+
+    ptr = (struct nlist *)(p->ptr);
+    if (ptr->file != tref->file) return NULL;
+
+    ob = LookupInstance(tref->name, ptr);
+    return (struct nlist *)ob;
+}
+
+/*------------------------------------------------------*/
+/* Routine to find the first instance of a cell		*/
+/*------------------------------------------------------*/
+
+struct objlist *FindInstanceOf(struct nlist *tc)
+{
+    return (struct objlist *)RecurseCellHashTable2(findInstance, (void *)tc);
+}
+
+/*------------------------------------------------------*/
+/* Given a reference cell pointer tref and a port name	*/
+/* portname, check if portname is a port of tref.  If	*/
+/* not, then call Port() to add one.  If tref is NULL,	*/
+/* then always add the port.				*/
+/*------------------------------------------------------*/
+
+void CheckPort(struct objlist *tref, char *portname)
+{
+    struct objlist *ob;
+
+    if (tref != NULL) {
+	for (ob = CurrentCell->cell; ob && (ob->type == PORT); ob = ob->next) {
+	    if ((*matchfunc)(ob->name, portname))
+		return;
+	}
+    }
+    Port(portname);
+}
+
+/*------------------------------------------------------*/
 /* Read a verilog structural netlist			*/
 /*------------------------------------------------------*/
 
@@ -818,7 +868,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   struct keyvalue *kvlist = NULL;
   char inst[MAX_STR_LEN], model[MAX_STR_LEN], instname[MAX_STR_LEN], portname[MAX_STR_LEN], pkey[MAX_STR_LEN];
   struct nlist *tp;
-  struct objlist *parent, *sobj, *nobj, *lobj, *pobj;
+  struct objlist *parent, *sobj, *nobj, *lobj, *pobj, *cref;
 
   inst[MAX_STR_LEN-1] = '\0';
   model[MAX_STR_LEN-1] = '\0';
@@ -938,6 +988,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
           InputParseError(stderr);
       }
       in_module = (char)1;
+      cref = NULL;
 
       /* Save pointer to current cell */
       if (CurrentCell != NULL)
@@ -949,6 +1000,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 
       snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
       tp = LookupCellFile(nexttok, filenum);
+      hasports = (char)0;
 
       /* Check for name conflict with duplicate cell names	*/
       /* This may mean that the cell was used before it was	*/
@@ -986,23 +1038,48 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
          CellDef(nexttok, filenum);
          tp = LookupCellFile(nexttok, filenum);
       }
-      else if (tp != NULL) {	/* Make a new definition for an empty cell */
-	 FreePorts(nexttok);
-	 CellDelete(nexttok, filenum);	/* This removes any PLACEHOLDER flag */
+      else if (tp != NULL) {	/* Cell exists, but as a placeholder */
+	 struct nlist *tptmp = NULL;
+	 char ctemp[8];
+	 int n = 0;
+
+	 /* This redefines a placeholder module to an unused temporary cell name */
+         while (1) {
+	    sprintf(ctemp, "%d", n);
+            tptmp = LookupCellFile(ctemp, filenum);
+	    if (tptmp == NULL) break;
+	    n++;
+	 }
+	 CellRehash(nexttok, ctemp, filenum);
+	 tptmp = LookupCellFile(ctemp, filenum);
+
+	 /* Create a new module definition */
 	 CellDef(model, filenum);
 	 tp = LookupCellFile(model, filenum);
+
+	 /* Find an instance of this module in the netlist */
+	 cref = FindInstanceOf(tp);
+	 if ((cref != NULL) && (cref->name != NULL)) {
+	    hasports = (char)1;
+	    /* Copy ports from the original parent cell to the new parent cell */
+	    for (pobj = tptmp->cell; pobj && (pobj->type == PORT); pobj = pobj->next)
+		Port(pobj->name);
+	 }
+	 /* Remove the original cell definition */
+	 FreePorts(ctemp);
+	 CellDelete(ctemp, filenum);	/* This removes any PLACEHOLDER flag */
       }
       else if (tp == NULL) {	/* Completely new cell, no name conflict */
          CellDef(model, filenum);
          tp = LookupCellFile(model, filenum);
       }
 
-      hasports = (char)0;
       inlined_decls = (char)0;
 
       if (tp != NULL) {
 	 struct bus wb, *nb;
 
+	 tp->flags |= CELL_VERILOG;
 	 PushStack(tp->name, CellStackPtr);
 
 	 /* Need to support both types of I/O lists:  Those	*/
@@ -1071,7 +1148,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 			   if (GetBusTok(&wb) != 0) {
 			      // Didn't parse as a bus, so wing it
 			      wb.start = wb.end = -1;
-			      Port(nexttok);
+			      CheckPort(cref, nexttok);
 			   }
 			}
 			else {
@@ -1079,13 +1156,13 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 			      if (wb.start > wb.end) {
 				 for (i = wb.start; i >= wb.end; i--) {
 				    sprintf(portname, "%s[%d]", nexttok, i);
-				    Port(portname);
+				    CheckPort(cref, portname);
 				 }
 			      }
 			      else {
 				 for (i = wb.start; i <= wb.end; i++) {
 				    sprintf(portname, "%s[%d]", nexttok, i);
-				    Port(portname);
+				    CheckPort(cref, portname);
 				 }
 			      }
 			      /* Also register this port as a bus */
@@ -1097,7 +1174,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 			      wb.start = wb.end = -1;
 			   }
 			   else {
-			      Port(nexttok);
+			      CheckPort(cref, nexttok);
 			   }
 			}
 		        hasports = 1;
@@ -1153,7 +1230,7 @@ skip_endmodule:
 		if (GetBusTok(&wb) != 0) {
 		    // Didn't parse as a bus, so wing it
 		    wb.start = wb.end = -1;
-		    Port(nexttok);
+		    CheckPort(cref, nexttok);
 		}
 	    }
 	    else if (!match(nexttok, ",")) {
@@ -1161,13 +1238,13 @@ skip_endmodule:
 		    if (wb.start > wb.end) {
 			for (i = wb.start; i >= wb.end; i--) {
 			    sprintf(portname, "%s[%d]", nexttok, i);
-			    Port(portname);
+			    CheckPort(cref, portname);
 			}
 		    }
 		    else {
 			for (i = wb.start; i <= wb.end; i++) {
 			    sprintf(portname, "%s[%d]", nexttok, i);
-			    Port(portname);
+			    CheckPort(cref, portname);
 			}
 		    }
 		    /* Also register this port as a bus */
@@ -1178,7 +1255,7 @@ skip_endmodule:
 		    wb.start = wb.end = -1;
 		}
 		else {
-		    Port(nexttok);
+		    CheckPort(cref, nexttok);
 		}
 	    }
 	    hasports = 1;
@@ -1194,6 +1271,7 @@ skip_endmodule:
           InputParseError(stderr);
       }
       in_module = (char)0;
+      cref = NULL;
 
       if (*CellStackPtr) PopStack(CellStackPtr);
       if (*CellStackPtr) ReopenCellDef((*CellStackPtr)->cellname, filenum);
@@ -2115,7 +2193,7 @@ nextinst:
 		  sprintf(localnet, "_noconnect_%d_", localcount++);
 		  Node(localnet);
 		  join(localnet, obptr->name);
-		  Fprintf(stderr,
+		  Fprintf(stdout,
 			 "Note:  Implicit pin %s in instance %s of %s in cell %s\n",
 			 obpinname, locinst, modulename, CurrentCell->name);
 	       }
@@ -2207,8 +2285,8 @@ nextinst:
 			   char tempname[MAX_STR_LEN];
 			   int maxnode;
 
-		           /* This pin was probably implicit in the first call */
-		           /* and so it needs to be added to the definition.	 */
+		           /* This pin was probably implicit in the first call	*/
+		           /* and so it needs to be added to the definition.	*/
 
 			   ReopenCellDef(modulename, filenum);
 		           Port(scan->name);
@@ -2265,7 +2343,7 @@ nextinst:
 		  	   	    sprintf(tempname, "_noconnect_%d_", localcount++);
 		  	   	    Node(tempname);
 		  	   	    join(tempname, nobj->name);
-		  	   	    Fprintf(stderr, "Note:  Implicit pin %s in instance "
+		  	   	    Fprintf(stdout, "Note:  Implicit pin %s in instance "
 						"%s of %s in cell %s\n",
 			 			scan->name, sobj->instance.name,
 						modulename, CurrentCell->name);
