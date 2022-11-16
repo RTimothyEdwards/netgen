@@ -440,13 +440,6 @@ void RemoveShorted(char *class, int file)
    RecurseCellFileHashTable(removeshorted, file);
 }
 
-/* Structure used to keep track of nodes needing checking */
-
-struct linkednode {
-    int node;
-    struct linkednode *next;
-};
-
 /* Remove instances of a deleted class from the database.	*/
 /* NOTE:  This treats deleted classes as not existing, so it	*/
 /* needs to take care of disconnected ports in the same manner	*/
@@ -457,12 +450,21 @@ struct linkednode {
 int deleteclass(struct hashlist *p, int file)
 {
    struct nlist *ptr;
-   struct objlist *ob, *lob, *nob;
-   struct linkednode *checknodes = NULL, *newlnode, *chknode;
+   struct objlist *ob, *lob, *nob, *portnode;
+   unsigned char *checknodes;
+   int i;
 
    ptr = (struct nlist *)(p->ptr);
 
    if ((file != -1) && (ptr->file != file)) return 0;
+
+   /* Note:  This could be made faster by enumerating all times each
+    * node is used during the full pass, then subtracting each time
+    * the node is deleted in a child, then disconnecting all nodes
+    * that ended up with a zero count.
+    */
+   checknodes = (unsigned char *)CALLOC(ptr->nodename_cache_maxnodenum + 1,
+		sizeof(unsigned char));
 
    lob = NULL;
    for (ob = ptr->cell; ob != NULL;) {
@@ -471,12 +473,8 @@ int deleteclass(struct hashlist *p, int file)
 	 if ((*matchfunc)(ob->model.class, OldCell->name)) {
 	    HashDelete(ob->instance.name, &(ptr->instdict));
 	    while (1) {
-	       if (ob->type >= FIRSTPIN) {
-		  newlnode = (struct linkednode *)MALLOC(sizeof(struct linkednode));
-		  newlnode->node = ob->node;
-		  newlnode->next = checknodes;
-		  checknodes = newlnode;
-	       }
+	       if (ob->type >= FIRSTPIN)
+		  checknodes[ob->node] = (unsigned char)1;
 	       FreeObjectAndHash(ob, ptr);
 	       ob = nob;
 	       if (ob == NULL) break;
@@ -499,26 +497,24 @@ int deleteclass(struct hashlist *p, int file)
       }
    }
 
-   while (checknodes != NULL) {
-      struct objlist *portnode = NULL;
-
-      chknode = checknodes;
-      checknodes = checknodes->next;
-
-      for (ob = ptr->cell; ob != NULL; ob = ob->next) {
-	if ((ob->type != PORT) && (portnode == NULL))
-	   break;
-	else if ((ob->type == PORT) && (ob->node == chknode->node))
-	   portnode = ob;
-	else if ((ob->type >= FIRSTPIN) && (ob->node == chknode->node))
-	   break;
+   for (i = 0; i <= ptr->nodename_cache_maxnodenum; i++) {
+      if (checknodes[i] != 0) {
+         portnode = NULL;
+         for (ob = ptr->cell; ob != NULL; ob = ob->next) {
+	    if ((ob->type != PORT) && (portnode == NULL))
+	       break;
+	    else if ((ob->type == PORT) && (ob->node == i))
+	       portnode = ob;
+	    else if ((ob->type >= FIRSTPIN) && (ob->node == i))
+	       break;
+         }
+         if ((ob == NULL) && (portnode != NULL)) {
+	    /* Port became disconnected when child was deleted */
+	    portnode->node = -1;
+         }
       }
-      if ((ob == NULL) && (portnode != NULL)) {
-	 /* Port became disconnected when child was deleted */
-	 portnode->node = -1;
-      }
-      FREE(chknode);
    }
+   FREE(checknodes);
 }
 
 /* Remove all instances of class "class" from the database */
