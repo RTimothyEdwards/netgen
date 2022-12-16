@@ -3377,6 +3377,7 @@ _netcmp_equate(ClientData clientData,
 /*	add	  --- add new property			*/
 /*	remove	  --- delete existing property		*/
 /*	tolerance --- set property tolerance		*/
+/*	associate --- associate property with a pin	*/
 /*	merge	  --- (deprecated)			*/
 /* or							*/
 /*	netgen::property default			*/
@@ -3415,11 +3416,11 @@ _netcmp_property(ClientData clientData,
 
     char *options[] = {
 	"add", "create", "remove", "delete", "tolerance", "merge", "serial",
-	"series", "parallel", NULL
+	"series", "parallel", "associate", NULL
     };
     enum OptionIdx {
 	ADD_IDX, CREATE_IDX, REMOVE_IDX, DELETE_IDX, TOLERANCE_IDX, MERGE_IDX,
-	SERIAL_IDX, SERIES_IDX, PARALLEL_IDX
+	SERIAL_IDX, SERIES_IDX, PARALLEL_IDX, ASSOCIATE_IDX
     };
     int result, index, idx2;
 
@@ -3839,6 +3840,29 @@ _netcmp_property(ClientData clientData,
 		else {
 		    for (i = 3; i < objc; i++)
 			PropertyDelete(tp->name, fnum, Tcl_GetString(objv[i]));
+		}
+		break;
+
+	    case ASSOCIATE_IDX:
+		if (objc == 3) {
+		    Tcl_WrongNumArgs(interp, 1, objv, "{property_key pin_name} ...");
+		    return TCL_ERROR;
+		}
+		for (i = 3; i < objc; i++) {
+		    // Each value must be a duplet
+		    result = Tcl_ListObjLength(interp, objv[i], &llen);
+		    if ((result != TCL_OK) || (llen != 2)) {
+			Tcl_SetResult(interp, "Not a {key pin} pair list.",
+					NULL);
+		    }
+		    else {
+			result = Tcl_ListObjIndex(interp, objv[i], 0, &tobj1);
+			if (result != TCL_OK) return result;
+			result = Tcl_ListObjIndex(interp, objv[i], 1, &tobj2);
+			if (result != TCL_OK) return result;
+			PropertyAssociatePin(tp->name, fnum, Tcl_GetString(tobj1),
+					Tcl_GetString(tobj2));
+		    }
 		}
 		break;
 

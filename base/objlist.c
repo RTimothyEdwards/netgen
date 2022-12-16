@@ -130,6 +130,7 @@ struct property *NewProperty(void)
 	
 	kl = (struct property *)CALLOC(1,sizeof(struct property));
 	if (kl == NULL) Fprintf(stderr,"NewProperty: Core allocation error\n");
+	kl->pin = (char *)NULL;
 	return (kl);
 }
 

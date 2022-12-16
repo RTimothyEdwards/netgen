@@ -39,6 +39,7 @@ extern void SetParallelCombine(int value);
 extern void SetSeriesCombine(int value);
 extern int  PropertyTolerance(char *name, int fnum, char *key, int ival,
 		double dval);
+extern int  PropertyAssociatePin(char *name, int fnum, char *key, char *pin);
 extern int  PropertyMerge(char *name, int fnum, char *key, int merge_type,
 		int merge_mask);
 extern void ResolveProperties(char *name1, int file1, char *name2, int file2);
