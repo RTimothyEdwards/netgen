@@ -4214,7 +4214,11 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    struct property *kl;
    struct valuelist *vl, *sl;
    int i, p, sval, merge_type;
-   double cval, slop;
+   // double cval, slop;
+   int has_crit;
+   char ca, co;
+   double tval, tslop;
+   double aval, pval, oval, aslop, pslop;
 
    obn = ob1->next;
    for (i = 0; i < idx1; i++) obn = obn->next;
@@ -4227,55 +4231,94 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 
    obp = obn;
    sval = 1;
-   cval = slop = 0.0;
+   pval = aval = oval = 0.0;
    for (i = 0; i < run; i++) {
-      sl = NULL;
+      has_crit = FALSE;
       merge_type = MERGE_NONE;
+      ca = co = (char)0;
+
       for (p = 0;; p++) {
 	 vl = &(obp->instance.props[p]);
 	 if (vl->type == PROP_ENDLIST) break;
 	 if (vl->key == NULL) continue;
          if ((*matchfunc)(vl->key, "S")) {
 	    sval = vl->value.ival;
-	    sl = vl;
+	    continue;
+	 }
+         kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
+	 if (kl == NULL) continue;		/* Ignored property */
+
+	 /* Get the property value and slop.  Promote if needed.  Save	*/
+	 /* property and slop as type double so they can be sorted.	*/
+
+	 if ((vl->type == PROP_STRING || vl->type == PROP_EXPRESSION) &&
+		  	(kl->type != vl->type))
+	    PromoteProperty(kl, vl, obp, tp1);
+	 if (vl->type == PROP_INTEGER) {
+	    tval = (double)vl->value.ival;
+	    tslop = (double)kl->slop.ival;
+	 }
+	 else if (vl->type == PROP_STRING) {
+	    /* This is unlikely---no method to merge string properties! */
+	    tval = (double)vl->value.string[0]
+			+ (double)vl->value.string[1] / 10.0;
+	    tslop = (double)0;
 	 }
 	 else {
-	    kl = (struct property *)HashLookup(vl->key, &(tp1->propdict));
-	    if (kl && (kl->merge & (MERGE_S_ADD | MERGE_S_PAR))) {
-		if (vl->type == PROP_INTEGER) {
-		   cval = (double)vl->value.ival;
-		   slop = (double)kl->slop.ival;
-		}
-		else {
-		   cval = vl->value.dval;
-		   slop = kl->slop.dval;
-		}
-	 	merge_type = kl->merge & (MERGE_S_ADD | MERGE_S_PAR);
+	    tval = vl->value.dval;
+	    tslop = kl->slop.dval;
+	 }
+
+	 if (kl->merge & MERGE_S_CRIT) {
+	    has_crit = TRUE;
+	    pval = tval;
+	    pslop = tslop;
+	 }
+	 else if (kl->merge & (MERGE_S_ADD | MERGE_S_PAR)) {
+	    if ((ca == (char)0) || (toupper(vl->key[0]) > ca)) {
+	       merge_type = kl->merge & (MERGE_S_ADD | MERGE_S_PAR);
+	       aval = tval;
+	       aslop = tslop;
+	       ca = toupper(vl->key[0]);
 	    }
 	 }
+	 else if ((co == (char)0) || (toupper(vl->key[0]) > co)) {
+	    oval = tval;
+	    co = toupper(vl->key[0]);
+	 }
       }
-      if (merge_type == MERGE_S_ADD) {
-	 proplist[i].value = cval * (double)sval;
-         proplist[i].slop = slop;
-         proplist[i].avalue = 0;
-	 if (sl) sl->value.ival = 1;
-      }
-      else if (merge_type == MERGE_S_PAR) {
-	 proplist[i].value = cval / (double)sval;
-         proplist[i].slop = slop;
-         proplist[i].avalue = 0;
-	 if (sl) sl->value.ival = 1;
+      if (has_crit == TRUE) {
+	 /* If there is a critical value, then sort first   */
+	 /* by critical value				    */
+	 proplist[i].value = pval;
+	 proplist[i].slop = pslop;
+
+	 /* then sort on additive value times S	*/
+	 /* or on non-additive value.		*/
+         if (merge_type == MERGE_S_ADD)
+	    proplist[i].avalue = aval * (double)sval;
+         else if (merge_type == MERGE_S_PAR)
+	    proplist[i].avalue = aval / (double)sval;
+	 else
+	    proplist[i].avalue = (double)sval;
       }
       else {
-	 /* Components which declare no series addition method stay unsorted */
-	 proplist[i].value = (double)0;
-	 proplist[i].avalue = (double)0;
-         proplist[i].slop = (double)1E-6;
+         if (merge_type != MERGE_NONE) {
+	    proplist[i].value = aval;
+	    proplist[i].slop = aslop;
+	    proplist[i].avalue = (double)sval;
+	 }
+	 else {
+	    proplist[i].value = (double)sval;
+	    proplist[i].slop = (double)0;
+	    proplist[i].avalue = oval;
+	 }
       }
       proplist[i].idx = i;
       proplist[i].ob = obp;
       obp = obp->next;
    }
+
    obn = obp;	/* Link from last property */
 
    qsort(&proplist[0], run, sizeof(propsort), compsort);
@@ -4598,8 +4641,8 @@ void PropertySortAndCombine(struct objlist *pre1, struct nlist *tp1,
       /* and manage the topology.  Note that at this point devices have	   */
       /* already been combined if all critical properties match, so any	   */
       /* parallel devices remaining are not considered mergeable unless as */
-      /* a last resort.  Parallel devices need to be checked for swapping, */
-      /* however.  So the steps are:					   */
+      /* a last resort.  Devices also need to be checked for swapping.	   */
+      /* So the steps are:					   	   */
       /* 1) Find parallel devices with more elements in one circuit than   */
       /*    in the other.  If non-summing parameters of interest match,	   */
       /*    then merge all devices that can be merged until both sides	   */
@@ -4609,6 +4652,10 @@ void PropertySortAndCombine(struct objlist *pre1, struct nlist *tp1,
       /*    match, then merge all devices that can be merged until	   */
       /*    both sides have the same number of devices.			   */
       /* 3) Find parallel devices that have the same number in both 	   */
+      /*    circuits.  Check if critical parameters match between the 	   */
+      /*    circuits.  If not, check if swapping devices in circuit1	   */
+      /*    makes a better match to circuit2.			  	   */
+      /* 4) Find series devices that have the same number in both 	   */
       /*    circuits.  Check if critical parameters match between the 	   */
       /*    circuits.  If not, check if swapping devices in circuit1	   */
       /*    makes a better match to circuit2.			  	   */
@@ -5317,13 +5364,14 @@ void
 #endif
 PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	char *inst1, struct objlist *tp2, struct nlist *tc2,
-	char *inst2, int do_print, int do_list, int *count,
-	int *rval)
+	char *inst2, struct Element *E1, struct Element *E2,
+	int do_print, int do_list, int *count, int *rval)
 {
    int mismatches = 0;
    int len2, *check2;
    struct property *kl1, *kl2, *klt;
    struct valuelist *vl1, *vl2;
+   char *vl1key;
    int i, j;
    int islop;
    int ival1, ival2;
@@ -5427,22 +5475,71 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	 }
       }
 
+      /* If the property is associated with a pin, then		*/
+      /* determine if the pin is permutable;  If so, then	*/
+      /* determine if the pins are swapped between the two	*/
+      /* elements.  If so, then swap the property keys.		*/
+
+      vl1key = vl1->key;
+      if (kl1->pin != NULL) {
+	 struct objlist *tob1, *tob2;
+	 struct NodeList *nl1, *nl2;
+	 struct property *kla;
+	 struct valuelist *vla;
+         int k;
+
+	 nl1 = E1->nodelist;
+	 for (tob1 = tc1->cell; tob1 && tob1->type == PORT; tob1 = tob1->next) {
+	     if ((*matchfunc)(tob1->name, kl1->pin)) break;
+	     nl1 = nl1->next;
+	 }
+	 if (tob1->type == PORT) {
+	     /* Found the node list record corresponding to the given pin. */
+	     /* Now find the pin corresponding to the matching node. */
+	     nl2 = E2->nodelist;
+	     for (tob2 = tc1->cell; tob2 && tob2->type == PORT; tob2 = tob2->next) {
+		if (nl2->node->nodeclass == nl1->node->nodeclass) break;
+	     	nl2 = nl2->next;
+	     }
+	     if (nl2->node->nodeclass == nl1->node->nodeclass) {
+		 if (tob2 != tob1) {	/* Element pins were swapped */
+		    /* Find the other property to swap with */
+		    for (k = 0;; k++) {
+         		vla = &(tp1->instance.props[k]);
+	 		if (vla->type == PROP_ENDLIST) break;
+			if (vla != vl1) {
+	       		    kla = (struct property *)HashLookup(vla->key,
+					&(tc1->propdict));
+			    if (kla && kla->pin)
+	     		        if ((*matchfunc)(tob2->name, kla->pin))
+				    break;
+			}
+		    }
+		    if (vla->type != PROP_ENDLIST) {
+			/* Swap vla->key and vl1->key */
+			vl1key = vla->key;
+		    }
+		 }
+	     }
+	 }
+      }
+
       /* Find the matching property in vl2. */
 
       for (j = 0;; j++) {
          vl2 = &(tp2->instance.props[j]);
 	 if (vl2->type == PROP_ENDLIST) break;
 	 if (check2[j] == 0)
-	    if ((*matchfunc)(vl1->key, vl2->key)) break;
+	    if ((*matchfunc)(vl1key, vl2->key)) break;
       }
       if (vl2->type == PROP_ENDLIST) {
 	 /* Check against M and S records;  a missing M or S	*/
 	 /* record is equivalent to M = 1 or S = 1.		*/
 
 	 if (vl1 != &mvl)
-	    if ((*matchfunc)(vl1->key, mvl.key)) vl2 = &mvl;
+	    if ((*matchfunc)(vl1key, mvl.key)) vl2 = &mvl;
 	 if (vl1 != &svl)
-	    if ((*matchfunc)(vl1->key, svl.key)) vl2 = &svl;
+	    if ((*matchfunc)(vl1key, svl.key)) vl2 = &svl;
       }
       if (vl2->type == PROP_ENDLIST) {
 	 /* vl1 had a property of interest that was not found	*/
@@ -5451,7 +5548,7 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
          if (do_print) {
 	    Fprintf(stdout, "%s vs. %s:\n", inst1, inst2);
 	    Fprintf(stdout, "Property %s in circuit1 has no matching "
-			"property in circuit2\n",  vl1->key);
+			"property in circuit2\n",  vl1key);
 	 }
 #ifdef TCL_NETGEN
          if (do_list) {
@@ -6095,7 +6192,7 @@ PropertyMatch(struct Element *E1, struct Element *E2,
       else {
 	 int multmatch, count;
 	 PropertyCheckMismatch(tp1, tc1, inst1, tp2, tc2,
-			inst2, FALSE, FALSE, &multmatch, NULL);
+			inst2, E1, E2, FALSE, FALSE, &multmatch, NULL);
 	 if (multmatch == 1) {
 	    /* Final attempt:  Reduce M to 1 on both devices */
 	    run1 = run2 = 0;
@@ -6116,7 +6213,7 @@ PropertyMatch(struct Element *E1, struct Element *E2,
 	 mlist =
 #endif
 	 PropertyCheckMismatch(tp1, tc1, inst1, tp2, tc2,
-			inst2, do_print, do_list, &count, &rval);
+			inst2, E1, E2, do_print, do_list, &count, &rval);
 	 mismatches += count;
 #ifdef TCL_NETGEN
 	 if (do_list && (mlist != NULL)) {

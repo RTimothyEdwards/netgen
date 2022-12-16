@@ -985,6 +985,51 @@ PropertyDelete(char *name, int fnum, char *key)
 }
 
 /*----------------------------------------------------------------------*/
+/* Associate a property with a specific pin				*/
+/*----------------------------------------------------------------------*/
+
+int
+PropertyAssociatePin(char *name, int fnum, char *key, char *pin)
+{
+    struct property *kl = NULL;
+    struct nlist *tc;
+    struct objlist *ob;
+    int result;
+
+    if ((fnum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
+	result = PropertyAssociatePin(name, Circuit1->file, key, pin);
+	result = PropertyAssociatePin(name, Circuit2->file, key, pin);
+	return result;
+    }
+
+    tc = LookupCellFile(name, fnum);
+    if (tc == NULL) {
+	Printf("No device %s found for PropertyAssociatePin()\n", name);
+	return -1;
+    }
+
+    kl = (struct property *)HashLookup(key, &(tc->propdict));
+    if (kl == NULL) {
+	Printf("No property %s found for device %s\n", key, name);
+	return -1;
+    }
+    else {
+        for (ob = tc->cell; ob != NULL; ob = ob->next) {
+	    if (ob->type != PORT) break;
+	    else if ((*matchfunc)(ob->name, pin)) {
+		kl->pin = ob->name;
+		break;
+	    }
+        }
+	if (ob == NULL) {
+	    Printf("No pin %s found for device %s\n", pin, name);
+	    return -1;
+	}
+    }
+    return 0;
+}
+
+/*----------------------------------------------------------------------*/
 /* Set the tolerance of a property in the master cell record.		*/
 /*----------------------------------------------------------------------*/
 

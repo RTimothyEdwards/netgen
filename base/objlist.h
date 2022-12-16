@@ -135,6 +135,7 @@ struct property {
   unsigned char idx;		/* index into valuelist */
   unsigned char type;		/* string, integer, double, value, expression */
   unsigned char merge;		/* how property changes when devices are merged */
+  char *pin;			/* associated pin (or NULL if not associated)	*/
   union {
      char *string;
      double dval;
