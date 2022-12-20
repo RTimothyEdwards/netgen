@@ -5229,7 +5229,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		}
 	    }
 	 }
-	 if (changed > 0) {
+  	 if ((Debug == TRUE) && (changed > 0)) {
 	    if (series)
 		Printf("Combined %d series devices.\n", changed);
 	    else
