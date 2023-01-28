@@ -20,9 +20,11 @@ along with this program; see the file copying.  If not, write to
 the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 /* ntk2xnf.c  -- a simple wrapper to translate .ntk to Xilinx XNF format */
+#include "config.h"
 
 #include <stdio.h>
 #include "netgen.h"
+#include "xilinx.h"
 
 #ifdef HAVE_X11
 /* the following two X procedures are to permit linking

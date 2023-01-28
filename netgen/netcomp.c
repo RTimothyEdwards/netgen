@@ -17,6 +17,7 @@ along with this program; see the file copying.  If not, write to
 the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 /* netcomp.c -- a simple wrapper to provide netlist comparison functionality */
+#include "config.h"
 
 #include <stdio.h>
 #include "netgen.h"
