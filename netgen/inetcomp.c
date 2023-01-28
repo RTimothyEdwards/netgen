@@ -17,6 +17,7 @@ along with this program; see the file copying.  If not, write to
 the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 /* inetcomp.c -- a simple wrapper to the NETCOMP() function */
+#include "config.h"
 
 #include <stdio.h>
 #include "netgen.h"

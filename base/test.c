@@ -34,6 +34,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "print.h"
 #endif
 
+extern void Finsert(FILE *f);
+
 void test_entry(void) 
 { 
 
