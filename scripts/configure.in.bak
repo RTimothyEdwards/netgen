@@ -807,6 +807,7 @@ dnl "make" instead of requiring "make tcl"
 dnl ----------------------------------------------------------------
 
 if test $usingTcl ; then
+  usingX11=1
   cadinstall="$cadinstall tcltk"
   modules="$modules tcltk"
   programs="$programs tcltk"
@@ -815,11 +816,7 @@ if test $usingTcl ; then
   AC_DEFINE(TCL_NETGEN)
   extra_libs="$extra_libs \${NETGENDIR}/tcltk/libtcltk.o"
   extra_defs="$extra_defs -DTCL_DIR=\\\"\${TCLDIR}\\\""
-  if test $usingX11 ; then
-    stub_defs="$stub_defs -DUSE_TCL_STUBS"
-  else
-    stub_defs="$stub_defs -DUSE_TCL_STUBS -DUSE_TK_STUBS"
-  fi
+  stub_defs="$stub_defs -DUSE_TCL_STUBS -DUSE_TK_STUBS"
 else
   programs="$programs netgen"
   unused="$unused tcltk"
@@ -906,7 +903,6 @@ if test $usingTcl ; then
 # Tk libraries and header files
 #
 # -----------------------------------------------------------------------
-if test $usingX11 ; then
   if test "${TK_INC_DIR}" != "/usr/include" ; then
     INC_SPECS="${INC_SPECS} -I${TK_INC_DIR}"
   fi
@@ -923,7 +919,6 @@ if test $usingX11 ; then
       loader_run_path="${TK_LIB_DIR}:${loader_run_path}"
     fi
   fi
-fi
 
 # -----------------------------------------------------------------------
 #
