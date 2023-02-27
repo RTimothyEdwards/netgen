@@ -162,6 +162,10 @@ int right_col_end = 87;
 /* if TRUE, always partition ALL classes */
 int ExhaustiveSubdivision = 0;
 
+/* if TRUE, enforce that networks (e.g., resistor) must match	*/
+/* topologically, as opposed to just matching numerically.	*/
+int ExactTopology = 0;
+
 #ifdef TEST
 static void PrintElement_List(struct Element *E)
 {
@@ -4932,13 +4936,17 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	    }
 	 }
 	 if (kl == NULL) {
-	    /* Prevent setting both M > 1 and S > 1 in any one	*/
-	    /* device, as it is ambiguous.			*/
+	    /* Setting both M > 1 and S > 1 is topologically	*/
+	    /* ambiguous.  If global option ExactTopology is	*/
+	    /* enabled, then this will cause a failure.  	*/
+	    /* Otherwise, it is allowed.			*/
 
-	    if ((*matchfunc)(vl->key, other)) {
-	       if (vl->type == PROP_INTEGER)
-		  if (vl->value.ival > 1)
-		     fail = 1;
+	    if (ExactTopology) {
+		if ((*matchfunc)(vl->key, other)) {
+		    if (vl->type == PROP_INTEGER)
+			if (vl->value.ival > 1)
+			    fail = 1;
+		}
 	    }
 	 }
  	 else if (kl != NULL) {
