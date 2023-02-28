@@ -19,8 +19,6 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 /* netcmp.c  -- graph isomorphism testing */
 #include "config.h"
 
-#include "config.h"
-
 #include <stdio.h>
 #include <stdlib.h>  /* for rand(), abs(), etc */
 #include <setjmp.h>
