@@ -3378,6 +3378,7 @@ _netcmp_equate(ClientData clientData,
 /*	remove	  --- delete existing property		*/
 /*	tolerance --- set property tolerance		*/
 /*	associate --- associate property with a pin	*/
+/*	topology  --- set exact/relaxed matching	*/
 /*	merge	  --- (deprecated)			*/
 /* or							*/
 /*	netgen::property default			*/
@@ -3416,11 +3417,11 @@ _netcmp_property(ClientData clientData,
 
     char *options[] = {
 	"add", "create", "remove", "delete", "tolerance", "merge", "serial",
-	"series", "parallel", "associate", NULL
+	"series", "parallel", "associate", "topology", NULL
     };
     enum OptionIdx {
 	ADD_IDX, CREATE_IDX, REMOVE_IDX, DELETE_IDX, TOLERANCE_IDX, MERGE_IDX,
-	SERIAL_IDX, SERIES_IDX, PARALLEL_IDX, ASSOCIATE_IDX
+	SERIAL_IDX, SERIES_IDX, PARALLEL_IDX, ASSOCIATE_IDX, TOPOLOGY_IDX
     };
     int result, index, idx2;
 
@@ -3464,6 +3465,10 @@ _netcmp_property(ClientData clientData,
 	Tcl_WrongNumArgs(interp, 1, objv, "valid_cellname ?option?");
 	return TCL_ERROR;
     }
+
+    char *topo[] = {
+	"strict", "relaxed", NULL
+    };
 
     /* Check for special command "property default" */
     if ((objc == 2) && (!strcmp(Tcl_GetString(objv[1]), "default"))) {
@@ -3546,6 +3551,36 @@ _netcmp_property(ClientData clientData,
 	else {
 	    Tcl_SetResult(interp, "Bad option, should be property series none|all",
 			NULL);
+	    return TCL_ERROR;
+	}
+	return TCL_OK;
+    }
+    else if ((objc > 1) && (!strcmp(Tcl_GetString(objv[1]), "topology"))) {
+	if (objc == 2) {
+	    if (ExactTopology)
+		Tcl_SetResult(interp, "Strict topology property matching.",
+			NULL);
+	    else
+		Tcl_SetResult(interp, "Relaxed topology property matching.",
+			NULL);
+	}
+	else if (objc == 3) {
+	    if (Tcl_GetIndexFromObj(interp, objv[2],
+			(CONST84 char **)topo,
+			"topology", 0, &idx2) == TCL_OK) {
+		if (idx2 == 0)
+		    ExactTopology = TRUE;
+		else if (idx2 == 1)
+		    ExactTopology = FALSE;
+		else {
+		    Tcl_SetResult(interp, "Topology matching type must be "
+				"'strict' or 'relaxed'.", NULL);
+	    	    return TCL_ERROR;
+		}
+	    }
+	}
+	else {
+	    Tcl_WrongNumArgs(interp, 1, objv, "strict|relaxed");
 	    return TCL_ERROR;
 	}
 	return TCL_OK;
@@ -3965,6 +4000,7 @@ _netcmp_property(ClientData clientData,
 		    }
 		}
 		break;
+
 	}
     }
     return TCL_OK;
