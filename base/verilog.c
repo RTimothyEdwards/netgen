@@ -1588,13 +1588,13 @@ skip_endmodule:
 			/* until bits in signal are exhausted or LHS is full.	    */
 
 			if (i != -1)
-			    sprintf(nodename, "%s[%d]", noderoot, i);
+			    snprintf(nodename, MAX_STR_LEN, "%s[%d]", noderoot, i);
 			else
-			    sprintf(nodename, lhs->name);
+			    strncpy(nodename, MAX_STR_LEN, lhs->name);
 			if (j != -1)
-			    sprintf(assignname, "%s[%d]", assignroot, j);
+			    snprintf(assignname, MAX_STR_LEN, "%s[%d]", assignroot, j);
 			else
-			    sprintf(assignname, rhs->name);
+			    strncpy(assignname, MAX_STR_LEN, rhs->name);
 
 			join(nodename, assignname);
 
