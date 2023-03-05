@@ -1590,11 +1590,11 @@ skip_endmodule:
 			if (i != -1)
 			    snprintf(nodename, MAX_STR_LEN, "%s[%d]", noderoot, i);
 			else
-			    strncpy(nodename, MAX_STR_LEN, lhs->name);
+			    strncpy(nodename, lhs->name, MAX_STR_LEN - 1);
 			if (j != -1)
 			    snprintf(assignname, MAX_STR_LEN, "%s[%d]", assignroot, j);
 			else
-			    strncpy(assignname, MAX_STR_LEN, rhs->name);
+			    strncpy(assignname, rhs->name, MAX_STR_LEN - 1);
 
 			join(nodename, assignname);
 
