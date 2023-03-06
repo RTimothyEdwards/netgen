@@ -38,7 +38,8 @@ extern int PermuteSetup(char *model, int filenum, char *pin1, char *pin2);
 extern int PermuteForget(char *model, int filenum, char *pin1, char *pin2);
 extern int EquivalenceElements(char *name1, int file1, char *name2, int file2);
 extern int EquivalenceNodes(char *name1, int file1, char *name2, int file2);
-extern int EquivalenceClasses(char *name1, int file1, char *name2, int file2);
+extern int EquivalenceClasses(char *name1, int file1, char *name2, int file2,
+		int dounique);
 extern int IgnoreClass(char *name, int file, unsigned char type);
 extern int MatchPins(struct nlist *tp1, struct nlist *tp2, int dolist);
 extern int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run,

@@ -2902,7 +2902,7 @@ _netcmp_equate(ClientData clientData,
    struct ElementClass *saveEclass = NULL;
    struct NodeClass *saveNclass = NULL;
    int file1, file2;
-   int i, l1, l2, ltest, lent, dolist = 0, doforce = 0;
+   int i, l1, l2, ltest, lent, dolist = 0, doforce = 0, dounique = 0;
    Tcl_Obj *tobj1, *tobj2, *tobj3;
 
    while (objc > 1) {
@@ -2915,6 +2915,11 @@ _netcmp_equate(ClientData clientData,
       }
       else if (!strcmp(optstart, "force")) {
 	 doforce = 1;
+	 objv++;
+	 objc--;
+      }
+      else if (!strcmp(optstart, "unique")) {
+	 dounique = 1;
 	 objv++;
 	 objc--;
       }
@@ -3342,19 +3347,9 @@ _netcmp_equate(ClientData clientData,
 		    return TCL_ERROR;
 		}
 	    }
-
-	    /* Now that all pins are assigned by name, reorder	*/
-	    /* the pin lists of the 2nd cell to match the	*/
-	    /* order of the 1st.				*/
-
-	    /* Reorder the pin lists of instances of the 2nd	*/
-	    /* cell to match the order of the 1st.		*/
-
-	    // pindata.cell2 = tp2;
-	    // RecurseCellHashTable2(pinorder, (void *)(&pindata));
 	 }
 
-	 if (EquivalenceClasses(tp1->name, file1, tp2->name, file2)) {
+	 if (EquivalenceClasses(tp1->name, file1, tp2->name, file2, dounique)) {
 	    Fprintf(stdout, "Device classes %s and %s are equivalent.\n",
 			tp1->name, tp2->name);
 	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
