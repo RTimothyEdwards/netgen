@@ -508,8 +508,10 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	 puts stdout "Warning:  There were errors reading the setup file"
       }
    } elseif {[string first nosetup $setupfile] < 0} {
-      netgen::permute default	;# transistors and resistors
-      netgen::property default
+      puts stderr "Error:  Setup file $setupfile does not exist."
+      return
+   } else {
+      puts stderr "No setup file specified.  Continuing without a setup."
    }
 
    if {[string first nolog $logfile] < 0} {
