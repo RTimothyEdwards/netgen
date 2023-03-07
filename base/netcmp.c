@@ -7068,12 +7068,15 @@ int IgnoreClass(char *name, int file, unsigned char type)
 /* If file1 and file2 are -1, then these are names to	*/
 /* be checked as netcmp works through the hierarchy.  	*/
 /* Otherwise, look up the structure for each file and	*/
-/* set the classhash of the second to that of the first	*/
+/* set the classhash of the second to that of the	*/
+/* first.  If "dounique" is 1, then give the two cells	*/
+/* their own class hash;  they will not be compared	*/
+/* any other cells in either netlist.			*/
 /*							*/
 /* Return 1 on success, 0 on failure			*/
 /*------------------------------------------------------*/
 
-int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
+int EquivalenceClasses(char *name1, int file1, char *name2, int file2, int dounique)
 {
    char *class1, *class2;
    struct Correspond *newc;
@@ -7098,16 +7101,19 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2)
       if (tp->flags & CELL_DUPLICATE)
 	 reverse = 1;
 
-      /* Do a cross-check for each name in the other netlist.  If 	*/
-      /* conflicting names exist, then alter the classhash to make it	*/
-      /* unique.  In the case of duplicate cells, don't do this.	*/
+      if (dounique) {
 
-      if (!(tp->flags & CELL_DUPLICATE) && !(tp2->flags & CELL_DUPLICATE) &&
+	 /* Do a cross-check for each name in the other netlist.  If 	*/
+	 /* conflicting names exist, then alter the classhash to make 	*/
+	 /* it unique.  In the case of duplicate cells, don't do this.	*/
+
+	 if (!(tp->flags & CELL_DUPLICATE) && !(tp2->flags & CELL_DUPLICATE) &&
 			!(*matchfunc)(name1, name2)) {
-	 tpx = LookupCellFile(name1, file2);
-	 if (tpx != NULL) need_new_seed = 1;
-	 tpx = LookupCellFile(name2, file1);
-	 if (tpx != NULL) need_new_seed = 1;
+	    tpx = LookupCellFile(name1, file2);
+	    if (tpx != NULL) need_new_seed = 1;
+	    tpx = LookupCellFile(name2, file1);
+	    if (tpx != NULL) need_new_seed = 1;
+	 }
       }
 
       /* Now make the classhash values the same so that these cells	*/
