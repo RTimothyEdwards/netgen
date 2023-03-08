@@ -479,8 +479,12 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 
    netgen::compare assign "$fnum1 $cell1" "$fnum2 $cell2"
 
-   if {[file exists $setupfile]} {
-      puts stdout "Reading setup file $setupfile"
+   if {$setupfile == ""} {
+      puts stdout "\nNo setup file specified.  Using trivial default setup.\n"
+      netgen::permute default	;# transistors and resistors
+      netgen::property default
+   } elseif {[file exists $setupfile]} {
+      puts stdout "\nReading setup file $setupfile\n"
       # Instead of sourcing the setup file, run each line so we can
       # catch individual errors and not let them halt the LVS process
       set perrors 0
@@ -508,8 +512,10 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	 puts stdout "Warning:  There were errors reading the setup file"
       }
    } elseif {[string first nosetup $setupfile] < 0} {
-      netgen::permute default	;# transistors and resistors
-      netgen::property default
+      puts stderr "\nError:  Setup file $setupfile does not exist.\n"
+      return
+   } else {
+      puts stderr "\nNo setup file specified.  Continuing without a setup.\n"
    }
 
    if {[string first nolog $logfile] < 0} {
