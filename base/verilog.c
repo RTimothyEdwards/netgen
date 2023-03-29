@@ -381,6 +381,12 @@ int GetBusTok(struct bus *wb)
 
 		// Is name in the parameter list?
 		kl = (struct property *)HashLookup(nexttok, &verilogparams);
+
+		if (kl == NULL) {
+		    // Is name in the definitions list?
+		    kl = (struct property *)HashLookup(nexttok, &verilogdefs);
+		}
+
 		if (kl == NULL) {
 		    Printf("Array value %s is not a number or a parameter.\n",
 				nexttok);
