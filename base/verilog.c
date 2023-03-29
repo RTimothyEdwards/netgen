@@ -256,7 +256,16 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 
 	for (texp = start; texp; texp = texp->next) {
 	    if ((texp->last != NULL) && (texp->next != NULL) && (texp->oper != '\0')) {
-		if ((texp->last->oper == '\0') && (texp->next->oper == '\0')) {
+		/* Watch for (a)*b+c or a+b*(c);  multiplies must be solved first */
+		if ((texp->last->last != NULL) && ((texp->last->last->oper == '*')
+				|| (texp->last->last->oper == '/'))) {
+			/* Do nothing */
+		}
+		else if ((texp->next->next != NULL) && ((texp->next->next->oper == '*')
+				|| (texp->next->next->oper == '/'))) {
+			/* Do nothing */
+		}
+		else if ((texp->last->oper == '\0') && (texp->next->oper == '\0')) {
 		    if (texp->oper == '-') {
 			/* Subtract */
 			texp->last->value -= texp->next->value;
@@ -302,6 +311,7 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 		}
 	    }
 	}
+
     }
 
     /* If only one numerical item remains, then place it in valptr and return 1 */
@@ -349,12 +359,13 @@ int ParseIntegerExpression(char *expr, int *iptr)
 	while (isspace(*sptr)) sptr++;
 
 	// Tokenize.  Look ahead to next delimeter and truncate string there.
-	cptr = sptr;
-	if (*cptr == '`') cptr++;
-	while (*cptr != '\0') {
-	    if (isalnum(*cptr)) cptr++;
-	    else if ((*cptr == '_') || (*cptr == '$')) cptr++;
-	    else break;
+	cptr = sptr + 1;
+	if (isalnum(*sptr) || (*sptr == '_') || (*sptr == '$')) {
+	    while (*cptr != '\0') {
+		if (isalnum(*cptr)) cptr++;
+		else if ((*cptr == '_') || (*cptr == '$')) cptr++;
+		else break;
+	    }
 	}
 	savec = *cptr;
 	*cptr = '\0';
@@ -671,7 +682,7 @@ int GetBus(char *astr, struct bus *wb)
 	*brackend = '\0';
 	colonptr = strvchr(aastr, ':');
 	if (colonptr) *colonptr = '\0';
-	result = sscanf(brackstart + 1, "%d", &start);
+	result = ParseIntegerExpression(brackstart + 1, &start);
 	if (colonptr) *colonptr = ':';
 	if (result != 1) {
 	    Printf("Badly formed array notation \"%s\"\n", astr);
@@ -679,7 +690,7 @@ int GetBus(char *astr, struct bus *wb)
 	    return 1;
 	}
 	if (colonptr)
-	    result = sscanf(colonptr + 1, "%d", &end);
+	    result = ParseIntegerExpression(colonptr + 1, &end);
 	else {
 	    result = 1;
 	    end = start;        // Single bit
@@ -2114,6 +2125,31 @@ nextinst:
 			 Printf("Unterminated net in pin %s\n", wire_bundle);
 		     }
 		     new_port->net = wire_bundle;
+		  }
+		  else if ((strchr(nexttok, '[') != NULL) &&
+				(strchr(nexttok, ']') == NULL)) {
+		     /* If a bus expressions has whitespace, then treat it like
+		      * a bundle, above, concatenating to the closing ']'.
+		      */
+		     char *array_expr = (char *)MALLOC(1);
+		     char *new_array_expr = NULL;
+		     *array_expr = '\0';
+		     /* Read to "]" */
+		     while (nexttok) {
+			 new_array_expr = (char *)MALLOC(strlen(array_expr) +
+				    strlen(nexttok) + 1);
+			 /* Roundabout way to do realloc() becase there is no REALLOC() */
+			 strcpy(new_array_expr, array_expr);
+			 strcat(new_array_expr, nexttok);
+			 FREE(array_expr);
+			 array_expr = new_array_expr;
+			 if (strchr(nexttok, ']')) break;
+			 SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
+		     }
+		     if (!nexttok) {
+			 Printf("Unterminated net in pin %s\n", array_expr);
+		     }
+		     new_port->net = array_expr;
 		  }
 		  else if (nexttok[0] == '~' || nexttok[0] == '!' || nexttok[0] == '-') {
 		     /* All of these imply that the signal is logically manipulated */
