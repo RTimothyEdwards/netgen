@@ -183,7 +183,6 @@ void CloseFile(char *filename)
 		fclose(outfile);
 }
 
-
 /* STUFF TO READ INPUT FILES */
 
 static char *line = NULL;	/* actual line read in */
@@ -206,6 +205,21 @@ static struct filestack *OpenFiles = NULL;
 struct hashdict *definitions = (struct hashdict *)NULL;
 
 #define WHITESPACE_DELIMITER " \t\n\r"
+
+/*----------------------------------------------------------------------*/
+/* Seek and Tell on infile stream, for use with handling generate	*/
+/* loops in verilog.							*/
+/*----------------------------------------------------------------------*/
+
+void SeekFile(long offset)
+{
+    fseek(infile, offset, SEEK_SET);
+}
+
+long TellFile()
+{
+    return ftell(infile);
+}
 
 /*----------------------------------------------------------------------*/
 /* TrimQuoted() ---							*/
