@@ -42,6 +42,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #include <stdio.h>
 #include <stdlib.h>  /* for calloc(), free(), getenv() */
+#include <ctype.h>   /* for isalnum() */
 #ifndef IBMPC
 #include <sys/types.h>	/* for getpwnam() tilde expansion */
 #include <pwd.h>
@@ -63,6 +64,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #define VLOG_EQUATION_DELIMITERS "X///**/#((**)X,;:(){}[]=+-*/"
 #define VLOG_PIN_NAME_DELIMITERS "X///**/(**)X()"
 #define VLOG_PIN_CHECK_DELIMITERS "X///**/(**)X,;(){}"
+#define VLOG_INTEGER_DELIMITERS "X///**/X;[]"
 
 // Used by portelement structure "flags" record.
 #define PORT_NOT_FOUND	0
@@ -82,6 +84,16 @@ struct bus {
     int start;
     int end;
 };
+
+// Global storage for a 'for' loop
+struct _loop {
+    char *loopvar;
+    int start;
+    int end;
+    long filepos;
+};
+
+struct _loop loop;
 
 // Free a bus structure in the hash table during cleanup
 
@@ -244,7 +256,16 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 
 	for (texp = start; texp; texp = texp->next) {
 	    if ((texp->last != NULL) && (texp->next != NULL) && (texp->oper != '\0')) {
-		if ((texp->last->oper == '\0') && (texp->next->oper == '\0')) {
+		/* Watch for (a)*b+c or a+b*(c);  multiplies must be solved first */
+		if ((texp->last->last != NULL) && ((texp->last->last->oper == '*')
+				|| (texp->last->last->oper == '/'))) {
+			/* Do nothing */
+		}
+		else if ((texp->next->next != NULL) && ((texp->next->next->oper == '*')
+				|| (texp->next->next->oper == '/'))) {
+			/* Do nothing */
+		}
+		else if ((texp->last->oper == '\0') && (texp->next->oper == '\0')) {
 		    if (texp->oper == '-') {
 			/* Subtract */
 			texp->last->value -= texp->next->value;
@@ -290,6 +311,7 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 		}
 	    }
 	}
+
     }
 
     /* If only one numerical item remains, then place it in valptr and return 1 */
@@ -312,6 +334,134 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 }
 
 //-------------------------------------------------------------------------
+// Parse an expression which must resolve to a single integer.
+// If it does, return "1" and put the integer in the return
+// pointer "iptr".  If not, return "0" and iptr is undefined.
+// The expression may use parameters, standard arithmetic,
+// and parenthetic grouping.  This routine does not tokenize input
+// but assumes that the entire expression is in the string "expr".
+//-------------------------------------------------------------------------
+
+int ParseIntegerExpression(char *expr, int *iptr)
+{
+    int result, value;
+    char *sptr, *cptr, savec;
+    struct property *kl = NULL;
+    struct expr_stack *stack, *newexp;
+
+    stack = NULL;
+    savec = '\0';
+    sptr = expr;
+    result = 1;
+
+    while (sptr && (*sptr != '\0')) {
+	// Move sptr to first non-space character
+	while (isspace(*sptr)) sptr++;
+
+	// Tokenize.  Look ahead to next delimeter and truncate string there.
+	cptr = sptr + 1;
+	if (isalnum(*sptr) || (*sptr == '_') || (*sptr == '$')) {
+	    while (*cptr != '\0') {
+		if (isalnum(*cptr)) cptr++;
+		else if ((*cptr == '_') || (*cptr == '$')) cptr++;
+		else break;
+	    }
+	}
+	savec = *cptr;
+	*cptr = '\0';
+
+	if (match(sptr, "+") || match(sptr, "-")
+	    	|| match(sptr, "*") || match(sptr, "/")
+	    	|| match(sptr, "(") || match(sptr, ")")) {
+	    newexp = (struct expr_stack *)MALLOC(sizeof(struct expr_stack));
+	    newexp->oper = *sptr;
+	    newexp->value = 0;
+	    newexp->next = NULL;
+	    newexp->last = stack;
+	    if (stack) stack->next = newexp;
+	    stack = newexp;
+
+	    sptr = cptr;
+	    *cptr = savec;
+	    continue;
+	}
+	if ((result = sscanf(sptr, "%d", &value)) != 1) {
+
+	    // Is name in the parameter list?
+	    kl = (struct property *)HashLookup(nexttok, &verilogparams);
+	    if (kl == NULL) {
+		Printf("Value %s in expression is not a number or a parameter.\n",
+				sptr);
+		value = 0;
+		break;
+	    }
+	    else {
+		if (kl->type == PROP_STRING) {
+		    result = sscanf(kl->pdefault.string, "%d", &value);
+		    if (result != 1) {
+		        Printf("Parameter %s has value %s that cannot be parsed"
+				" as an integer.\n",
+				nexttok, kl->pdefault.string);
+		    	value = 0;
+			break;
+		    }
+		}
+		else if (kl->type == PROP_INTEGER) {
+		    value = kl->pdefault.ival;
+		}
+		else if (kl->type == PROP_DOUBLE) {
+		    value = (int)kl->pdefault.dval;
+		    if ((double)value != kl->pdefault.dval) {
+		        Printf("Parameter %s has value %g that cannot be parsed"
+				" as an integer.\n",
+				nexttok, kl->pdefault.dval);
+		    	value = 0;
+			break;
+		    }
+		}
+		else {
+		    Printf("Parameter %s has unknown type; don't know how"
+				" to parse.\n", nexttok);
+		    value = 0;
+		    break;
+		}
+	    }
+	}
+
+	newexp = (struct expr_stack *)MALLOC(sizeof(struct expr_stack));
+	newexp->oper = '\0';
+	newexp->value = value;
+	newexp->next = NULL;
+	newexp->last = stack;
+	if (stack) stack->next = newexp;
+	stack = newexp;
+
+	/* Move to next token */
+	sptr = cptr;
+	*cptr = savec;
+    }
+
+    if (result != 0) {
+	if (stack == NULL) {
+	    Printf("Empty array found.\n");
+	    result = 0;
+	}
+	else if (EvalExpr(&stack, iptr) != 1) {
+	    Printf("Bad expression found in array.\n");
+	    result = 0;
+	}
+    }
+
+    /* In case of error, stack may need cleaning up */
+    while (stack != NULL) {
+	newexp = stack;
+	stack = stack->last;
+	FREE(newexp);
+    }
+    return result;
+}
+
+//-------------------------------------------------------------------------
 // Get bus indexes from the notation name[a:b].  If there is only "name"
 // then look up the name in the bus hash list and return the index bounds.
 // Return 0 on success, 1 on syntax error, and -1 if signal is not a bus.
@@ -323,7 +473,6 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 int GetBusTok(struct bus *wb)
 {
     int result, start, end, value;
-    char oper;
     struct property *kl = NULL;
     struct expr_stack *stack, *newexp;
 
@@ -338,7 +487,6 @@ int GetBusTok(struct bus *wb)
 
     if (match(nexttok, "[")) {
 	start = end = -1;
-	oper = '\0';
 	while (nexttok) {
 	    SkipTokComments(VLOG_EQUATION_DELIMITERS);
     	    if (match(nexttok, "]")) {
@@ -467,13 +615,16 @@ int GetBusTok(struct bus *wb)
 
 //--------------------------------------------------------------------
 // GetBus() is similar to GetBusTok() (see above), but it parses from
-// a string instead of the input tokenizer.
+// a string instead of the input tokenizer, and expressions are not
+// allowed.
 //--------------------------------------------------------------------
 
 int GetBus(char *astr, struct bus *wb)
 {
     char *colonptr, *brackstart, *brackend, *sigend, sdelim, *aastr;
     int result, start, end;
+    struct property *kl = NULL;
+    struct expr_stack *stack, *newexp;
 
     if (wb == NULL) return 0;
     else {
@@ -531,7 +682,7 @@ int GetBus(char *astr, struct bus *wb)
 	*brackend = '\0';
 	colonptr = strvchr(aastr, ':');
 	if (colonptr) *colonptr = '\0';
-	result = sscanf(brackstart + 1, "%d", &start);
+	result = ParseIntegerExpression(brackstart + 1, &start);
 	if (colonptr) *colonptr = ':';
 	if (result != 1) {
 	    Printf("Badly formed array notation \"%s\"\n", astr);
@@ -539,7 +690,7 @@ int GetBus(char *astr, struct bus *wb)
 	    return 1;
 	}
 	if (colonptr)
-	    result = sscanf(colonptr + 1, "%d", &end);
+	    result = ParseIntegerExpression(colonptr + 1, &end);
 	else {
 	    result = 1;
 	    end = start;        // Single bit
@@ -875,6 +1026,8 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   instname[MAX_STR_LEN-1] = '\0';
   in_module = (char)0;
   in_param = (char)0;
+
+  loop.loopvar = NULL;
 
   while (!EndParseFile()) {
 
@@ -1416,6 +1569,145 @@ skip_endmodule:
 	while (!match(nexttok, ";")) SkipTok("X///**/X,;");
 	continue;
     }
+    else if (match(nexttok, "end")) {
+	/* Handle a 'for' loop */
+	if (loop.loopvar != NULL) {
+	    int loopval;
+	    struct property *klr;
+
+	    klr = (struct property *)HashLookup(loop.loopvar, &verilogparams);
+	    loopval = klr->pdefault.ival;
+
+	    if (loopval < loop.end) loopval++;
+	    else if (loopval > loop.end) loopval--;
+	    SeekFile(loop.filepos);
+	    if (loopval == loop.end)
+	    {
+		HashDelete(loop.loopvar, &verilogparams);
+		FREE(klr);
+		FREE(loop.loopvar);
+		loop.loopvar = NULL;
+	    }
+	    else
+		klr->pdefault.ival = loopval;
+	}
+	continue;
+    }
+    else if (match(nexttok, "begin") || match(nexttok, "generate")) {
+	/* 'generate' section or 'for' loop start is ignored */
+	continue;
+    }
+    else if (match(nexttok, "generate") || match(nexttok, "endgenerate")) {
+	/* 'generate' section is ignored */
+	continue;
+    }
+    else if (match(nexttok, "genvar")) {
+	while (!match(nexttok, ";")) SkipTok("X///**/X,;");
+	continue;
+    }
+    else if (match(nexttok, "for")) {
+	char limittype = '\0';
+	char *paramkey = NULL;
+	struct property *kl = NULL, *klr;
+	/* Parse out the loop variable and count.  Set the loop
+	 * variable as a parameter.  Find the beginning of the
+	 * loop block and record the file position so that the
+	 * block can be re-parsed for each loop iteration.
+	 */
+	SkipTokNoNewline(VLOG_DELIMITERS);
+	if ((nexttok == NULL) || !match(nexttok, "(")) {
+	    Printf("Badly formed 'for' loop.\n");
+	    FREE(paramkey);
+	    break;
+	}
+	SkipTokNoNewline(VLOG_DELIMITERS);
+	/* Next token must be the loop variable */
+	if (nexttok == NULL) break;
+	paramkey = strsave(nexttok);
+	SkipTokNoNewline(VLOG_DELIMITERS);
+	if (!match(nexttok, "=")) {
+	    Printf("Badly formed 'for' loop.\n");
+	    FREE(paramkey);
+	    break;
+	}
+	SkipTokNoNewline(VLOG_INTEGER_DELIMITERS);
+	if (ParseIntegerExpression(nexttok, &ival) == 0) {
+	    FREE(paramkey);
+	    break;
+	}
+
+	kl = NewProperty();
+	kl->type = PROP_INTEGER;
+	kl->slop.ival = 0;
+	kl->pdefault.ival = ival;
+	kl->key = paramkey;
+	kl->idx = 0;
+	kl->merge = MERGE_NONE;
+
+	SkipTokNoNewline(VLOG_DELIMITERS);
+	if (!match(nexttok, ";")) {
+	    Printf("Badly formed 'for' loop.\n");
+	    FREE(paramkey);
+	    FREE(kl);
+	    break;
+	}
+
+	/* Assuming a standard 'for' loop here */
+	SkipTokNoNewline(VLOG_DELIMITERS);
+	if (!match(nexttok, paramkey)) {
+	    Printf("Don't know how to parse this 'for' loop!\n");
+	    FREE(paramkey);
+	    FREE(kl);
+	    break;
+	}
+	SkipTokNoNewline(VLOG_DELIMITERS);
+	if (strlen(nexttok) == 1) limittype = *nexttok;
+	SkipTokNoNewline(VLOG_INTEGER_DELIMITERS);
+	if (ParseIntegerExpression(nexttok, &ival) == 0) {
+	    FREE(kl);
+	    FREE(paramkey);
+	    break;
+	}
+
+	/* Loops will stop after the last value, so if value is > or <,
+	 * then adjust the end value accordingly.
+	 */
+	if (limittype == '<')
+	    ival--;
+	else if (limittype == '>')
+	    ival++;
+
+	SkipTokNoNewline(VLOG_DELIMITERS);
+	if (!match(nexttok, ";")) {
+	    Printf("Badly formed 'for' loop.\n");
+	    FREE(paramkey);
+	    FREE(kl);
+	    break;
+	}
+
+	/* Assume a standard 'for' loop and skip to the block begin	*/
+	/* To do:  Parse out the loop increment value.			*/
+	while (1) {
+	    SkipTokNoNewline(VLOG_DELIMITERS);
+	    if (EndParseFile()) break;
+	    else if (match(nexttok, "begin")) break;
+	}
+	if (EndParseFile()) {
+	    Printf("Badly formed 'for' loop:  No begin/end block.\n");
+	    FREE(paramkey);
+	    FREE(kl);
+	    break;
+	}
+
+	/* Save the loop variable, ending value, and file position */
+	loop.loopvar = paramkey;
+	loop.start = kl->pdefault.ival;
+	loop.end = ival;
+	loop.filepos = TellFile();
+
+	/* 'for' loop has been completely parsed, so save the loop variable */
+	HashPtrInstall(paramkey, kl, &verilogparams);
+    }
     else if (match(nexttok, "wire") || match(nexttok, "assign")) {	/* wire = node */
 	struct bus wb, wb2, *nb;
 	char nodename[MAX_STR_LEN], noderoot[MAX_STR_LEN];
@@ -1479,7 +1771,7 @@ skip_endmodule:
 	}
 	else {	    /* "assign" */
 	    SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
-	    if (GetBus(nexttok, &wb) == 0) {
+	    if (GetBusTok(&wb) == 0) {
 		char *aptr = strvchr(nexttok, '[');
 		if (aptr != NULL) {
 		    *aptr = '\0';
@@ -1514,9 +1806,11 @@ skip_endmodule:
 	//    "assign a = b" joins two nets.
 	//    "assign a = {b, c, ...}" creates a bus from components.
 	//    "assign" using any boolean arithmetic is not structural verilog.
+	//    "assign a = {x{b}}" creates a bus by repeating a component.
 
 	if (nexttok && match(nexttok, "=")) {
 	    char assignname[MAX_STR_LEN], assignroot[MAX_STR_LEN];
+	    int multiplier = 1;
 
 	    i = wb.start;
 	    while (1) {
@@ -1525,6 +1819,10 @@ skip_endmodule:
 
 		if (match(nexttok, "{")) {
 		    /* RHS is a bundle */
+		    /* Make provisional multiplier active.  NOTE:	*/
+		    /* this is not going to properly handle complex	*/
+		    /* multipliers like {2{a,b}}.  Needs rework.	*/
+		    if (multiplier < 0) multiplier = -multiplier;
 		    continue;
 		}
 		else if (match(nexttok, "}")) {
@@ -1540,7 +1838,7 @@ skip_endmodule:
 		    break;
 		}
 		else {
-		    if (GetBus(nexttok, &wb2) == 0) {
+		    if (GetBusTok(&wb2) == 0) {
 			char *aptr = strvchr(nexttok, '[');
 			j = wb2.start;
 			if (aptr != NULL) {
@@ -1556,6 +1854,18 @@ skip_endmodule:
 		    else {
 			j = -1;
 			rhs = LookupObject(nexttok, CurrentCell);
+
+			/* Check if rhs starts with a signal multiplier */
+			if (rhs == NULL) {
+			    if (ConvertStringToInteger(nexttok, &multiplier) == 1) {
+				/* Set multiplier to a negative value to
+				 * indicate that it is provisional, waiting on
+				 * signal specification to follow.
+				 */
+				multiplier = -multiplier;
+				continue;
+			    }
+			}
 		    }
 		    if ((lhs == NULL) || (rhs == NULL)) {
 			if (rhs != NULL) {
@@ -1568,7 +1878,7 @@ skip_endmodule:
 			    Printf("Improper expression is \"%s\".\n", nexttok);
 			    break;
 			}
-			if (lhs != NULL) {
+			if ((lhs != NULL) || (multiplier < 0)) {
 			    Printf("Improper assignment;  right-hand side cannot "
 					"be parsed.\n");
 			    if (i != -1)
@@ -1601,8 +1911,14 @@ skip_endmodule:
 			if (i == wb.end) break;
 			i += (wb.end > wb.start) ? 1 : -1;
 
-			if (j == wb2.end) break;
-			j += (wb2.end > wb2.start) ? 1 : -1;
+			if (j == wb2.end) {
+			    if (multiplier <= 1)
+			    	break;
+			    else
+				multiplier--;
+			}
+			else
+			    j += (wb2.end > wb2.start) ? 1 : -1;
 		    }
 		}
 	    }
@@ -1809,6 +2125,31 @@ nextinst:
 			 Printf("Unterminated net in pin %s\n", wire_bundle);
 		     }
 		     new_port->net = wire_bundle;
+		  }
+		  else if ((strchr(nexttok, '[') != NULL) &&
+				(strchr(nexttok, ']') == NULL)) {
+		     /* If a bus expressions has whitespace, then treat it like
+		      * a bundle, above, concatenating to the closing ']'.
+		      */
+		     char *array_expr = (char *)MALLOC(1);
+		     char *new_array_expr = NULL;
+		     *array_expr = '\0';
+		     /* Read to "]" */
+		     while (nexttok) {
+			 new_array_expr = (char *)MALLOC(strlen(array_expr) +
+				    strlen(nexttok) + 1);
+			 /* Roundabout way to do realloc() becase there is no REALLOC() */
+			 strcpy(new_array_expr, array_expr);
+			 strcat(new_array_expr, nexttok);
+			 FREE(array_expr);
+			 array_expr = new_array_expr;
+			 if (strchr(nexttok, ']')) break;
+			 SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
+		     }
+		     if (!nexttok) {
+			 Printf("Unterminated net in pin %s\n", array_expr);
+		     }
+		     new_port->net = array_expr;
 		  }
 		  else if (nexttok[0] == '~' || nexttok[0] == '!' || nexttok[0] == '-') {
 		     /* All of these imply that the signal is logically manipulated */

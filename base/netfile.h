@@ -47,5 +47,7 @@ extern void InputParseError(FILE *f);
 extern int OpenParseFile(char *name, int fnum);
 extern int EndParseFile(void);
 extern int CloseParseFile(void);
+extern void SeekFile(long offset);	/* handles verilog 'for' loops */
+extern long TellFile();			/* handles verilog 'for' loops */
 
 #endif /* _NETFILE_H */
