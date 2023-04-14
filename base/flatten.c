@@ -1929,6 +1929,16 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 
 					if (ecomp->cell1->class != CLASS_ISOURCE) {
 					    /* merge node of endpoints */
+					    /* Prefer a port node over a non-port node */
+					    for (ob2 = tc1->cell; ob2; ob2 = ob2->next) {
+						if (!IsPort(ob2)) break;
+						else if (ob2->node == node1) break;
+						else if (ob2->node == node2) {
+						    int ntemp = node1;
+						    node1 = node2;
+						    node2 = ntemp;
+						}
+					    }
 					    for (ob2 = tc1->cell; ob2; ob2 = ob2->next) {
 						if (ob2->node == node2)
 						    ob2->node = node1;
@@ -2037,6 +2047,16 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 
 					/* merge node of endpoints */
 					if (ecomp->cell2->class != CLASS_ISOURCE) {
+					    /* Prefer a port node over a non-port node */
+					    for (ob1 = tc2->cell; ob1; ob1 = ob1->next) {
+						if (!IsPort(ob1)) break;
+						else if (ob1->node == node1) break;
+						else if (ob1->node == node2) {
+						    int ntemp = node1;
+						    node1 = node2;
+						    node2 = ntemp;
+						}
+					    }
 					    for (ob1 = tc2->cell; ob1; ob1 = ob1->next) {
 						if (ob1->node == node2)
 						    ob1->node = node1;
