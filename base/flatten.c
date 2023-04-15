@@ -536,11 +536,10 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 
          /* Do property inheritance */
 
-         /* NOTE:  Need to do:  Check properties for M > 1 and decrement
-          * and repeat without moving CurrentProp
-          */
-
          if (CurrentProp) {
+	    int i, mval;
+	    struct valuelist *kv;
+
             for (ob2 = ChildStart; ob2 != NULL; ob2=ob2->next) {
 
 	       /* If the parent cell has properties to declare, then	*/
@@ -548,10 +547,49 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
 	       /* spiceparams dictionary is active (during file		*/
 	       /* reading only).					*/
 
-	       if (ob2->type == PROPERTY)
+	       if (ob2->type == PROPERTY) {
 		  ReduceExpressions(ob2, CurrentProp, ChildCell,
 				(spiceparams.hashtab == NULL) ? 0 : 1);
-            }
+	       }
+	    }
+
+	    /* Check for property M.  If it exists and is greater than	*/
+	    /* one, reduce it and repeat;  i.e., generate multiple	*/
+	    /* child instances to match the M value.  Probably this	*/
+	    /* could be done quicker by just creating a new property	*/
+	    /* M for a single child.					*/
+
+	    mval = 0;
+	    for (i = 0; ; i++) {
+	       kv = &(CurrentProp->instance.props[i]);
+	       if (kv->type == PROP_ENDLIST) break;
+	       if ((*matchfunc)(kv->key, "M")) {
+		   if (kv->type == PROP_INTEGER) {
+		      mval = kv->value.ival;
+		      kv->value.ival = mval - 1;
+		      break;
+		   }
+		   else if (kv->type == PROP_DOUBLE) {
+		      mval = (int)kv->value.dval;
+		      kv->value.dval = (double)mval - 1;
+		      break;
+		   }
+	       }
+	    }
+	    if (mval > 1) {
+	       /* Put the child cell at the start of ChildObjList */
+	       if (ChildEnd) {
+	          ChildEnd->next = ChildObjList;
+	          ChildObjList = ChildStart;
+	
+	          /* Continue without moving CurrentProp */
+		  /* Note that if ChildEnd is NULL then the child cell
+		   * is optimized out and there is no need to do it
+		   * M times.
+		   */
+	          continue;
+	       }
+	    }
 
             /* Repeat for each property record, as each property represents a
              * unique instance that must be flattened individually.
