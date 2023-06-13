@@ -1017,13 +1017,12 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   char devtype, in_module, in_param;
   char *eqptr, *matchptr;
   struct keyvalue *kvlist = NULL;
-  char inst[MAX_STR_LEN], model[MAX_STR_LEN], instname[MAX_STR_LEN], portname[MAX_STR_LEN], pkey[MAX_STR_LEN];
+  char inst[MAX_STR_LEN], model[MAX_STR_LEN], portname[MAX_STR_LEN], pkey[MAX_STR_LEN];
   struct nlist *tp;
   struct objlist *parent, *sobj, *nobj, *lobj, *pobj, *cref;
 
   inst[MAX_STR_LEN-1] = '\0';
   model[MAX_STR_LEN-1] = '\0';
-  instname[MAX_STR_LEN-1] = '\0';
   in_module = (char)0;
   in_param = (char)0;
 

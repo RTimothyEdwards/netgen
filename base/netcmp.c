@@ -7428,6 +7428,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    int result = 1, haspins = 0, notempty = 0;
    int hasproxy1 = 0, hasproxy2 = 0;
    int needclean1 = 0, needclean2 = 0;
+   int *correspond;
    char *ostr;
 #ifdef TCL_NETGEN
    Tcl_Obj *mlist, *plist1, *plist2;
@@ -7681,6 +7682,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    /* legal SPICE.						*/
 
    ob1 = tc1->cell;
+
+   correspond = (int *)CALLOC((tc1->nodename_cache_maxnodenum + 1), sizeof(int));
   
    for (i = 0; i < numorig; i++) {
       bangptr1 = strrchr(ob1->name, '!');
@@ -7723,7 +7726,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			(tc2->flags & CELL_PLACEHOLDER)) ||
 			(NodeClasses == NULL))) {
 
-	          ob2->model.port = i;		/* save order */
+	          ob2->model.port = i;			/* save order */
 	          *(cover + i) = (char)1;
 
 	          if (Debug == 0) {
@@ -7752,6 +7755,63 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	          if (bangptr2) *bangptr2 = '!';
 		  break;
 	       }
+	       else if ((ob1->node != -1) && (ob2->node != -1)) {
+		  /* Check for the case of ports on both sides being shorted
+		   * together.  That means that the nodes on both sides connect
+		   * only to ports, that they connec to the same number of ports,
+		   * and that each port pair has a matching name.
+		   */
+		  int onlyports = 1;
+		  struct objlist *oba, *obb;
+		  for (oba = tc1->cell; oba != NULL; oba = oba->next) {
+		     if ((oba->node == ob1->node) && (oba->type != PORT)) {
+			onlyports = 0;
+			break;
+		     } 
+		  }
+		  if (onlyports) {
+		     for (obb = tc2->cell; obb != NULL; obb = obb->next) {
+		        if ((obb->node == ob2->node) && (obb->type != PORT)) {
+			   onlyports = 0;
+			   break;
+		        } 
+		     }
+		  }
+		  if (onlyports) {
+		     if ((correspond[ob1->node] == 0) || (correspond[ob1->node] == ob2->node)) {
+
+		        correspond[ob1->node] = ob2->node;	/* remember corresponding node */
+	                ob2->model.port = i;			/* save order */
+	                *(cover + i) = (char)1;
+
+	                if (Debug == 0) {
+		           for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
+		           for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
+		           snprintf(ostr, left_col_end, "%s", ob1->name);
+		           snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
+		           for (m = 0; m < right_col_end + 1; m++)
+		              if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+		           Fprintf(stdout, ostr);
+	                }
+	                else {
+		           Fprintf(stdout, "Circuit %s port %d \"%s\""
+					" = cell %s port %d \"%s\"\n",
+				tc1->name, i, ob1->name,
+				tc2->name, j, ob2->name);
+	                }
+#ifdef TCL_NETGEN
+	                if (dolist) {
+		           Tcl_ListObjAppendElement(netgeninterp, plist1,
+					Tcl_NewStringObj(ob1->name, -1));
+		           Tcl_ListObjAppendElement(netgeninterp, plist2,
+					Tcl_NewStringObj(ob2->name, -1));
+	                }
+#endif
+		     }
+	             if (bangptr2) *bangptr2 = '!';
+		     break;
+		  }
+	       }
 	    }
 	    if (bangptr2) *bangptr2 = '!';
 	    j++;
@@ -7760,6 +7820,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       ob1 = ob1->next;
       if (bangptr1) *bangptr1 = '!';
    }
+   FREE(correspond);
 
    /* Find the end of the pin list in tc1, for adding proxy pins */
 
