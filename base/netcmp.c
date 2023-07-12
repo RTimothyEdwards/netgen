@@ -7428,6 +7428,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    int result = 1, haspins = 0, notempty = 0;
    int hasproxy1 = 0, hasproxy2 = 0;
    int needclean1 = 0, needclean2 = 0;
+   int nomatch = 0;
    int *correspond;
    char *ostr;
 #ifdef TCL_NETGEN
@@ -7520,58 +7521,77 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 		     obp = N2->object;
 		     j = 0;
 	             for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next, j++) {
+			nomatch = FALSE;
 	          	if ((IsPort(ob2)) && (ob2->node == obp->node)) {
 			   if (Debug == 0) {
 			      for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
 			      for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
 			      snprintf(ostr, left_col_end, "%s", ob1->name);
-			      if ((*matchfunc)(ob1->name, ob2->name))
+			   }
+			   if ((*matchfunc)(ob1->name, ob2->name)) {
+			      if (Debug == 0)
 			         snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-			      else {
-				 /* Check remainder of ports to see if there is a name match on the
-				  * same net number (multiple ports tied to the same net)
-				  */
-				 struct objlist *ob3;
-				 for (ob3 = ob2->next, ++j; ob3 != NULL; ob3 = ob3->next, j++) {
-				     if ((IsPort(ob3)) && (ob3->node == ob2->node)) {
-					if ((*matchfunc)(ob3->name, ob1->name)) {
-					   ob2 = ob3;
+			   }
+			   else {
+			      /* Check remainder of ports to see if there is a name match on the
+			       * same net number (multiple ports tied to the same net)
+			       */
+			      struct objlist *ob3;
+			      for (ob3 = ob2->next, ++j; ob3 != NULL; ob3 = ob3->next, j++) {
+				  if ((IsPort(ob3)) && (ob3->node == ob2->node)) {
+				     if ((*matchfunc)(ob3->name, ob1->name)) {
+				        ob2 = ob3;
+					if (Debug == 0)
 			         	   snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-					   break;
-					}
+					break;
 				     }
-				     else {
-					ob3 = NULL;
-					break;	/* All pins w/the same node should be together */
-				     }
-				 }
-				 if (ob3 == NULL) {
+				  }
+				  else {
+				     ob3 = NULL;
+				     break;	/* All pins w/the same node should be together */
+				  }
+			      }
+			      if (ob3 == NULL) {
+				 if (Debug == 0) {
 				    if (ob2->model.port == -1)
 				       snprintf(ostr + left_col_end + 1, left_col_end, "%s **Mismatch**", ob2->name);
 				    else
 				       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
-				    /* Pins with different names are on different nets,
-				     * so this should trigger an error return code.
-				     */
-				    result = 0;
 				 }
+				 nomatch = TRUE;
+				 /* Pins with different names are on different nets,
+				  * so this should trigger an error return code.
+				  */
+				 result = 0;
 			      }
+			   }
+
+			   if (Debug == 0) {
 			      for (m = 0; m < right_col_end + 1; m++)
 				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 			      Fprintf(stdout, ostr);
 			   }
+			   else if (nomatch) {
+			      Fprintf(stderr, "No matching pin in cell %s for "
+					"cell %s pin %s\n",
+					tc2->name, tc1->name, ob1->name);
+			   }
 			   else {
 			      Fprintf(stdout, "Circuit %s port %d \"%s\""
 					" = cell %s port %d \"%s\"\n",
-					tc1->name, i, obn->name,
-					tc2->name, j, obp->name);
+					tc1->name, i, ob1->name,
+					tc2->name, j, ob2->name);
 			   }
 #ifdef TCL_NETGEN
 			   if (dolist) {
 		              Tcl_ListObjAppendElement(netgeninterp, plist1,
-					Tcl_NewStringObj(obn->name, -1));
-		              Tcl_ListObjAppendElement(netgeninterp, plist2,
-					Tcl_NewStringObj(obp->name, -1));
+					Tcl_NewStringObj(ob1->name, -1));
+			      if (nomatch)
+		 		 Tcl_ListObjAppendElement(netgeninterp, plist2,
+					Tcl_NewStringObj("(no matching pin)", -1));
+			      else
+				 Tcl_ListObjAppendElement(netgeninterp, plist2,
+					Tcl_NewStringObj(ob2->name, -1));
 			   }
 #endif
 			   ob2->model.port = i;		/* save order */
