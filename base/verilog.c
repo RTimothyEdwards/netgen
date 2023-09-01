@@ -1898,12 +1898,21 @@ skip_endmodule:
 
 			if (i != -1)
 			    snprintf(nodename, MAX_STR_LEN, "%s[%d]", noderoot, i);
-			else
+			else if (lhs != NULL)
 			    strncpy(nodename, lhs->name, MAX_STR_LEN - 1);
+			else {
+			    Printf("Error:  Improper node name \"%s\".\n", noderoot);
+			    goto skip_endmodule;
+			}
 			if (j != -1)
 			    snprintf(assignname, MAX_STR_LEN, "%s[%d]", assignroot, j);
-			else
+			else if (rhs != NULL)
 			    strncpy(assignname, rhs->name, MAX_STR_LEN - 1);
+			else {
+			    Printf("Error:  Improper assignment name \"%s\".\n",
+					assignroot);
+			    goto skip_endmodule;
+			}
 
 			join(nodename, assignname);
 
