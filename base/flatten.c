@@ -1215,7 +1215,6 @@ int UniquePins(char *name, int filenum)
    firstport = (struct objlist **)CALLOC(maxnode + 1, sizeof(struct objlist *));
 
    portcount = FIRSTPIN;
-   lob = NULL;
    for (ob = ThisCell->cell; ob != NULL; ob = ob->next) {
       if (ob->type != PORT) break;
       if (ob->node > 0) {
@@ -1226,16 +1225,12 @@ int UniquePins(char *name, int filenum)
 			firstport[ob->node]->name, ThisCell->name, ThisCell->file);
 	       /* Do not count this as a duplicate pin. */
 	       nodecount[ob->node]--;
-	       /* Move the pin adjacent to the one it is shorted to (if it	
-		* isn't already);  this will make the work of MatchPins() easier.
+	       /* Note:  Previously there was code here to move the shorted port
+		* next to the pin it is shorted to.  This causes the cell def pins
+		* to become scrambled with respect to the pin order of its instances.
+		* Removed the code 9/1/2023.  But---Not sure if any code depends
+		* on shorted pins being adjacent.
 		*/
-	       if (firstport[ob->node]->next != ob) {
-	          lob->next = ob->next;
-	          ob->next = firstport[ob->node]->next;
-		  firstport[ob->node]->next = ob;
-	          ob = lob;
-	       }
-	       lob = ob;
 	       continue;
 	    }
 	    else {
@@ -1256,7 +1251,6 @@ int UniquePins(char *name, int filenum)
 	 }
       }
       portcount++;
-      lob = ob;
    }
 
    if (needscleanup)
