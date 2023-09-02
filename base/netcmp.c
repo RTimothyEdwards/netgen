@@ -7778,7 +7778,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       else if ((ob1->node != -1) && (ob2->node != -1)) {
 		  /* Check for the case of ports on both sides being shorted
 		   * together.  That means that the nodes on both sides connect
-		   * only to ports, that they connec to the same number of ports,
+		   * only to ports, that they connect to the same number of ports,
 		   * and that each port pair has a matching name.
 		   */
 		  int onlyports = 1;
