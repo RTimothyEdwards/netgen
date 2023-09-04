@@ -611,7 +611,8 @@ void SpiceTokNoNewline(void)
 }
 
 /*----------------------------------------------------------------------*/
-/* Skip to the next token, ignoring any C-style comments.		*/
+/* Skip to the next token, ignoring any C-style comments and verilog	*/
+/* "(* ... *)"-style comments.						*/
 /*----------------------------------------------------------------------*/
 
 void SkipTokComments(char *delimiter)
@@ -624,6 +625,11 @@ void SkipTokComments(char *delimiter)
 	}
 	else if (match(nexttok, "/*")) {
 	    while (nexttok && !match(nexttok, "*/"))
+		SkipTok(delimiter);
+	    if (nexttok) SkipTok(delimiter);
+	}
+	else if (match(nexttok, "(*")) {
+	    while (nexttok && !match(nexttok, "*)"))
 		SkipTok(delimiter);
 	    if (nexttok) SkipTok(delimiter);
 	}
@@ -731,7 +737,7 @@ char *strdtok(char *pstring, char *delim1, char *delim2)
     if (*s == '\\') {
         s++;
         while (*s != '\0') {
-	    if ((*s == ' ') || (*s == '\\')) {
+	    if ((*s == ' ') || ((*s == '\\') && (*(s + 1) == '\0'))) {
 		s++;
 		break;
 	    }
