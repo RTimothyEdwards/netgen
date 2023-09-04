@@ -1954,8 +1954,12 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					/* port lists get screwed up.  It is	*/
 					/* better in that case to force the	*/
 					/* cells to be declared mismatched.	*/
+					/* This is ignored for a top-level cell	*/
+					/* because it will just show up as a	*/
+					/* port mismatch error as it should.	*/
 
-					if (ecomp->cell1->class != CLASS_ISOURCE) {
+					if (!(tc1->flags & CELL_TOP) &&
+						(ecomp->cell1->class != CLASS_ISOURCE)) {
 					    int found1 = FALSE;
 					    int found2 = FALSE;
 					    for (ob2 = tc1->cell; ob2; ob2 = ob2->next) {
