@@ -1948,6 +1948,33 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 						    break;
 					    }
 					}
+
+					/* Do NOT remove shorting devices that	*/
+					/* connect two ports.  Otherwise the	*/
+					/* port lists get screwed up.  It is	*/
+					/* better in that case to force the	*/
+					/* cells to be declared mismatched.	*/
+					/* This is ignored for a top-level cell	*/
+					/* because it will just show up as a	*/
+					/* port mismatch error as it should.	*/
+
+					if (!(tc1->flags & CELL_TOP) &&
+						(ecomp->cell1->class != CLASS_ISOURCE)) {
+					    int found1 = FALSE;
+					    int found2 = FALSE;
+					    for (ob2 = tc1->cell; ob2; ob2 = ob2->next) {
+						if (!IsPort(ob2)) break;
+						else if (ob2->node == node1)
+						    found1 = TRUE;
+						else if (ob2->node == node2)
+						    found2 = TRUE;
+						if (found1 && found2) {
+						    found = FALSE;
+						    break;
+						}
+					    }
+					}
+
 					if (found) break;
 				    }
 				    if (found) {
