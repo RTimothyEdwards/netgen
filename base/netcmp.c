@@ -5026,21 +5026,30 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	       switch(vl->type) {
 		  case PROP_DOUBLE:
 		  case PROP_VALUE:
-		     dval = 2 * fabs(vl->value.dval - vl2->value.dval)
+	       	     if ((vl2->type == PROP_DOUBLE) || (vl2->type == PROP_VALUE)) {
+			dval = 2 * fabs(vl->value.dval - vl2->value.dval)
 				/ (vl->value.dval + vl2->value.dval);
-		     if (dval <= kl->slop.dval) pmatch++;
+			if (dval <= kl->slop.dval) pmatch++;
+		     }
 		     break;
 		  case PROP_INTEGER:
-		     ival = abs(vl->value.ival - vl2->value.ival);
-		     if (ival <= kl->slop.ival) pmatch++; 
+		     if (vl2->type == PROP_INTEGER) {
+			ival = abs(vl->value.ival - vl2->value.ival);
+			if (ival <= kl->slop.ival) pmatch++; 
+		     }
 		     break;
 		  case PROP_STRING:
-		     if ((*matchfunc)(vl->value.string, vl2->value.string)) pmatch++;
+		     if (vl2->type == PROP_STRING) {
+			if ((*matchfunc)(vl->value.string, vl2->value.string)) pmatch++;
+		     }
 		     break;
 
-		  /* will not attempt to match expressions, but it could
+		  /* Will not attempt to match expressions, but it could
 		   * be done with some minor effort by matching each
 		   * stack token and comparing those that are strings.
+		   * Likewise, will not attempt to match properties
+		   * whose types are mismatched, but they could be
+		   * promoted here.
 		   */
 	       }
 	    }
