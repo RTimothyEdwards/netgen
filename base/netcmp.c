@@ -3773,20 +3773,23 @@ int CreateCompareQueue(char *name1, int file1, char *name2, int file2)
    return 0;
 }
 
-/*----------------------------------------------*/
-/* Read the top of the compare queue, but do	*/
-/* not alter the stack.				*/
-/*----------------------------------------------*/
+/*----------------------------------------------------------------*/
+/* Read the top of the compare queue, but do not alter the stack. */
+/* Return -1 if there is no compare queue.  This is a way to	  */
+/* check if the current cells being checked are the topmost in	  */
+/* the queue.  Call with all NULL values for a quick check for a  */
+/* top-level compare.						  */
+/*----------------------------------------------------------------*/
 
 int PeekCompareQueueTop(char **name1, int *file1, char **name2, int *file2)
 {
    if (CompareQueue == NULL)
       return -1;
 
-   *name1 = CompareQueue->class1;
-   *file1 = CompareQueue->file1;
-   *name2 = CompareQueue->class2;
-   *file2 = CompareQueue->file2;
+   if (name1) *name1 = CompareQueue->class1;
+   if (file1) *file1 = CompareQueue->file1;
+   if (name2) *name2 = CompareQueue->class2;
+   if (file2) *file2 = CompareQueue->file2;
 
    return 0;
 }

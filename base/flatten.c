@@ -1632,6 +1632,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     ECompList *list0X, *listX0;
     int hascontents1, hascontents2;
     int match, modified = 0;
+    int not_top;
 
     if (file1 == -1)
 	tc1 = LookupCell(name1);
@@ -1902,6 +1903,8 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     // Remove non-matching zero-value devices.  This can
     // be done on a per-instance basis.
 
+    not_top = (PeekCompareQueueTop(NULL, NULL, NULL, NULL) == -1) ? FALSE : TRUE;
+
     ecomp = (ECompare *)HashFirst(&compdict);
     while (ecomp != NULL) {
 	if ((ecomp->num1 != ecomp->num2) && (ecomp->cell1 != NULL) &&
@@ -1958,7 +1961,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					/* because it will just show up as a	*/
 					/* port mismatch error as it should.	*/
 
-					if (!(tc1->flags & CELL_TOP) &&
+					if ((not_top == TRUE) &&
 						(ecomp->cell1->class != CLASS_ISOURCE)) {
 					    int found1 = FALSE;
 					    int found2 = FALSE;
@@ -2096,6 +2099,27 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 						    break;
 					    }
 					}
+
+					/* (See comments above about removing shorts */
+					/* between two ports.)			     */
+
+					if ((not_top == TRUE) &&
+						(ecomp->cell2->class != CLASS_ISOURCE)) {
+					    int found1 = FALSE;
+					    int found2 = FALSE;
+					    for (ob1 = tc2->cell; ob1; ob1 = ob1->next) {
+						if (!IsPort(ob1))  break;
+						else if (ob1->node == node1)
+						    found1 = TRUE;
+						else if (ob1->node == node2)
+						    found2 = TRUE;
+						if (found1 && found2) {
+						    found = FALSE;
+						    break;
+						}
+					    }
+					}
+					
 					if (found) break;
 				    }
 				    if (found) {
