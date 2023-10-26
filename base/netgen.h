@@ -191,6 +191,7 @@ extern char *ReadNtk (char *fname, int *fnum);
 extern char *ReadExtHier(char *fname, int *fnum);
 extern char *ReadExtFlat(char *fname, int *fnum);
 extern char *ReadSim(char *fname, int *fnum);
+extern char *ReadPrm(char *fname, int *fnum);
 extern char *ReadSpice(char *fname, int *fnum);
 extern char *ReadSpiceLib(char *fname, int *fnum);
 extern char *ReadNetgenFile (char *fname, int *fnum);

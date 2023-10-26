@@ -886,7 +886,7 @@ char *ReadNetlist(char *fname, int *fnum)
   };
   
 #ifdef mips
-  struct filetype formats[7];
+  struct filetype formats[8];
 
   formats[0].extension = NTK_EXTENSION;
   formats[0].proc = ReadNtk;
@@ -894,14 +894,16 @@ char *ReadNetlist(char *fname, int *fnum)
   formats[1].proc = ReadExtHier;
   formats[2].extension = SIM_EXTENSION;
   formats[2].proc = ReadSim;
-  formats[3].extension = SPICE_EXTENSION;
-  formats[3].proc = ReadSpice;
-  formats[4].extension = NETGEN_EXTENSION;
-  formats[4].proc = ReadNetgenFile;
-  formats[5].extension = VERILOG_EXTENSION;
-  formats[5].proc = ReadVerilogFile;
-  formats[6].extension = NULL;
-  formats[6].proc = NULL;
+  formats[3].extension = PRM_EXTENSION;
+  formats[3].proc = ReadPrm;
+  formats[4].extension = SPICE_EXTENSION;
+  formats[4].proc = ReadSpice;
+  formats[5].extension = NETGEN_EXTENSION;
+  formats[5].proc = ReadNetgenFile;
+  formats[6].extension = VERILOG_EXTENSION;
+  formats[6].proc = ReadVerilogFile;
+  formats[7].extension = NULL;
+  formats[7].proc = NULL;
 
 #else  /* not mips (i.e. compiler with reasonable initializers) */
   
@@ -910,6 +912,7 @@ char *ReadNetlist(char *fname, int *fnum)
       {NTK_EXTENSION, ReadNtk},
       {EXT_EXTENSION, ReadExtHier},
       {SIM_EXTENSION, ReadSim},
+      {PRM_EXTENSION, ReadPrm},
       {SPICE_EXTENSION, ReadSpice},
       {SPICE_EXT2, ReadSpice},
       {SPICE_EXT3, ReadSpice},

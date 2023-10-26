@@ -707,11 +707,11 @@ _netgen_readnet(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
    char *formats[] = {
-      "automatic", "ext", "extflat", "sim", "ntk", "spice",
+      "automatic", "ext", "extflat", "sim", "prm", "ntk", "spice",
       "verilog", "netgen", "actel", "xilinx", NULL
    };
    enum FormatIdx {
-      AUTO_IDX, EXT_IDX, EXTFLAT_IDX, SIM_IDX, NTK_IDX,
+      AUTO_IDX, EXT_IDX, EXTFLAT_IDX, SIM_IDX, PRM_IDX, NTK_IDX,
       SPICE_IDX, VERILOG_IDX, NETGEN_IDX, ACTEL_IDX, XILINX_IDX
    };
    struct nlist *tc;
@@ -806,6 +806,9 @@ _netgen_readnet(ClientData clientData,
             break;
          case SIM_IDX:
             retstr = ReadSim(savstr, &filenum);
+            break;
+         case PRM_IDX:
+            retstr = ReadPrm(savstr, &filenum);
             break;
          case NTK_IDX:
             retstr = ReadNtk(savstr, &filenum);
