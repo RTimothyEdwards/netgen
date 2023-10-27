@@ -7,6 +7,7 @@
 #define WOMBAT_EXTENSION ".wom"
 #define EXT_EXTENSION ".ext"
 #define SIM_EXTENSION ".sim"
+#define PRM_EXTENSION ".prm"
 #define SPICE_EXTENSION ".spice"
 #define SPICE_EXT2 ".spc"
 #define SPICE_EXT3 ".sp"

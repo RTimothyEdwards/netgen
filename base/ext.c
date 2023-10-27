@@ -31,6 +31,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "print.h"
 #include "hash.h"
 
+static int invlambda = 100;	/* Used in sim and prm files */
+
 void extCell(char *name, int filenum)
 {
   struct nlist *tp, *tp2;
@@ -450,7 +452,8 @@ void simCell(char *name, int filenum)
   struct nlist *tp, *tp2;
   struct objlist *ob, *ob2;
   char FileName[500], simclass;
-  short i;
+  char writeLine[1024], paramString[128];
+  short i, p, mult;
   double l, w, v;
 
   tp = LookupCellFile(name, filenum);
@@ -459,6 +462,11 @@ void simCell(char *name, int filenum)
     return;
   }
 
+  /* Check procedure disabled because new extensions to .sim format
+   * allow 'x' records to represent low-level components that are
+   * modeled as SPICE subcircuits.
+   */
+#if 0
   /* check to see that all children have been dumped */
   ob = tp->cell;
   while (ob != NULL) {
@@ -470,6 +478,7 @@ void simCell(char *name, int filenum)
     }
     ob = ob->next;
   }
+#endif
 
   SetExtension(FileName, name, SIM_EXTENSION);
   if (!OpenFile(FileName, 0)) {
@@ -478,9 +487,9 @@ void simCell(char *name, int filenum)
   }
 
   /* print out header list */
-  /* distance units are multiplied by 100 (distances are in um) */
+  /* distance units are multiplied by invlambda */
 
-  FlushString("| units: 100    tech: scmos\n");
+  FlushString("| units: %d    tech: scmos\n", 100 * invlambda);
 
   /* now run through cell's contents, print instances */
   for (ob = tp->cell; ob != NULL; ob = ob->next) {
@@ -516,13 +525,17 @@ void simCell(char *name, int filenum)
 	 case CLASS_NPN:
 	    simclass = 'b';
 	    break;	
-	 default:
+	 case CLASS_SUBCKT:
+	 case CLASS_MODULE:
 	    simclass = 'x';
+	    break;	
+	 default:
+	    simclass = '|';
 	    break;	
       }
 
       if (simclass != 'x')
-         FlushString("%c", simclass);
+	 FlushString("%c", simclass);
 
       switch (tp2->class) {
 	 case CLASS_NMOS: case CLASS_NMOS4:
@@ -590,6 +603,115 @@ void simCell(char *name, int filenum)
 	    FlushString(" %g\n", v);   
 	    break;
 
+	 case CLASS_SUBCKT: case CLASS_MODULE:
+	    *writeLine = 'x';
+	    *(writeLine + 1) = '\0';
+	    mult = 1;
+
+	    /* Important---Need to look up the cell definition;  if
+	     * the first pin is "drain" then it is a FET, and pins
+	     * get swapped from D-G-S-B to G-S-D-B.  Source and drain
+	     * are treated here as equivalent because the .sim format
+	     * has no concept of an asymmetric source and drain.
+	     */
+	    ob2 = tp2->cell;
+	    if ((*matchfunc)(ob2->next->name, "gate"))
+	    {
+	      strcat(writeLine, " ");
+	      strcat(writeLine, NodeAlias(tp, ob->next));
+	      strcat(writeLine, " ");
+	      strcat(writeLine, NodeAlias(tp, ob));
+	      ob2 = ob->next->next;
+	    }
+	    else
+	      ob2 = ob;
+
+	    while (ob2 != NULL) {
+	      strcat(writeLine, " ");
+	      strcat(writeLine, NodeAlias(tp, ob2));
+	      ob2 = ob2->next;
+	      if ((ob2 == NULL) || (ob2->type <= FIRSTPIN)) break;
+	    }
+
+	    if (ob2 && ob2->type == PROPERTY) {
+	       struct valuelist *vl;
+	       /* Only known parameters are L, W, X, and Y */
+	       for (p = 0;; p++) {
+	          vl = (struct valuelist *)(&(ob2->instance.props[p]));
+		  if (vl->type == PROP_ENDLIST) {
+	             strcat(writeLine, " l=1");   
+		     break;
+		  }
+		  else if ((*matchfunc)(vl->key, "L")) {
+	             v = vl->value.dval;
+	             sprintf(paramString, " l=%d", (int)(0.5 + (v * invlambda)));   
+	             strcat(writeLine, paramString);
+		     break;
+		  }
+	       }
+	       for (p = 0;; p++) {
+	          vl = (struct valuelist *)(&(ob2->instance.props[p]));
+		  if (vl->type == PROP_ENDLIST) {
+	             strcat(writeLine, " w=1");   
+		     break;
+		  }
+		  else if ((*matchfunc)(vl->key, "W")) {
+	             v = vl->value.dval;
+	             sprintf(paramString, " w=%d", (int)(0.5 + (v * invlambda)));   
+	             strcat(writeLine, paramString);
+		     break;
+		  }
+	       }
+	       for (p = 0;; p++) {
+	          vl = (struct valuelist *)(&(ob2->instance.props[p]));
+		  if (vl->type == PROP_ENDLIST) {
+	             strcat(writeLine, " x=0");   
+		     break;
+		  }
+		  else if ((*matchfunc)(vl->key, "X")) {
+	             i = vl->value.ival;
+	             sprintf(paramString, " x=%d", i);
+	             strcat(writeLine, paramString);
+		     break;
+		  }
+	       }
+	       for (p = 0;; p++) {
+	          vl = (struct valuelist *)(&(ob2->instance.props[p]));
+		  if (vl->type == PROP_ENDLIST) {
+	             strcat(writeLine, " y=0");   
+		     break;
+		  }
+		  else if ((*matchfunc)(vl->key, "Y")) {
+	             i = vl->value.ival;
+	             sprintf(paramString, " y=%d", i);
+	             strcat(writeLine, paramString);
+		  }
+	       }
+	       for (p = 0;; p++) {
+	          vl = (struct valuelist *)(&(ob2->instance.props[p]));
+		  if (vl->type == PROP_ENDLIST) {
+		     break;
+		  }
+		  else if ((*matchfunc)(vl->key, "M")) {
+		     if (vl->type == PROP_INTEGER)
+	                mult = vl->value.ival;
+		     else
+	                mult = vl->value.dval;
+		  }
+	       }
+	    }
+	    strcat(writeLine, " ");
+	    strcat(writeLine, tp2->name);   
+	    strcat(writeLine, "\n");   
+
+	    /* Multiple instances (M != 1) are written multiple times.
+	     * NF is ignored in favor of having a single device with
+	     * the total width.
+	     */
+	    for (i = 0; i < mult; i++)
+		FlushString(writeLine);
+	    break;
+
 	 default:
 	    FlushString("| unhandled component %s\n", tp2->name);   
 	    break;
@@ -626,6 +748,181 @@ int StrIsInt(char *s)
     return (1);
 }
 
+/*------------------------------------------------------*/
+/* Read a .prm format file.  This is specifically to	*/
+/* get the "device" lines that indicate how a SPICE	*/
+/* subcircuit model or a .sim "x" record needs to be	*/
+/* translated into a specific component type like a	*/
+/* FET, diode, resistor, etc.				*/
+/*------------------------------------------------------*/
+
+char *ReadPrm(char *fname, int *fnum)
+{
+  int filenum;
+  struct keyvalue *kvlist = NULL;
+  struct nlist *tp;
+
+  if ((filenum = OpenParseFile(fname, *fnum)) < 0) {
+    char name[MAX_STR_LEN];
+
+    SetExtension(name, fname, PRM_EXTENSION);
+    if (OpenParseFile(name, *fnum) < 0) {
+      Printf("Error in prm file read: No file %s\n",name);
+      *fnum = filenum;
+      return NULL;
+    }    
+  }
+
+  /* Make sure all .prm file reading is case INsensitive */
+  /* This is because the only reason to read a PRM file	 */
+  /* is to find all the subcircuit device types	so that	 */
+  /* a SPICE file can be read and a SIM file written.	 */
+
+  matchfunc = matchnocase;
+  matchintfunc = matchfile;
+  hashfunc = hashnocase;
+
+  CellDef(fname, filenum);
+
+  while (!EndParseFile()) {
+    char devicename[MAX_STR_LEN];
+    SkipTok(NULL);
+
+    if (EndParseFile()) break;
+    if (nexttok[0] == ';') continue;		/* Comment line */
+    else if (nexttok[0] == '\0') continue;	/* Blank line */
+    else if (match(nexttok, "lambda")) {
+      SkipTok(NULL);
+      invlambda = (int)(0.5 + (1.0 / atof(nexttok)));
+      SkipNewLine(NULL); /* skip any attributes */
+    }
+    else if (match(nexttok, "device")) {
+      SkipTok(NULL);
+      if (match(nexttok, "nfet")) {
+	 SkipTok(NULL);
+	 strcpy(devicename, nexttok);
+	 /* Create 4-terminal nfet subcircuit device record */
+	 if (LookupCellFile(devicename, filenum) == NULL) {
+	     CellDef(devicename, filenum);
+	     Port("drain");
+	     Port("gate");
+	     Port("source");
+	     Port("bulk");
+	     PropertyDouble(devicename, filenum, "l", 0.01, 0.0);
+	     PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
+	     PropertyInteger(devicename, filenum, "nf", 0, 1);
+	     PropertyInteger(devicename, filenum, "m", 0, 1);
+	     SetClass(CLASS_SUBCKT);
+	     EndCell();
+	     ReopenCellDef(fname, filenum);
+	 }
+         LinkProperties(devicename, kvlist);
+         SkipNewLine(NULL); /* skip any attributes */
+      }
+      else if (match(nexttok, "pfet")) {
+	 SkipTok(NULL);
+	 strcpy(devicename, nexttok);
+	 /* Create 4-terminal pfet subcircuit device record */
+	 if (LookupCellFile(devicename, filenum) == NULL) {
+	     CellDef(devicename, filenum);
+	     Port("drain");
+	     Port("gate");
+	     Port("source");
+	     Port("well");
+	     PropertyDouble(devicename, filenum, "l", 0.01, 0.0);
+	     PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
+	     PropertyInteger(devicename, filenum, "nf", 0, 1);
+	     PropertyInteger(devicename, filenum, "m", 0, 1);
+	     SetClass(CLASS_SUBCKT);
+	     EndCell();
+	     ReopenCellDef(fname, filenum);
+	 }
+         LinkProperties(devicename, kvlist);
+         SkipNewLine(NULL); /* skip various attributes */
+      }
+      else if (match(nexttok, "resistor")) {
+	 SkipTok(NULL);
+	 strcpy(devicename, nexttok);
+	 /* Resistor device has additional record for the value */
+	 /* (Need to do something with this. . . ?) */
+	 SkipTok(NULL);
+	 /* Create resistor subcircuit device record */
+         if (LookupCellFile(devicename, filenum) == NULL) {
+            CellDef(devicename, filenum);
+            Port("end_a");
+            Port("end_b");
+            PropertyDouble(devicename, filenum, "value", 0.01, 0.0);
+	    PropertyDouble(devicename, filenum, "l", 0.01, 0.0);
+	    PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
+	    PropertyInteger(devicename, filenum, "m", 0, 1);
+            SetClass(CLASS_SUBCKT);
+            EndCell();
+            ReopenCellDef(fname, filenum);
+         }
+	 LinkProperties(devicename, kvlist);
+         SkipNewLine(NULL); /* skip various attributes */
+      }
+      else if (match(nexttok, "capacitor")) {
+	 SkipTok(NULL);
+	 strcpy(devicename, nexttok);
+	 /* Capacitor device has additional record for the value */
+	 /* (Need to do something with this. . . ?) */
+	 SkipTok(NULL);
+	 /* Create capacitor subcircuit device record */
+         if (LookupCellFile(devicename, filenum) == NULL) {
+            CellDef(devicename, filenum);
+            Port("top");
+            Port("bottom");
+            PropertyDouble(devicename, filenum, "value", 0.01, 0.0);
+	    PropertyDouble(devicename, filenum, "l", 0.01, 0.0);
+	    PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
+	    PropertyInteger(devicename, filenum, "m", 0, 1);
+            SetClass(CLASS_SUBCKT);
+            EndCell();
+            ReopenCellDef(fname, filenum);  /* Reopen */
+         }
+	 LinkProperties(devicename, kvlist);
+         SkipNewLine(NULL);
+      }
+      else if (match(nexttok, "diode")) {
+	 SkipTok(NULL);
+	 strcpy(devicename, nexttok);
+	 /* Create diode subcircuit device record */
+         if (LookupCellFile(devicename, filenum) == NULL) {
+            CellDef(devicename, filenum);
+            Port("anode");
+            Port("cathode");
+	    PropertyInteger(devicename, filenum, "m", 0, 1);
+            SetClass(CLASS_SUBCKT);
+            EndCell();
+            ReopenCellDef(fname, filenum);  /* Reopen */
+         }
+	 LinkProperties(devicename, kvlist);
+         SkipNewLine(NULL);
+      }
+      else {
+	Printf("Unknown device type in .prm: '%s'\n", nexttok);
+        InputParseError(stderr);
+        SkipNewLine(NULL);
+      }
+    }
+    else {
+      /* Could spell out all the keywords used in .prm files    */
+      /* but probably not worth the effort.                     */
+      SkipNewLine(NULL);
+    }
+    DeleteProperties(&kvlist);
+  }
+  EndCell();
+  CloseParseFile();
+
+  tp = LookupCellFile(fname, filenum);
+  if (tp) tp->flags |= CELL_TOP;
+
+  *fnum = filenum;
+  return fname;
+}
+
 /*-------------------------*/
 /* Read a .sim format file */
 /*-------------------------*/
@@ -644,7 +941,7 @@ char *ReadSim(char *fname, int *fnum)
 
     SetExtension(name, fname, SIM_EXTENSION);
     if (OpenParseFile(name, *fnum) < 0) {
-      Printf("Error in ext file read: No file %s\n",name);
+      Printf("Error in sim file read: No file %s\n",name);
       *fnum = filenum;
       return NULL;
     }    
@@ -847,7 +1144,7 @@ char *ReadSim(char *fname, int *fnum)
     }
     else if (match(nexttok, "r")) {	/* 2-port resistors */
       if (IgnoreRC) {
-	/* ignore all capacitances */
+	/* ignore all resistances */
 	SkipNewLine(NULL);
       }
       else {
