@@ -136,17 +136,16 @@ void flattenCell(char *name, int file)
 	    ob2 = ob2->next;
 	}
     
-
       /* delete all port elements from child */
       while (IsPort(ChildObjList)) {
 	/* delete all ports at beginning of list */
 	if (Debug) Printf("deleting leading port from child\n");
 	tmp = ChildObjList->next;
 	FreeObjectAndHash(ChildObjList, ChildCell);
-	ChildObjList = tmp;
+        if ((ChildObjList = tmp) == NULL) break;
       }
       tmp = ChildObjList;
-      while (tmp->next != NULL) {
+      while (tmp && (tmp->next != NULL)) {
 	if (IsPort(tmp->next)) {
 	  ob2 = (tmp->next)->next;
 	  if (Debug) Printf("deleting a port from child\n");
