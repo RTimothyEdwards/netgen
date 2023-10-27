@@ -607,7 +607,25 @@ void simCell(char *name, int filenum)
 	    *writeLine = 'x';
 	    *(writeLine + 1) = '\0';
 	    mult = 1;
-	    ob2 = ob;
+
+	    /* Important---Need to look up the cell definition;  if
+	     * the first pin is "drain" then it is a FET, and pins
+	     * get swapped from D-G-S-B to G-S-D-B.  Source and drain
+	     * are treated here as equivalent because the .sim format
+	     * has no concept of an asymmetric source and drain.
+	     */
+	    ob2 = tp2->cell;
+	    if ((*matchfunc)(ob2->next->name, "gate"))
+	    {
+	      strcat(writeLine, " ");
+	      strcat(writeLine, NodeAlias(tp, ob->next));
+	      strcat(writeLine, " ");
+	      strcat(writeLine, NodeAlias(tp, ob));
+	      ob2 = ob->next->next;
+	    }
+	    else
+	      ob2 = ob;
+
 	    while (ob2 != NULL) {
 	      strcat(writeLine, " ");
 	      strcat(writeLine, NodeAlias(tp, ob2));
@@ -786,9 +804,9 @@ char *ReadPrm(char *fname, int *fnum)
 	 /* Create 4-terminal nfet subcircuit device record */
 	 if (LookupCellFile(devicename, filenum) == NULL) {
 	     CellDef(devicename, filenum);
+	     Port("drain");
 	     Port("gate");
 	     Port("source");
-	     Port("drain");
 	     Port("bulk");
 	     PropertyDouble(devicename, filenum, "l", 0.01, 0.0);
 	     PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
@@ -807,9 +825,9 @@ char *ReadPrm(char *fname, int *fnum)
 	 /* Create 4-terminal pfet subcircuit device record */
 	 if (LookupCellFile(devicename, filenum) == NULL) {
 	     CellDef(devicename, filenum);
+	     Port("drain");
 	     Port("gate");
 	     Port("source");
-	     Port("drain");
 	     Port("well");
 	     PropertyDouble(devicename, filenum, "l", 0.01, 0.0);
 	     PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
