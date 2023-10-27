@@ -741,6 +741,19 @@ set auto_noexec 1       ;# don't EVER call UNIX commands w/o "shell" in front
 # Cross-Application section
 #----------------------------------------------------------------------
 
+# For use with open_pdks, set PDK_ROOT from the environment.  If no
+# such environment variable exists, check some common locations.
+
+if {[catch {set PDK_ROOT $::env(PDK_ROOT)}]} {
+    if {[file isdir /usr/local/share/pdk] == 1} {
+	set PDK_ROOT /usr/local/share/pdk
+    } elseif {[file isdir /usr/share/pdk] == 1} {
+	set PDK_ROOT /usr/share/pdk
+    } elseif {[file isdir /foss/pdk] == 1} {
+	set PDK_ROOT /foss/pdk
+    }
+}
+
 # Setup IRSIM assuming that the Tcl version is installed.
 # We do not need to rename procedure irsim to NULL because it is
 # redefined in a script, which simply overwrites the original.
