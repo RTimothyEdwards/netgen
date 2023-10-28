@@ -462,11 +462,6 @@ void simCell(char *name, int filenum)
     return;
   }
 
-  /* Check procedure disabled because new extensions to .sim format
-   * allow 'x' records to represent low-level components that are
-   * modeled as SPICE subcircuits.
-   */
-#if 0
   /* check to see that all children have been dumped */
   ob = tp->cell;
   while (ob != NULL) {
@@ -478,7 +473,6 @@ void simCell(char *name, int filenum)
     }
     ob = ob->next;
   }
-#endif
 
   SetExtension(FileName, name, SIM_EXTENSION);
   if (!OpenFile(FileName, 0)) {
@@ -603,7 +597,7 @@ void simCell(char *name, int filenum)
 	    FlushString(" %g\n", v);   
 	    break;
 
-	 case CLASS_SUBCKT: case CLASS_MODULE:
+	 case CLASS_MODULE:
 	    *writeLine = 'x';
 	    *(writeLine + 1) = '\0';
 	    mult = 1;
@@ -812,7 +806,7 @@ char *ReadPrm(char *fname, int *fnum)
 	     PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
 	     PropertyInteger(devicename, filenum, "nf", 0, 1);
 	     PropertyInteger(devicename, filenum, "m", 0, 1);
-	     SetClass(CLASS_SUBCKT);
+	     SetClass(CLASS_MODULE);
 	     EndCell();
 	     ReopenCellDef(fname, filenum);
 	 }
@@ -833,7 +827,7 @@ char *ReadPrm(char *fname, int *fnum)
 	     PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
 	     PropertyInteger(devicename, filenum, "nf", 0, 1);
 	     PropertyInteger(devicename, filenum, "m", 0, 1);
-	     SetClass(CLASS_SUBCKT);
+	     SetClass(CLASS_MODULE);
 	     EndCell();
 	     ReopenCellDef(fname, filenum);
 	 }
@@ -855,7 +849,7 @@ char *ReadPrm(char *fname, int *fnum)
 	    PropertyDouble(devicename, filenum, "l", 0.01, 0.0);
 	    PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
 	    PropertyInteger(devicename, filenum, "m", 0, 1);
-            SetClass(CLASS_SUBCKT);
+            SetClass(CLASS_MODULE);
             EndCell();
             ReopenCellDef(fname, filenum);
          }
@@ -877,7 +871,7 @@ char *ReadPrm(char *fname, int *fnum)
 	    PropertyDouble(devicename, filenum, "l", 0.01, 0.0);
 	    PropertyDouble(devicename, filenum, "w", 0.01, 0.0);
 	    PropertyInteger(devicename, filenum, "m", 0, 1);
-            SetClass(CLASS_SUBCKT);
+            SetClass(CLASS_MODULE);
             EndCell();
             ReopenCellDef(fname, filenum);  /* Reopen */
          }
@@ -893,7 +887,7 @@ char *ReadPrm(char *fname, int *fnum)
             Port("anode");
             Port("cathode");
 	    PropertyInteger(devicename, filenum, "m", 0, 1);
-            SetClass(CLASS_SUBCKT);
+            SetClass(CLASS_MODULE);
             EndCell();
             ReopenCellDef(fname, filenum);  /* Reopen */
          }
