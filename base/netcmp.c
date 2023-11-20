@@ -4331,6 +4331,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 
    // Re-sort list
    obp = ob1;
+   for (i = 0; i < idx1; i++) obp = obp->next;
    for (i = 0; i < run; i++) {
       obp->next = proplist[i].ob;
       obp = obp->next;
@@ -4534,6 +4535,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 
    // Re-sort list
    obp = ob1;
+   for (i = 0; i < idx1; i++) obp = obp->next;
    for (i = 0; i < run; i++) {
       obp->next = proplist[i].ob;
       obp = obp->next;
