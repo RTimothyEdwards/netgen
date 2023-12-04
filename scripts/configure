@@ -6302,7 +6302,7 @@ fi
 
     *darwin*)
       SHDLIB_EXT=".dylib"
-      LDDL_FLAGS="-dynamiclib -flat_namespace -undefined suppress -noprebind"
+      LDDL_FLAGS="-dynamiclib -undefined dynamic_lookup"
       LDFLAGS="${LDFLAGS} ${LIB_SPECS}"
       CFLAGS="${CFLAGS} ${X_CFLAGS} ${INC_SPECS} -I/sw/include -fno-common"
       ;;
