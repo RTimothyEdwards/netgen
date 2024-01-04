@@ -587,6 +587,12 @@ void SkipTokNoNewline(char *delimiter)
 /*									*/
 /* Modified 3/30/2015 to include the condition where a comment line is	*/
 /* in the middle of a series of continuation lines.			*/
+/*									*/
+/* Modified 1/3/2024 to avoid skipping two lines if a line has only the	*/
+/* comment character '*' followed by a newline.  It seems that '\n' is	*/
+/* being ignored in WHITESPACE_DELIMITER, but it's easier to write the	*/
+/* code to find the exception rather than track down the problem in	*/
+/* GetNextLine().							*/
 /*----------------------------------------------------------------------*/
 
 void SpiceTokNoNewline(void)
@@ -598,8 +604,14 @@ void SpiceTokNoNewline(void)
     while (nexttok == NULL) {
 	contline = getc(infile);
 	if (contline == '*') {
-	   GetNextLine(WHITESPACE_DELIMITER);
-	   SkipNewLine(NULL);
+	   char testline = ' ';
+	   while ((testline == ' ') || (testline == '\t'))
+	      testline = getc(infile);
+           if (testline != '\n') {
+              ungetc(testline, infile);
+	      GetNextLine(WHITESPACE_DELIMITER);
+	      SkipNewLine(NULL);
+	   }
 	   continue;
 	}
 	else if (contline != '+') {

@@ -6124,7 +6124,9 @@ PropertyMatch(struct Element *E1, struct Element *E2,
 	    	if (kl2 != NULL)
 		    break;	// Property is required
 	    }
-	    else if (vl2->value.ival != 1)
+	    else if ((vl2->type == PROP_INTEGER) && (vl2->value.ival != 1))
+		break;	// Property M != 1 or S != 1 is a mismatch.
+	    else if ((vl2->type == PROP_DOUBLE) && (vl2->value.dval != 1))
 		break;	// Property M != 1 or S != 1 is a mismatch.
 	 }
 	 if (vl2->type != PROP_ENDLIST) {
