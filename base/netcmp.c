@@ -7184,7 +7184,7 @@ int reorderpins(struct hashlist *p, int file)
 {
     struct nlist *ptr;
     struct nlist *tc2 = Circuit2;
-    struct objlist *ob, *ob2, *firstpin;
+    struct objlist *ob, *ob2, *firstpin, *oblast, *newob;
     int i, numports, *nodes, unordered;
     char **names;
 
@@ -7236,6 +7236,7 @@ int reorderpins(struct hashlist *p, int file)
 		        names[ob2->model.port] = ob->name;
 		    }
 
+		    oblast = ob;
 		    ob = ob->next;
 		    ob2 = ob2->next;
 		    if (i < numports - 1) {
@@ -7243,7 +7244,34 @@ int reorderpins(struct hashlist *p, int file)
 			    Fprintf(stderr, "Instance of %s has only "
 				"%d of %d ports\n",
 				tc2->name, i + 1, numports);
-			    break;
+		            if (ptr->flags & CELL_VERILOG) {
+			       /* If parent cell is verilog, and the cells
+			        * have been matched, then the instance can
+			        * be assumed to be using an implicit pin.
+			        */
+			       Fprintf(stderr, "Assuming implicit verilog pin \"%s\".\n",
+					ob2->name);
+		   	       newob = (struct objlist *)CALLOC(1,
+					sizeof(struct objlist));
+			       newob->name = (char *)MALLOC(strlen(oblast->instance.name)
+					+ strlen(ob2->name) + 2);
+			       sprintf(newob->name, "%s/%s",
+					oblast->instance.name, ob2->name);
+			       newob->type = oblast->type + 1;
+			       newob->model.class = strsave(oblast->model.class);
+			       newob->instance.name = strsave(oblast->instance.name);
+			       newob->flags = 0;
+			       ptr->nodename_cache_maxnodenum++;
+			       newob->node = ptr->nodename_cache_maxnodenum;
+			       newob->next = ob;
+			       oblast->next = newob;	/* Splice into object list */
+			       /* Fill in the missing entries */
+		               nodes[ob2->model.port] = newob->node;
+		 	       names[ob2->model.port] = newob->name;
+			       ob = newob;
+		            }
+			    else
+			       break;
 			}
 			else if (ob2 == NULL || ob2->type != PORT) {
 			    Fprintf(stderr, "Instance of %s has "
