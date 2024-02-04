@@ -43,6 +43,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "print.h"
 #include "query.h"
 #include "objlist.h"
+#include "netcmp.h"
 
 // Global storage for parameters from .PARAM
 struct hashdict spiceparams;
@@ -519,7 +520,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   char *eqptr, devtype, in_subckt;
   struct keyvalue *kvlist = NULL;
   char inst[MAX_STR_LEN], model[MAX_STR_LEN], instname[MAX_STR_LEN];
-  struct nlist *tp;
+  struct nlist *tp, *tpsave;
   struct objlist *parent, *sobj, *nobj, *lobj, *pobj;
 
   inst[MAX_STR_LEN-1] = '\0';
@@ -557,6 +558,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 
       snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
       tp = LookupCellFile(nexttok, filenum);
+      tpsave = NULL;
 
       /* Check for name conflict with duplicate cell names	*/
       /* This may mean that the cell was used before it was	*/
@@ -595,11 +597,46 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
          tp = LookupCellFile(nexttok, filenum);
       }
       else if (tp != NULL) {	/* Make a new definition for an empty cell */
-	 FreePorts(nexttok);
-	 CellDelete(nexttok, filenum);	/* This removes any PLACEHOLDER flag */
-	 CellDef(model, filenum);
-	 tp = LookupCellFile(model, filenum);
-	 update = 1;	/* Will need to update existing instances */
+	 /* Handle issue with SPICE read after verilog, where a placeholder
+	  * was created from the verilog.  (1) If the pin names are "1", "2",
+	  * "3", then this is a SPICE placeholder, and just remove the CellDef
+	  * and re-create it.  Otherwise, create new cell "_PLACEHOLDER_".
+	  * (2) After encountering .ends, run MatchPins between the two cells.
+	  * (3) delete the original cell and rename the new cell.
+	  */
+	 int i = 1;
+	 char pname[10];
+	 for (pobj = tp->cell; pobj && pobj->type == PORT; pobj = pobj->next) {
+	     sprintf(pname, "%d", i);
+	     if (!matchnocase(pobj->name, pname)) break;
+	     i++;
+	 }
+	 if ((pobj == NULL) || (pobj->type != PORT)) {
+	    /* This is a SPICE placeholder created because the cell was instanced
+	     * before it was defined.  However, the pins can be assumed to be in
+	     * the correct order, and pin reordering does not need to be done.
+	     */
+	    FreePorts(nexttok);
+	    CellDelete(nexttok, filenum);	/* This removes any PLACEHOLDER flag */
+	    CellDef(model, filenum);
+	    tp = LookupCellFile(model, filenum);
+	    update = 1;	/* Will need to update existing instances */
+	 }
+	 else {
+	    /* This is (probably) a verilog placeholder created because the
+	     * verilog was read before the (SPICE) definitions.  The verilog
+	     * netlist should have named the pins of the parent cell.  However,
+	     * there is no guarantee the order of pins is correct.  The MatchPins()
+	     * routine from netcmp.c can be used here to match the cell against
+	     * the placeholder, and reorder the pins in all instances to match.
+	     * Note that we cannot just reorder the SPICE pins to match the
+	     * verilog order, because there may be other SPICE netlists which
+	     * instance the cell with the correct SPICE port order.
+	     */
+	     tpsave = tp;
+             CellDef("_PLACEHOLDER_", filenum);
+             tp = LookupCellFile("_PLACEHOLDER_", filenum);
+	 }
       }
       else if (tp == NULL) {	/* Completely new cell, no name conflict */
          CellDef(model, filenum);
@@ -691,6 +728,38 @@ skip_ends:
       if (*CellStackPtr) PopStack(CellStackPtr);
       if (*CellStackPtr) ReopenCellDef((*CellStackPtr)->cellname, filenum);
       SkipNewLine(NULL);
+
+      if (tpsave != NULL) {
+	 struct nlist *tpplace;
+	 char *savename;
+
+	 /* Handle a placeholder from a verilog file that has been replaced
+	  * by a netlist with pins in a different order.  The pins need to
+	  * be matched, corrected in the original cell and all instances,
+	  * and the new cell deleted.
+	  */
+
+	 Printf("Verilog placeholder %s replaced by SPICE definition\n",
+		tpsave->name);
+         tpplace = LookupCellFile("_PLACEHOLDER_", filenum);
+	 /* MatchPins is part of netcmp and normally Circuit2 is the
+	  * circuit being matched, so set Circuit2 to the original
+	  * verilog black-box cell, and MatchPins() will force its
+	  * pins to be rearranged to match the SPICE definition just
+	  * read.
+	  */
+	 Circuit2 = tpsave;
+	 MatchPins(tpplace, tpsave, 0);
+	 savename = strsave(tpsave->name);
+	 /* Now the original verilog black-box cell can be removed */
+	 FreePorts(savename);
+	 CellDelete(savename, filenum);
+	 /* And _PLACEHOLDER_ is renamed to the original name of the cell. */
+	 CellRehash("_PLACEHOLDER_", savename, filenum);
+	 tpsave = NULL;
+	 Circuit2 = NULL;
+	 FREE(savename);
+      }
     }
     else if (matchnocase(nexttok, ".MODEL")) {
       unsigned char class = CLASS_SUBCKT;

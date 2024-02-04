@@ -7473,6 +7473,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    int hasproxy1 = 0, hasproxy2 = 0;
    int needclean1 = 0, needclean2 = 0;
    int nomatch = 0;
+   int filenum = -1;
    int *correspond;
    char *ostr;
 #ifdef TCL_NETGEN
@@ -8150,7 +8151,11 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
    /* Reorder pins in Circuit2 instances to match Circuit1 */
 
-   RecurseCellFileHashTable(reorderpins, Circuit2->file);
+   if (Circuit2 != NULL)
+      filenum = Circuit2->file;
+   else
+      filenum = tc2->file;
+   RecurseCellFileHashTable(reorderpins, filenum);
 
    /* Reorder pins in Circuit2 cell to match Circuit1		*/
    /* Unlike the instance records, the structures are swapped,	*/
