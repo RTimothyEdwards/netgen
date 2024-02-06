@@ -300,7 +300,9 @@ int ReduceOneExpression(struct valuelist *kv, struct objlist *parprops,
 		            tstr = sstr - 1;
 		            numlast = 1;
 			}
-			break;
+			/* But might not be. . . */
+			if ((dval != 0) || (sstr > estr))
+			   break;
 		    }
 		    /* Not a number, so must be arithmetic */
 		    *tstr = '\0';
@@ -320,7 +322,9 @@ int ReduceOneExpression(struct valuelist *kv, struct objlist *parprops,
 			    tstr = sstr - 1;
 			    numlast = 1;
 			}
-			break;
+			/* But might not be. . . */
+			if ((dval != 0) || (sstr > estr))
+			   break;
 		    }
 		    /* Not a number, so must be arithmetic */
 		    *tstr = '\0';
