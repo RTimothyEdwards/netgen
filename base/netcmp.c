@@ -4205,6 +4205,28 @@ static int compsort(const void *p1, const void *p2)
 }
 
 /*--------------------------------------------------------------*/
+/* compdsort() is like compsort() but uses the definition for	*/
+/* "slop" used for type double instead of type integer.		*/
+/*--------------------------------------------------------------*/
+
+static int compdsort(const void *p1, const void *p2)
+{
+    propsort *s1, *s2;
+    double smax, ddiff;
+
+    s1 = (propsort *)p1;
+    s2 = (propsort *)p2;
+
+    smax = fmax(s1->slop, s2->slop);
+    ddiff = fabs(s1->value - s2->value) /
+		fabs(s1->value + s2->value);
+    if (ddiff <= smax)
+       return (s1->avalue > s2->avalue) ? 1 : 0;
+    else
+       return (s1->value > s2->value) ? 1 : 0;
+}
+
+/*--------------------------------------------------------------*/
 /* Sort properties of ob1 starting at property idx1 up to	*/
 /* property (idx1 + run).  Use series critical property for	*/
 /* sorting.  Combine properties by S before sort.  Note that	*/
@@ -4221,7 +4243,8 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    struct valuelist *vl, *sl;
    int i, p, sval, merge_type;
    // double cval, slop;
-   int has_crit;
+   int (*sortfunc)() = compsort;
+   int has_crit, is_float;
    char ca, co;
    double tval, tslop;
    double aval, pval, oval, aslop, pslop;
@@ -4241,6 +4264,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    for (i = 0; i < run; i++) {
       has_crit = FALSE;
       merge_type = MERGE_NONE;
+      is_float = FALSE;
       ca = co = (char)0;
 
       for (p = 0;; p++) {
@@ -4273,6 +4297,8 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 else {
 	    tval = vl->value.dval;
 	    tslop = kl->slop.dval;
+	    sortfunc = compdsort;
+	    is_float = TRUE;
 	 }
 
 	 if (kl->merge & MERGE_S_CRIT) {
@@ -4327,7 +4353,7 @@ void series_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 
    obn = obp;	/* Link from last property */
 
-   qsort(&proplist[0], run, sizeof(propsort), compsort);
+   qsort(&proplist[0], run, sizeof(propsort), sortfunc);
 
    // Re-sort list
    obp = ob1;
@@ -4417,6 +4443,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    propsort *proplist;
    struct property *kl;
    struct valuelist *vl;
+   int (*sortfunc)() = compsort;
    int i, p, mval, merge_type;
    int has_crit;
    char ca, co;
@@ -4477,6 +4504,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 	 else {
 	    tval = vl->value.dval;
 	    tslop = kl->slop.dval;
+	    sortfunc = compdsort;
 	 }
 
 	 if (kl->merge & MERGE_P_CRIT) {
@@ -4531,7 +4559,7 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
 
    obn = obp;	/* Link from last property */
 
-   qsort(&proplist[0], run, sizeof(propsort), compsort);
+   qsort(&proplist[0], run, sizeof(propsort), sortfunc);
 
    // Re-sort list
    obp = ob1;
