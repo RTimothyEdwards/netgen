@@ -1230,6 +1230,10 @@ int UniquePins(char *name, int filenum)
 		* Removed the code 9/1/2023.  But---Not sure if any code depends
 		* on shorted pins being adjacent.
 		*/
+	       /* When two pins are shorted, they are by definition permutable */
+	       PermuteSetup(ThisCell->name, ThisCell->file, ob->name,
+			firstport[ob->node]->name);
+
 	       continue;
 	    }
 	    else {
