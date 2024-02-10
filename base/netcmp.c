@@ -7619,10 +7619,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 					break;
 				     }
 				  }
-				  else {
-				     ob3 = NULL;
-				     break;	/* All pins w/the same node should be together */
-				  }
 			      }
 			      if (ob3 == NULL) {
 				 if (Debug == 0) {
@@ -7670,15 +7666,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			   ob2->model.port = i;		/* save order */
 			   *(cover + i) = (char)1;
 
-			   /* If there are multiple pins on the same net, cycle through them;	*/
-			   /* otherwise, move to the next entry in the partition.		*/
-			   if (ob1->next && (ob1->next->type == PORT) && (ob1->next->node == ob1->node)) {
-			      ob1 = ob1->next;
-			      ob2 = tc2->cell;	/* Restart search for matching pin */
-			      i++;
-			   }
-			   else
-			      break;
+			   break;
 			}
 		     }
 		     if (ob2 == NULL) {
@@ -7903,6 +7891,72 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 		     }
 	             if (bangptr2) *bangptr2 = '!';
 		     break;
+		  }
+		  else {
+		     struct Permutation *permute1, *permute2;
+		     struct objlist *ob1a = NULL, *ob2a = NULL;
+
+		     /* Check the permutation list.  If any permutable pin
+		      * matches, and both nodes equal the nodes of their
+		      * pin permutations, then the pins also match.
+		      */
+		     for (permute1 = tc1->permutes; permute1; permute1 = permute1->next) {
+			if ((*matchfunc)(ob1->name, permute1->pin1)) {
+			   ob1a = LookupObject(permute1->pin1, tc1);
+			   break;
+			}
+			else if ((*matchfunc)(ob1->name, permute1->pin2)) {
+			   ob1a = LookupObject(permute1->pin2, tc1);
+			   break;
+			}
+		     }
+		     for (permute2 = tc2->permutes; permute2; permute2 = permute2->next) {
+			if ((*matchfunc)(ob2->name, permute2->pin1)) {
+			   ob2a = LookupObject(permute2->pin1, tc2);
+			   break;
+			}
+			else if ((*matchfunc)(ob2->name, permute2->pin2)) {
+			   ob2a = LookupObject(permute2->pin2, tc2);
+			   break;
+			}
+		     }
+		     if (ob1a && ob2a) {
+			if ((ob1->node == ob1a->node) && (ob2->node == ob2a->node)) {
+			   /* This should be enough to prove equivalency */
+		           if ((correspond[ob1->node] == 0) || (correspond[ob1->node] == ob2->node)) {
+
+		              correspond[ob1->node] = ob2->node;	/* remember corresponding node */
+	                      ob2->model.port = i;			/* save order */
+	                      *(cover + i) = (char)1;
+
+	                      if (Debug == 0) {
+		                 for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
+		                 for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
+		                 snprintf(ostr, left_col_end, "%s", ob1->name);
+		                 snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
+		                 for (m = 0; m < right_col_end + 1; m++)
+		                    if (*(ostr + m) == '\0') *(ostr + m) = ' ';
+		                 Fprintf(stdout, ostr);
+	                      }
+	                      else {
+		                 Fprintf(stdout, "Circuit %s port %d \"%s\""
+					" = cell %s port %d \"%s\"\n",
+					tc1->name, i, ob1->name,
+					tc2->name, j, ob2->name);
+	                      }
+#ifdef TCL_NETGEN
+	                      if (dolist) {
+		                 Tcl_ListObjAppendElement(netgeninterp, plist1,
+					Tcl_NewStringObj(ob1->name, -1));
+		                 Tcl_ListObjAppendElement(netgeninterp, plist2,
+					Tcl_NewStringObj(ob2->name, -1));
+	                      }
+#endif
+		           }
+	                   if (bangptr2) *bangptr2 = '!';
+		           break;
+			}
+		     }
 		  }
 	       }
 	    }
