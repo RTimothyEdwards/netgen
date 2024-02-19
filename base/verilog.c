@@ -57,6 +57,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "netfile.h"
 #include "print.h"
 #include "hash.h"
+#include "netcmp.h"
 
 // See netfile.c for explanation of delimiters.  'X'
 // separates single-character delimiters from two-character delimiters.
@@ -1018,7 +1019,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   char *eqptr, *matchptr;
   struct keyvalue *kvlist = NULL;
   char inst[MAX_STR_LEN], model[MAX_STR_LEN], portname[MAX_STR_LEN], pkey[MAX_STR_LEN];
-  struct nlist *tp;
+  struct nlist *tp, *tpsave;
   struct objlist *parent, *sobj, *nobj, *lobj, *pobj, *cref;
 
   inst[MAX_STR_LEN-1] = '\0';
@@ -1152,6 +1153,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 
       snprintf(model, MAX_STR_LEN-1, "%s", nexttok);
       tp = LookupCellFile(nexttok, filenum);
+      tpsave = NULL;
       hasports = (char)0;
 
       /* Check for name conflict with duplicate cell names	*/
@@ -1191,35 +1193,9 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
          tp = LookupCellFile(nexttok, filenum);
       }
       else if (tp != NULL) {	/* Cell exists, but as a placeholder */
-	 struct nlist *tptmp = NULL;
-	 char ctemp[8];
-	 int n = 0;
-
-	 /* This redefines a placeholder module to an unused temporary cell name */
-         while (1) {
-	    sprintf(ctemp, "%d", n);
-            tptmp = LookupCellFile(ctemp, filenum);
-	    if (tptmp == NULL) break;
-	    n++;
-	 }
-	 CellRehash(nexttok, ctemp, filenum);
-	 tptmp = LookupCellFile(ctemp, filenum);
-
-	 /* Create a new module definition */
-	 CellDef(model, filenum);
-	 tp = LookupCellFile(model, filenum);
-
-	 /* Find an instance of this module in the netlist */
-	 cref = FindInstanceOf(tp);
-	 if ((cref != NULL) && (cref->name != NULL)) {
-	    hasports = (char)1;
-	    /* Copy ports from the original parent cell to the new parent cell */
-	    for (pobj = tptmp->cell; pobj && (pobj->type == PORT); pobj = pobj->next)
-		Port(pobj->name);
-	 }
-	 /* Remove the original cell definition */
-	 FreePorts(ctemp);
-	 CellDelete(ctemp, filenum);	/* This removes any PLACEHOLDER flag */
+	 tpsave = tp;
+	 CellDef("_PLACEHOLDER_", filenum);
+	 tp = LookupCellFile("_PLACEHOLDER_", filenum);
       }
       else if (tp == NULL) {	/* Completely new cell, no name conflict */
          CellDef(model, filenum);
@@ -1428,6 +1404,38 @@ skip_endmodule:
       if (*CellStackPtr) PopStack(CellStackPtr);
       if (*CellStackPtr) ReopenCellDef((*CellStackPtr)->cellname, filenum);
       SkipNewLine(VLOG_DELIMITERS);
+
+      if (tpsave != NULL) {
+	 struct nlist *tpplace;
+	 char *savename;
+
+	 /* Handle a placeholder from a verilog file that has been replaced
+	  * by a netlist with pins in a different order.  The pins need to
+	  * be matched, corrected in the original cell and all instances,
+	  * and the new cell deleted.
+	  */
+
+	 Printf("Verilog placeholder module %s replaced by module definition\n",
+		tpsave->name);
+         tpplace = LookupCellFile("_PLACEHOLDER_", filenum);
+         /* MatchPins is part of netcmp and normally Circuit2 is the
+          * circuit being matched, so set Circuit2 to the original
+          * verilog black-box cell, and MatchPins() will force its
+          * pins to be rearranged to match the module definition just
+          * read.
+          */
+         Circuit2 = tpsave;
+         MatchPins(tpplace, tpsave, 0);
+         savename = strsave(tpsave->name);
+         /* Now the original verilog black-box cell can be removed */
+         FreePorts(savename);
+         CellDelete(savename, filenum);
+         /* And _PLACEHOLDER_ is renamed to the original name of the cell. */
+         CellRehash("_PLACEHOLDER_", savename, filenum);
+         tpsave = NULL;
+         Circuit2 = NULL;
+         FREE(savename);
+      }
     }
 
     else if (match(nexttok, "`include")) {
