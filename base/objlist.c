@@ -596,65 +596,65 @@ int freeprop(struct hashlist *p)
 
 void CellDelete(char *name, int fnum)
 {
-  /* delete all the contents of cell 'name', and remove 'name' from
-     the cell hash table.  NOTE:  this procedure does not care or check
-     if 'name' has been instanced anywhere.  It is assumed that if this
-     is the case, the user will (quickly) define a new cell of that name.
-  */
-  struct objlist *ob, *obnext;
-  struct nlist *tp;
+   /* delete all the contents of cell 'name', and remove 'name' from
+      the cell hash table.  NOTE:  this procedure does not care or check
+      if 'name' has been instanced anywhere.  It is assumed that if this
+      is the case, the user will (quickly) define a new cell of that name.
+   */
+   struct objlist *ob, *obnext;
+   struct nlist *tp;
 
-  tp = LookupCellFile(name, fnum);
-  if (tp == NULL) {
-    Printf ("No cell '%s' found.\n", name);
-    return;
-  }
+   tp = LookupCellFile(name, fnum);
+   if (tp == NULL) {
+      Printf ("No cell '%s' found.\n", name);
+      return;
+   }
 
-  HashIntDelete(name, fnum, &cell_dict);
-  /* now make sure that we free all the fields of the nlist struct */
-  if (tp->name != NULL) FREE(tp->name);
-  HashKill(&(tp->objdict));
-  HashKill(&(tp->instdict));
-  RecurseHashTable(&(tp->propdict), freeprop);
-  HashKill(&(tp->propdict));
-  FreeNodeNames(tp);
-  ob = tp->cell;
-  while (ob != NULL) {
-    obnext = ob->next;
-    FreeObject (ob);
-    ob = obnext;
-  }
+   HashIntDelete(name, fnum, &cell_dict);
+   /* now make sure that we free all the fields of the nlist struct */
+   if (tp->name != NULL) FREE(tp->name);
+   HashKill(&(tp->objdict));
+   HashKill(&(tp->instdict));
+   RecurseHashTable(&(tp->propdict), freeprop);
+   HashKill(&(tp->propdict));
+   FreeNodeNames(tp);
+   ob = tp->cell;
+   while (ob != NULL) {
+      obnext = ob->next;
+      FreeObject (ob);
+      ob = obnext;
+   }
 }
 
 static int PrintCellHashTableElement(struct hashlist *p)
 {
-  struct nlist *ptr;
+   struct nlist *ptr;
 
-  ptr = (struct nlist *)(p->ptr);
-  if ((TopFile >= 0) && (ptr->file != TopFile)) return 1;
+   ptr = (struct nlist *)(p->ptr);
+   if ((TopFile >= 0) && (ptr->file != TopFile)) return 1;
 
-  if (ptr->class != CLASS_SUBCKT) {
-    /* only print primitive cells if Debug is enabled */
-    if (Debug == 1)  Printf("Cell: %s (instanced %d times); Primitive\n",
+   if ((ptr->class != CLASS_SUBCKT) && (ptr->class != CLASS_MODULE)) {
+      /* only print primitive cells if Debug is enabled */
+      if (Debug == 1)  Printf("Cell: %s (instanced %d times); Primitive\n",
 		       ptr->name, ptr->number);
-    else if (Debug == 3) {	/* list */
+      else if (Debug == 3) {	/* list */
 #ifdef TCL_NETGEN
-       Tcl_AppendElement(netgeninterp, ptr->name);
+          Tcl_AppendElement(netgeninterp, ptr->name);
 #else
-       Printf("%s ", ptr->name);
+          Printf("%s ", ptr->name);
 #endif
-    }
-  }
-  else if ((Debug == 2) || (Debug == 3)) {	/* list only */
+      }
+   }
+   else if ((Debug == 2) || (Debug == 3)) {	/* list only */
 #ifdef TCL_NETGEN
-     Tcl_AppendElement(netgeninterp, ptr->name);
+      Tcl_AppendElement(netgeninterp, ptr->name);
 #else
-     Printf("%s ", ptr->name);
+      Printf("%s ", ptr->name);
 #endif
-  }
-  else
-    Printf("Cell: %s (instanced %d times)\n",ptr->name,ptr->number);
-  return(1);
+   }
+   else
+      Printf("Cell: %s (instanced %d times)\n", ptr->name, ptr->number);
+   return(1);
 }
 
 /* Print the contents of the cell hash table.	*/
@@ -663,65 +663,65 @@ static int PrintCellHashTableElement(struct hashlist *p)
 
 void PrintCellHashTable(int full, int filenum)
 {
-  int total, bins;
-  int OldDebug;
+   int total, bins;
+   int OldDebug;
 
-  if ((filenum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
+   if ((filenum == -1) && (Circuit1 != NULL) && (Circuit2 != NULL)) {
       PrintCellHashTable(full, Circuit1->file);
       PrintCellHashTable(full, Circuit2->file);
       return;
-  }
+   }
 
-  TopFile = filenum;
+   TopFile = filenum;
 
-  bins  = RecurseHashTable(&cell_dict, CountHashTableBinsUsed);
-  total = RecurseHashTable(&cell_dict, CountHashTableEntries);
-  if (full < 2)
-     Printf("Hash table: %d of %d bins used; %d cells total (%.2f per bin)\n",
+   bins  = RecurseHashTable(&cell_dict, CountHashTableBinsUsed);
+   total = RecurseHashTable(&cell_dict, CountHashTableEntries);
+   if (full < 2)
+       Printf("Hash table: %d of %d bins used; %d cells total (%.2f per bin)\n",
 		bins, CELLHASHSIZE, total, (bins == 0) ? 0 :
 		(float)((float)total / (float)bins));
 	
-  OldDebug = Debug;
-  Debug = full;
-  RecurseHashTable(&cell_dict, PrintCellHashTableElement);
-  Debug = OldDebug;
+   OldDebug = Debug;
+   Debug = full;
+   RecurseHashTable(&cell_dict, PrintCellHashTableElement);
+   Debug = OldDebug;
 #ifndef TCL_NETGEN
-  if (full >= 2) Printf("\n");
+   if (full >= 2) Printf("\n");
 #endif
 }
 
 struct nlist *FirstCell(void)
 {
-  return((struct nlist *)HashFirst(&cell_dict));
+   return((struct nlist *)HashFirst(&cell_dict));
 }
 
 struct nlist *NextCell(void)
 {
-  return((struct nlist *)HashNext(&cell_dict));
+   return((struct nlist *)HashNext(&cell_dict));
 }
 
 static int ClearDumpedElement(struct hashlist *np)
 {
-	struct nlist *p;
+   struct nlist *p;
 
-	p = (struct nlist *)(np->ptr);
-	p->dumped = 0;
-	return(1);
+   p = (struct nlist *)(np->ptr);
+   p->dumped = 0;
+   return(1);
 }
 
 void ClearDumpedList(void)
 {
-	RecurseHashTable(&cell_dict, ClearDumpedElement);
+   RecurseHashTable(&cell_dict, ClearDumpedElement);
 }
 
 int RecurseCellHashTable(int (*foo)(struct hashlist *np))
 {
-  return RecurseHashTable(&cell_dict, foo);
+   return RecurseHashTable(&cell_dict, foo);
 }
 
 int RecurseCellFileHashTable(int (*foo)(struct hashlist *, int), int value)
 {
-  return RecurseHashTableValue(&cell_dict, foo, value);
+   return RecurseHashTableValue(&cell_dict, foo, value);
 }
 
 /* Yet another version, passing one parameter that is a pointer */
@@ -729,7 +729,7 @@ int RecurseCellFileHashTable(int (*foo)(struct hashlist *, int), int value)
 struct nlist *RecurseCellHashTable2(struct nlist *(*foo)(struct hashlist *,
 	void *), void *pointer)
 {
-  return RecurseHashTablePointer(&cell_dict, foo, pointer);
+   return RecurseHashTablePointer(&cell_dict, foo, pointer);
 }
 
 /************************** WILD-CARD STUFF *******************************/
