@@ -4467,9 +4467,9 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    proplist = (propsort *)MALLOC(run * sizeof(propsort));
 
    obp = obn;
-   mval = 1;
    pval = aval = oval = 0.0;
    for (i = 0; i < run; i++) {
+      mval = 1;
       has_crit = FALSE;
       merge_type = MERGE_NONE;
       ca = co = (char)0;
