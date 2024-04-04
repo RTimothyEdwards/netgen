@@ -4467,9 +4467,9 @@ void parallel_sort(struct objlist *ob1, struct nlist *tp1, int idx1, int run)
    proplist = (propsort *)MALLOC(run * sizeof(propsort));
 
    obp = obn;
-   mval = 1;
    pval = aval = oval = 0.0;
    for (i = 0; i < run; i++) {
+      mval = 1;
       has_crit = FALSE;
       merge_type = MERGE_NONE;
       ca = co = (char)0;
@@ -6211,7 +6211,9 @@ PropertyMatch(struct Element *E1, struct Element *E2,
 	        if (kl1 != NULL)
 		    break;	// Property is required
 	    }
-	    else if (vl1->value.ival != 1)
+	    else if ((vl1->type == PROP_INTEGER) && (vl1->value.ival != 1))
+		break;	// Property M != 1 or S != 1 is a mismatch.
+	    else if ((vl1->type == PROP_DOUBLE) && (vl1->value.dval != 1))
 		break;	// Property M != 1 or S != 1 is a mismatch.
 	 }
 	 if (vl1->type != PROP_ENDLIST) {
