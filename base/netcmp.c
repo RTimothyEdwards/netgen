@@ -7204,8 +7204,6 @@ int EquivalenceClasses(char *name1, int file1, char *name2, int file2, int douni
    return 1;
 }
 
-#ifdef TCL_NETGEN
-
 /*----------------------------------------------------------------------*/
 /* Callback function used by MatchPins					*/
 /*----------------------------------------------------------------------*/
@@ -8411,6 +8409,8 @@ void FlattenCurrent()
       FlattenInstancesOf(Circuit2->name, Circuit2->file);
    }
 }
+
+#ifdef TCL_NETGEN
 
 /*------------------------------------------------------*/
 /* Handler is only used when netgen is run from a	*/
