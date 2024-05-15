@@ -1595,8 +1595,7 @@ _netgen_model(ClientData clientData,
       return result;
 
    if (objc == 3) {
-      model = Tcl_GetString(objv[2]);
-      nports = NumberOfPorts(model, fnum);
+      nports = NumberOfPorts(tp->name, fnum);
 
       if (Tcl_GetIndexFromObj(interp, objv[2], (CONST84 char **)modelclasses,
 		"class", 0, &index) != TCL_OK) {
