@@ -3094,7 +3094,7 @@ void add_balancing_close(struct objlist *ob1, struct objlist *ob2)
    for (nob = ob1->next; nob && nob->type != FIRSTPIN; nob = nob->next)
       if (nob->type == PROPERTY)
 	 break;
-   if (nob->type != PROPERTY) return;	// shouldn't happen
+   if (nob == NULL || nob->type != PROPERTY) return;	// shouldn't happen
 
    opentags = 0;
    for (; nob->next && nob->next->type == PROPERTY; nob = nob->next) {
@@ -3644,7 +3644,7 @@ int CombineSeries(char *model, int file)
 	       nob->type = PROPERTY;
 	       nob->name = strsave("properties");
 	       nob->node = -2;	/* Don't report as disconnected node */
-	       nob->model.class = (obp->model.class == NULL) ? NULL :
+	       nob->model.class = (obp == NULL || obp->model.class == NULL) ? NULL :
 				strsave(obp->model.class);
 	       nob->instance.props = NewPropValue(2);
 
