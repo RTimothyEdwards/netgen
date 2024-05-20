@@ -1797,6 +1797,10 @@ skip_endmodule:
 	    }
 	    else {
 		lhs = LookupObject(nexttok, CurrentCell);
+		if (lhs == NULL) {
+		    Node(nexttok);
+		    lhs = LookupObject(nexttok, CurrentCell);
+		}
 		strcpy(noderoot, nexttok);
 	    }
 	    SkipTokComments(VLOG_DELIMITERS);
