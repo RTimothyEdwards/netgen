@@ -600,8 +600,10 @@ int flattenInstancesOf(char *name, int fnum, char *instance)
          else break;
 
          /* Put the child cell at the start of ChildObjList */
-         ChildEnd->next = ChildObjList;
-         ChildObjList = ChildStart;
+	 if (ChildEnd) {
+            ChildEnd->next = ChildObjList;
+            ChildObjList = ChildStart;
+	 }
       }
 
       /* Put the child cell at the start of ChildObjList */
