@@ -1636,7 +1636,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     ECompare *ecomp, *ncomp;
     ECompList *list0X, *listX0;
     int hascontents1, hascontents2;
-    int match, modified = 0;
+    int match, modified1 = 0, modified2 = 0;
     int not_top;
 
     if (file1 == -1)
@@ -1714,7 +1714,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				" makes a better match\n", ecomp->cell1->name,
 				name1, file1);
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
-		    modified++;
+		    modified1++;
 		}
 		if (ecomp->cell2 && (ecomp->num2 > 0) &&
 				(!(ecomp->cell2->flags & CELL_PLACEHOLDER))) {
@@ -1722,7 +1722,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				" makes a better match\n", ecomp->cell2->name,
 				name2, file2);
 		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
-		    modified++;
+		    modified2++;
 		}
 	    }
 
@@ -1812,7 +1812,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				" makes a better match\n", ecomp->cell2->name,
 				name2, file2);
 		    	flattenInstancesOf(name2, file2, ecomp->cell2->name); 
-		    	modified++;
+		    	modified2++;
 		    }
 		}
 	    }
@@ -1878,7 +1878,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				" makes a better match\n", ecomp->cell1->name,
 				name1, file1);
 		    	flattenInstancesOf(name1, file1, ecomp->cell1->name); 
-		        modified++;
+		        modified1++;
 		    }
 		}
 	    }
@@ -2032,7 +2032,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 
 					/* Remove from list */
 					ecomp->num1--;
-					modified++;
+					modified1++;
 
 					ob1 = lob;
 				    }
@@ -2170,8 +2170,8 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					}
 
 					/* Remove from list */
-					ecomp->num1--;
-					modified++;
+					ecomp->num2--;
+					modified2++;
 
 					ob2 = lob;
 				    }
@@ -2205,7 +2205,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
     // are no other modifications, as this rule is relaxed compared to other
     // rules, and the other rules should be exhaustively applied first.
 
-    if ((listX0 != NULL) && (list0X != NULL) && (modified == 0)) {
+    if ((listX0 != NULL) && (list0X != NULL) && ((modified1 + modified2) == 0)) {
 	ECompare *ecomp0X, *ecompX0;
 	ECompList *elist0X, *elistX0;
 	for (elistX0 = listX0; elistX0; elistX0 = elistX0->next) {
@@ -2237,7 +2237,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				flattenInstancesOf(name1, file1, ecompX0->cell1->name); 
 			        ecompX0->num1 = 0;
 			        ecomp0X->num1 += ecompX0->num1;
-				modified++;
+				modified1++;
 				break;
 			    }
 			}
@@ -2263,7 +2263,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				flattenInstancesOf(name2, file2, ecomp0X->cell2->name); 
 			        ecomp0X->num2 = 0;
 			        ecompX0->num2 += ecomp0X->num2;
-				modified++;
+				modified2++;
 				break;
 			    }
 			}
@@ -2294,5 +2294,17 @@ done:
 	FREE(list0X);
 	list0X = nextptr;
     }
-    return modified;
+
+    // If either netlist was modified, rebuild its node cache
+
+    if (modified1 > 0) {
+	FreeNodeNames(tc1);
+	CacheNodeNames(tc1);
+    }
+    if (modified2 > 0) {
+	FreeNodeNames(tc2);
+	CacheNodeNames(tc2);
+    }
+
+    return modified1 + modified2;
 }
