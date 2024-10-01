@@ -7360,7 +7360,7 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
     // Count the largest node number used in the cell
     maxnode = -1;
     for (ob = ptr->cell; ob; ob = ob->next)
-       if (ob->type >= FIRSTPIN || ob->type == NODE)
+       if (ob->type >= FIRSTPIN || ob->type == NODE || ob->type == PORT)
 	  if (ob->node >= maxnode)
 	     maxnode = ob->node + 1;
     numnodes = maxnode;
