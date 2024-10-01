@@ -224,6 +224,13 @@ int matchnocase(char *st1, char *st2)
    char *sp1 = st1;
    char *sp2 = st2;
 
+   /* In case of a property that does not exist in one netlist, matchnocase()
+    * may be passed a null value, so return 0 to indicate a non-match.
+    * *Both* values null will also be treated as a mismatch (debatable
+    * behavior).
+    */
+   if (!sp1 || !sp2) return 0;
+
    while (*sp1 != '\0' && *sp2 != '\0') {
       if (to_lower[*sp1] != to_lower[*sp2]) break;
       sp1++;
