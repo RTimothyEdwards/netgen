@@ -2651,8 +2651,10 @@ _netcmp_verify(ClientData clientData,
 	 disable_interrupt();
 	 if (index == EQUIV_IDX || index == UNIQUE_IDX)
 	     Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
-	 else
+	 else {
 	     Fprintf(stdout, "Netlists do not match.\n");
+	     Fprintf(stdout, "Port matching may fail to disambiguate symmetries.\n");
+	 }
       }
       else if (automorphisms == -2) {
 	 if (index == EQUIV_IDX)

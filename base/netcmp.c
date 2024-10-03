@@ -2706,7 +2706,9 @@ CheckLegalElementPartition(struct ElementClass *head)
   found = 0;
   for (scan = head; scan != NULL; scan = scan->next) {
     
-    if (scan->count == 2) continue;
+    /* Quick check for matching 1:1 case */
+    if ((scan->count == 2) && (scan->elements->graph != scan->elements->next->graph))
+      continue;
     C1 = C2 = 0;
     for (E = scan->elements; E != NULL; E = E->next) {
       if (E->graph == Circuit1->file) C1++;
@@ -2828,7 +2830,9 @@ CheckLegalNodePartition(struct NodeClass *head)
   found = 0;
   for (scan = head; scan != NULL; scan = scan->next) {
     
-    if (scan->count == 2) continue;
+    /* Quick check for matching 1:1 case */
+    if ((scan->count == 2) && (scan->nodes->graph != scan->nodes->next->graph))
+      continue;
     C1 = C2 = 0;
     for (N = scan->nodes; N != NULL; N = N->next) {
       if (N->graph == Circuit1->file) C1++;
