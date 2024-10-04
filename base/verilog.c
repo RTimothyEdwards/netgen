@@ -1408,6 +1408,9 @@ skip_endmodule:
       if (tpsave != NULL) {
 	 struct nlist *tpplace;
 	 char *savename;
+	 int lnum, pnum, ltest;
+	 unsigned char valid;
+	 struct objlist *lobj, *pobj;
 
 	 /* Handle a placeholder from a verilog file that has been replaced
 	  * by a netlist with pins in a different order.  The pins need to
@@ -1418,6 +1421,58 @@ skip_endmodule:
 	 Printf("Verilog placeholder module %s replaced by module definition\n",
 		tpsave->name);
          tpplace = LookupCellFile("_PLACEHOLDER_", filenum);
+
+	 /* If tpsave was generated from an instance in a SPICE netlist that
+	  * did not have a black-box subcircuit definition, then the pins
+	  * will all be labeled 1, 2, 3, etc.  If so, then assume that the
+	  * verilog pins are in order, and rename the placeholder pins.
+	  * If the number of pins does not match, or if the pins are not
+	  * labeled as ascending integers, then leave the cell alone.
+	  * In either case, output a warning message.
+	  */
+
+	 /* Get the number of ports in the placeholder */
+	 pnum = 0;
+	 for (pobj = tpplace->cell; pobj; pobj = pobj->next) {
+	    if (pobj->type != PORT) break;
+	    pnum++;
+	 }
+
+	 /* Get the number of ports in the saved cell and make	*/
+	 /* sure that it equals the number of ports in the	*/
+	 /* placeholder, and that all of the ports in the saved	*/
+	 /* cell are integers in ascending order.		*/
+
+	 valid = TRUE;
+	 lnum = 0;
+	 for (lobj = tpsave->cell; lobj; lobj = lobj->next) {
+	    if (lobj->type != PORT) break;
+	    lnum++;
+	    if (sscanf(lobj->name, "%d", &ltest) != 1) break;
+	    if (ltest != lnum) break;
+	 }
+	 if ((lobj != NULL) && (lobj->type == PORT))
+	    valid = FALSE;	/* Pins are not integers in ascending order */
+	 if (pnum != lnum) valid = FALSE;	/* Different number of pins */
+
+	 if (valid == TRUE) {
+	    Printf("Replacing pins of placeholder cell %s from cell definition.\n",
+		tpsave->name);
+	    pobj = tpplace->cell;
+	    for (lobj = tpsave->cell; lobj; lobj = lobj->next) {
+		if (lobj->type != PORT) break;
+		if (pobj == NULL) break;	/* should not happen */
+		FREE(lobj->name);
+		lobj->name = (char *)MALLOC(strlen(pobj->name) + 1);
+		strcpy(lobj->name, pobj->name);
+		pobj = pobj->next;
+	    }
+	 }
+	 else {
+	    Printf("Placeholder pins of cell %s are not compatible and"
+		" will be left unchanged\n", tpsave->name);
+	 }
+
          /* MatchPins is part of netcmp and normally Circuit2 is the
           * circuit being matched, so set Circuit2 to the original
           * verilog black-box cell, and MatchPins() will force its
