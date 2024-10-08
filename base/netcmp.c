@@ -7629,7 +7629,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 				    if (ob2->model.port == -1)
 				       snprintf(ostr + left_col_end + 1, left_col_end, "%s **Mismatch**", ob2->name);
 				    else
-				       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
+				       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)", ob2->name);
 				 }
 				 nomatch = TRUE;
 				 /* Pins with different names are on different nets,
@@ -7684,7 +7684,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			      for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
 			      for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
 			      snprintf(ostr, 32, "%s", obn->name);
-			      snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
+			      snprintf(ostr + left_col_end + 1, left_col_end, "(no pin, node is %s)", obp->name);
 			      for (m = 0; m < right_col_end + 1; m++)
 				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
 			      Fprintf(stdout, ostr);
@@ -8131,23 +8131,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
          obn->model.port = (i - j);
          obn->instance.name = NULL;
          obn->node = -1;
-
-	 /* Note:  Has this pin already been accounted for? */
-	 if (Debug == 0) {
-	    if (strcmp(ob1->name, "(no pins)")) {
-	       for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-	       for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-	       snprintf(ostr, left_col_end, "%s", ob1->name);
-	       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
-	       for (m = 0; m < right_col_end + 1; m++)
-		  if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-	       Fprintf(stdout, ostr);
-	    }
-	 }
-	 else {
-	    Fprintf(stderr, "No netlist match for cell %s pin %s\n",
-				tc1->name, ob1->name);
-	 }
 
 	 if (ob2 == tc2->cell) {
 	    obn->next = ob2;
