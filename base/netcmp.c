@@ -5169,6 +5169,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
    // (if any)
 
    if (comb == TRUE) {
+      double pd;
       int mult, cidx = -1;
       struct valuelist *avl, *cvl = NULL;
       critval.type = PROP_ENDLIST;
@@ -5187,12 +5188,15 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 	 /* combine as specified by the merge type of the property.	*/
 
 	 for (p = 1; p < pcount; p++) {
+	    kl = plist[p];
 	    vl = vlist[p][i];
 	    ctype = clist[p][i];
 
 	    /* critical properties never combine, but track them */
 	    if ((series == TRUE) && (ctype & MERGE_S_CRIT)) {
-		if ((vl->type != critval.type) || (vl->value.dval != critval.value.dval))
+	        pd = 2 * fabs(vl->value.dval - critval.value.dval) /
+				(vl->value.dval + critval.value.dval);
+		if ((vl->type != critval.type) || (pd > kl->slop.dval))
 		{
 		    critval.type = vl->type;
 		    critval.value = vl->value;
@@ -5201,7 +5205,9 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		continue;
 	    }
 	    if ((series == FALSE) && (ctype & MERGE_P_CRIT)) {
-		if ((vl->type != critval.type) || (vl->value.dval != critval.value.dval))
+	        pd = 2 * fabs(vl->value.dval - critval.value.dval) /
+				(vl->value.dval + critval.value.dval);
+		if ((vl->type != critval.type) || (pd > kl->slop.dval))
 		{
 		    critval.type = vl->type;
 		    critval.value = vl->value;
