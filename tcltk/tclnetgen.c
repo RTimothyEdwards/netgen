@@ -2522,8 +2522,16 @@ _netcmp_run(ClientData clientData,
 
 	    if (automorphisms == -1)
 	       Fprintf(stdout, "Netlists do not match.\n");
-	    else if (automorphisms == -2)
-	       Fprintf(stdout, "Netlists match uniquely with port errors.\n");
+	    else if (automorphisms == -2) {
+	       Fprintf(stdout, "Netlists match uniquely with port");
+	       if (PropertyErrorDetected) {
+		  Fprintf(stdout, " and property errors.\n");
+	          PrintPropertyResults(dolist);
+	       }
+	       else {
+		  Fprintf(stdout, " errors.\n");
+	       }
+	    }
 	    else {
 	       if (automorphisms == 0)
 	          Fprintf(stdout, "Netlists match uniquely");
