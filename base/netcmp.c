@@ -21,6 +21,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #include <stdio.h>
 #include <stdlib.h>  /* for rand(), abs(), etc */
+#include <stdarg.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <time.h>    /* for time() as a seed for random number generator */
@@ -1496,6 +1497,112 @@ void SortUnmatchedLists(nlists1, nlists2, n1max, n2max)
     HashKill(&n2hash);
 }
 
+/*--------------------------------------------------------------*/
+/* Output string formatting routines				*/
+/* for two-column side-by-side comparisons			*/
+/*--------------------------------------------------------------*/
+
+/*--------------------------------------------------------------*/
+/* Fill left and right columns with spaces			*/
+/*--------------------------------------------------------------*/
+
+void output_string_fill(char *ostr)
+{
+    int m;
+    for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
+    for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
+}
+
+/*--------------------------------------------------------------*/
+/* Write a formatted string in the usual format of sprintf() to	*/
+/* the left column.						*/
+/*--------------------------------------------------------------*/
+
+void output_string_left(char *ostr, char *format, ...)
+{
+  va_list ap;
+
+  va_start(ap, format);
+  vsnprintf(ostr, left_col_end, format, ap);
+  va_end(ap);
+}
+
+/*--------------------------------------------------------------*/
+/* Write a formatted string in the usual format of sprintf() to	*/
+/* the right column.						*/
+/*--------------------------------------------------------------*/
+
+void output_string_right(char *ostr, char *format, ...)
+{
+  va_list ap;
+
+  va_start(ap, format);
+  vsnprintf(ostr + left_col_end + 1, left_col_end, format, ap);
+  va_end(ap);
+}
+
+/*--------------------------------------------------------------*/
+/* Remove any string breaks within the output string, then	*/
+/* print the string to stdout.					*/
+/*--------------------------------------------------------------*/
+
+void output_string_print(char *ostr)
+{
+    int m;
+    for (m = 0; m < right_col_end + 1; m++)
+	if (*(ostr + m) == '\0')
+	    *(ostr + m) = ' ';
+    Fprintf(stdout, ostr);
+}
+
+/*--------------------------------------------------------------*/
+/* Draw a divider line to the output.  If "colbrk" is TRUE,	*/
+/* then leave the center character as a vertical bar.		*/
+/* Print the divider line to stdout, then reinstate the		*/
+/* vertical bar.						*/
+/*--------------------------------------------------------------*/
+
+void output_string_print_divider(char *ostr, char colbrk)
+{
+    int m;
+    for (m = 0; m < right_col_end; m++) *(ostr + m) = '-';
+    if (colbrk) *(ostr + left_col_end) = '|';
+    output_string_print(ostr);
+    *(ostr + left_col_end) = '|';
+}
+
+/*--------------------------------------------------------------*/
+/* Initialize the output string with an empty line and divider	*/
+/*--------------------------------------------------------------*/
+
+char *output_string_init()
+{
+    char *ostr = CALLOC(right_col_end + 2, sizeof(char));
+
+    *(ostr + left_col_end) = '|';
+    *(ostr + right_col_end) = '\n';
+    *(ostr + right_col_end + 1) = '\0';
+
+    output_string_fill(ostr);
+
+    return ostr;
+}
+
+/*--------------------------------------------------------------*/
+/* Write the header for the comparison output			*/
+/* Print the header to stdout.					*/
+/*--------------------------------------------------------------*/
+
+void output_string_print_header(char *ostr, struct nlist *tc1, struct nlist *tc2)
+{
+    if (tc1)
+	output_string_left(ostr, "Circuit 1: %s", tc1->name);
+    if (tc2)
+	output_string_right(ostr, "Circuit 2: %s", tc2->name);
+
+    output_string_print(ostr);
+}
+
 /* 
  *---------------------------------------------------------------------
  *---------------------------------------------------------------------
@@ -1512,9 +1619,9 @@ void FormatIllegalElementClasses()
   char *permcount;
   int bytesleft;
 
-  ostr = CALLOC(right_col_end + 2, sizeof(char));
   permname = CALLOC(right_col_end + 2, sizeof(char));
   permcount = CALLOC(right_col_end + 2, sizeof(char));
+  ostr = output_string_init();
 
   found = 0;
   for (escan = ElementClasses; escan != NULL; escan = escan->next)
@@ -1527,15 +1634,7 @@ void FormatIllegalElementClasses()
 
 	/* Print in side-by-side format */
 
-	*(ostr + left_col_end) = '|';
-	*(ostr + right_col_end) = '\n';
-	*(ostr + right_col_end + 1) = '\0';
-	for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-	for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
-	snprintf(ostr, left_col_end, "Circuit 1: %s", Circuit1->name);
-	snprintf(ostr + left_col_end + 1, left_col_end, "Circuit 2: %s", Circuit2->name);
-	for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-	Fprintf(stdout, ostr);
+	output_string_print_header(ostr, Circuit1, Circuit2);
       }
       found = 1;
 
@@ -1579,32 +1678,27 @@ void FormatIllegalElementClasses()
       Fprintf(stdout, "\n");
       for (n = 0; n < ((n1 > n2) ? n1 : n2); n++) {
 	 if (n != 0) {
-	    for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-	    for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
+	    output_string_fill(ostr);
 	    Fprintf(stdout, ostr);
 	 } else {
-	    for (i = 0; i < right_col_end; i++) *(ostr + i) = '-';
-	    Fprintf(stdout, ostr);
-	    *(ostr + left_col_end) = '|';
+	    output_string_print_divider(ostr, FALSE);
 	 }
-	 for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-	 for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
+	 output_string_fill(ostr);
 	 if (n < n1) {
 	    estr = elist1[n]->name;
 	    if (*estr == '/') estr++;	// Remove leading slash, if any
-	    snprintf(ostr, left_col_end, "Instance: %s", estr);
+	    output_string_left(ostr, "Instance: %s", estr);
 	 }
 	 else
-	    snprintf(ostr, left_col_end, "(no matching instance)");
+	    output_string_left(ostr, "%s", "(no matching instance)");
 	 if (n < n2) {
 	    estr = elist2[n]->name;
 	    if (*estr == '/') estr++;	// Remove leading slash, if any
-	    snprintf(ostr + left_col_end + 1, left_col_end, "Instance: %s", estr);
+	    output_string_right(ostr, "Instance: %s", estr);
 	 }
 	 else
-	    snprintf(ostr + left_col_end + 1, left_col_end, "(no matching instance)");
-	 for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-	 Fprintf(stdout, ostr);
+	    output_string_right(ostr, "%s", "(no matching instance)");
+	 output_string_print(ostr);
 
 	 if (n >= n1)
 	    maxf = elist2[n]->fanout;
@@ -1616,12 +1710,11 @@ void FormatIllegalElementClasses()
 
 	 f1 = f2 = 0;
 	 while ((f1 < maxf) || (f2 < maxf)) {
-	    for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-	    for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
+ 	    output_string_fill(ostr);
 	    if (n < n1) {
 	       if (f1 < elist1[n]->fanout) {
 		  if (elist1[n]->flist[f1].permute == (char)1) {
-		     snprintf(ostr, left_col_end, "  %s = %d", elist1[n]->flist[f1].name,
+		     output_string_left(ostr, "  %s = %d", elist1[n]->flist[f1].name,
 				elist1[n]->flist[f1].count);
 		  }
 		  else {
@@ -1643,7 +1736,7 @@ void FormatIllegalElementClasses()
 		     sprintf(value, "%d", elist1[n]->flist[f1].count);
 		     strcat(permcount, value);
 		     strcat(permcount, ")");
-		     snprintf(ostr, left_col_end, "  %s = %s", permname, permcount);
+		     output_string_left(ostr, "  %s = %s", permname, permcount);
 		  }
 	       }
 	    }
@@ -1651,7 +1744,7 @@ void FormatIllegalElementClasses()
 	    if (n < n2) {
 	       if (f2 < elist2[n]->fanout) {
 		  if (elist2[n]->flist[f2].permute == (char)1) {
-		     snprintf(ostr + left_col_end + 1, left_col_end, "  %s = %d", elist2[n]->flist[f2].name,
+		     output_string_right(ostr, "  %s = %d", elist2[n]->flist[f2].name,
 				elist2[n]->flist[f2].count);
 		  }
 		  else {
@@ -1673,21 +1766,18 @@ void FormatIllegalElementClasses()
 		     sprintf(value, "%d", elist2[n]->flist[f2].count);
 		     strcat(permcount, value);
 		     strcat(permcount, ")");
-		     snprintf(ostr + left_col_end + 1, left_col_end, "  %s = %s", permname, permcount);
+		     output_string_right(ostr, "  %s = %s", permname, permcount);
 		  }
 	       }
 	    }
 	    f2++;
-	    for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-	    Fprintf(stdout, ostr);
+	    output_string_print(ostr);
 	 }
       }
 
       FreeFormattedLists(elist1, numlists1);
       FreeFormattedLists(elist2, numlists2);
-      for (i = 0; i < right_col_end; i++) *(ostr + i) = '-';
-      Fprintf(stdout, ostr);
-      *(ostr + left_col_end) = '|';
+      output_string_print_divider(ostr, FALSE);
     }
 
     FREE(ostr);
@@ -1875,7 +1965,7 @@ void FormatIllegalNodeClasses()
   int found, numlists1, numlists2, n1, n2, n, f, i, maxf;
   char *ostr;
 
-  ostr = CALLOC(right_col_end + 2, sizeof(char));
+  ostr = output_string_init();
   found = 0;
 
   /* 
@@ -1893,15 +1983,7 @@ void FormatIllegalNodeClasses()
 	Fprintf(stdout, "Class fragments follow (with fanout counts):\n");
 
 	/* Print in side-by-side format */
-	*(ostr + left_col_end) =  '|';
-	*(ostr + right_col_end) = '\n';
-	*(ostr + right_col_end + 1) = '\0';
-	for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-	for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
-	snprintf(ostr, left_col_end, "Circuit 1: %s", Circuit1->name);
-	snprintf(ostr + left_col_end + 1, left_col_end, "Circuit 2: %s", Circuit2->name);
-	for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-	Fprintf(stdout, ostr);
+	output_string_print_header(ostr, Circuit1, Circuit2);
       }
       found = 1;
 
@@ -1941,26 +2023,21 @@ void FormatIllegalNodeClasses()
       Fprintf(stdout, "\n");
       for (n = 0; n < ((n1 > n2) ? n1 : n2); n++) {
 	 if (n != 0) {
-            for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-            for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
+	    output_string_fill(ostr);
 	    Fprintf(stdout, ostr);
 	 } else {
-            for (i = 0; i < right_col_end; i++) *(ostr + i) = '-';
-	    Fprintf(stdout, ostr);
-	    *(ostr + left_col_end) = '|';
+	    output_string_print_divider(ostr, FALSE);
 	 }
-         for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-         for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
+	 output_string_fill(ostr);
 	 if (n < n1)
-	    snprintf(ostr, left_col_end, "Net: %s", nlists1[n]->name);
+	    output_string_left(ostr, "Net: %s", nlists1[n]->name);
 	 else
-	    snprintf(ostr, left_col_end, "(no matching net)");
+	    output_string_left(ostr, "%s", "(no matching net)");
 	 if (n < n2)
-	    snprintf(ostr + left_col_end + 1, left_col_end, "Net: %s", nlists2[n]->name);
+	    output_string_right(ostr, "Net: %s", nlists2[n]->name);
 	 else
-	    snprintf(ostr + left_col_end + 1, left_col_end, "(no matching net)");
-         for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-         Fprintf(stdout, ostr);
+	    output_string_right(ostr, "%s", "(no matching net)");
+	 output_string_print(ostr);
 
 	 if (n >= n1)
 	    maxf = nlists2[n]->fanout;
@@ -1971,17 +2048,16 @@ void FormatIllegalNodeClasses()
 			nlists1[n]->fanout : nlists2[n]->fanout;
 
 	 for (f = 0; f < maxf; f++) {
-            for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-            for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
+	    output_string_fill(ostr);
 	    if (n < n1)
 	       if (f < nlists1[n]->fanout) {
 		  if (nlists1[n]->flist[f].permute <= 1)
-	             snprintf(ostr, left_col_end, "  %s/%s = %d",
+		     output_string_left(ostr, "  %s/%s = %d",
 				nlists1[n]->flist[f].model,
 				nlists1[n]->flist[f].name,
 				nlists1[n]->flist[f].count);
 		  else {
-	             snprintf(ostr, left_col_end, "  %s/(%s) = %d",
+		     output_string_left(ostr, "  %s/(%s) = %d",
 				nlists1[n]->flist[f].model,
 				nlists1[n]->flist[f].name,
 				nlists1[n]->flist[f].count);
@@ -1991,28 +2067,25 @@ void FormatIllegalNodeClasses()
 	    if (n < n2)
 	       if (f < nlists2[n]->fanout) {
 		  if (nlists2[n]->flist[f].permute <= 1)
-	             snprintf(ostr + left_col_end + 1, left_col_end, "  %s/%s = %d",
+		     output_string_right(ostr, "  %s/%s = %d",
 				nlists2[n]->flist[f].model,
 				nlists2[n]->flist[f].name,
 				nlists2[n]->flist[f].count);
 		  else {
-	             snprintf(ostr + left_col_end + 1, left_col_end, "  %s/(%s) = %d",
+		     output_string_right(ostr, "  %s/(%s) = %d",
 				nlists2[n]->flist[f].model,
 				nlists2[n]->flist[f].name,
 				nlists2[n]->flist[f].count);
 		     FREE(nlists2[n]->flist[f].name);
 		  }
 	       }
-            for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-            Fprintf(stdout, ostr);
+	    output_string_print(ostr);
 	 }
       }
 
       FreeFormattedLists(nlists1, numlists1);
       FreeFormattedLists(nlists2, numlists2);
-      for (i = 0; i < right_col_end; i++) *(ostr + i) = '-';
-      Fprintf(stdout, ostr);
-      *(ostr + left_col_end) =  '|';
+      output_string_print_divider(ostr, FALSE);
     }
     FREE(ostr);
 }
@@ -3202,23 +3275,12 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
   Tcl_Obj *clist1, *clist2;
 #endif
 
-  ostr = CALLOC(right_col_end + 2, sizeof(char));
+  ostr = output_string_init();
 
   if (Debug == 0) {
      Fprintf(stdout, "Subcircuit summary:\n");
-     *(ostr + left_col_end) =  '|';
-     *(ostr + right_col_end) = '\n';
-     *(ostr + right_col_end + 1) = '\0';
-     for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-     for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
-
-     snprintf(ostr, left_col_end, "Circuit 1: %s", Circuit1->name);
-     snprintf(ostr + left_col_end + 1, left_col_end, "Circuit 2: %s", Circuit2->name);
-     for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-     Fprintf(stdout, ostr);
-     for (i = 0; i < left_col_end; i++) *(ostr + i) = '-';
-     for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = '-';
-     Fprintf(stdout, ostr);
+     output_string_print_header(ostr, Circuit1, Circuit2);
+     output_string_print_divider(ostr, TRUE);
   }
 
 #ifdef TCL_NETGEN
@@ -3272,27 +3334,24 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 		}
 
 	if (Debug == 0) {
-
-	   for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-	   for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
+	   output_string_fill(ostr);
 	   if (M1 == C1)
-           	snprintf(ostr, left_col_end, "%s (%d)", Esrch->object->model.class, C1);
+		output_string_left(ostr, "%s (%d)", Esrch->object->model.class, C1);
 	   else
-           	snprintf(ostr, left_col_end, "%s (%d->%d)", Esrch->object->model.class,
+		output_string_left(ostr, "%s (%d->%d)", Esrch->object->model.class,
 				M1, C1);
 	   if (C2 > 0) {
 	      if (M2 == C2)
-              	 snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d)%s", tp2->name,
+		 output_string_right(ostr, "%s (%d)%s", tp2->name,
 			C2, (C2 == C1) ? "" : " **Mismatch**");
 	      else
-              	 snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d->%d)%s",
+		 output_string_right(ostr, "%s (%d->%d)%s",
 			tp2->name, M2, C2, (C2 == C1) ? "" : " **Mismatch**");
 	   }
 	   else {
-              snprintf(ostr + left_col_end + 1, left_col_end, "(no matching element)");
+	      output_string_right(ostr, "%s", "(no matching element)");
 	   }
-           for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-           Fprintf(stdout, ostr);
+	   output_string_print(ostr);
 	}
 #ifdef TCL_NETGEN
 	if (dolist) {
@@ -3351,17 +3410,15 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 	    }
 
 	if (Debug == 0) {
-	   for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-	   for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
-           snprintf(ostr, left_col_end, "(no matching element)");
+	   output_string_fill(ostr);
+	   output_string_left(ostr, "%s", "(no matching element)");
 	   if (C2 == M2)
-              snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d)",
+	      output_string_right(ostr, "%s (%d)",
 			Esrch->object->model.class, C2);
 	   else
-              snprintf(ostr + left_col_end + 1, left_col_end, "%s (%d->%d)",
+	      output_string_right(ostr, "%s (%d->%d)",
 			Esrch->object->model.class, M2, C2);
-           for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-           Fprintf(stdout, ostr);
+	   output_string_print(ostr);
 	}
 #ifdef TCL_NETGEN
 	if (dolist) {
@@ -3405,14 +3462,12 @@ int FirstElementPass(struct Element *E, int noflat, int dolist)
 			C1, C2);
   }
   else {
-     for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-     for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
-     snprintf(ostr, left_col_end, "Number of devices: %d%s", C1, (C1 == C2) ? "" :
+     output_string_fill(ostr);
+     output_string_left(ostr, "Number of devices: %d%s", C1, (C1 == C2) ? "" :
 		" **Mismatch**");
-     snprintf(ostr + left_col_end + 1, left_col_end, "Number of devices: %d%s", C2, (C1 == C2) ? "" :
+     output_string_right(ostr, "Number of devices: %d%s", C2, (C1 == C2) ? "" :
 		" **Mismatch**");
-     for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-     Fprintf(stdout, ostr);
+     output_string_print(ostr);
   }
 
 #ifdef TCL_NETGEN
@@ -3458,23 +3513,14 @@ void FirstNodePass(struct Node *N, int dolist)
      char *ostr;
      int i;
 
-     ostr = CALLOC(right_col_end + 2, sizeof(char));
-
-     *(ostr + left_col_end) =  '|';
-     *(ostr + right_col_end) = '\n';
-     *(ostr + right_col_end + 1) = '\0';
-
-     for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-     for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
-     snprintf(ostr, left_col_end, "Number of nets: %d%s", C1, (C1 == C2) ? "" :
+     ostr = output_string_init();
+     output_string_left(ostr, "Number of nets: %d%s", C1, (C1 == C2) ? "" :
 		" **Mismatch**");
-     snprintf(ostr + left_col_end + 1, left_col_end, "Number of nets: %d%s", C2, (C1 == C2) ? "" :
+     output_string_right(ostr, "Number of nets: %d%s", C2, (C1 == C2) ? "" :
 		" **Mismatch**");
-     for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-     Fprintf(stdout, ostr);
+     output_string_print(ostr);
 
-     for (i = 0; i < right_col_end; i++) *(ostr + i) = '-';
-     Fprintf(stdout, ostr);
+     output_string_print_divider(ostr, FALSE);
 
      FREE(ostr);
   }
@@ -7564,23 +7610,13 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    }
 #endif
 
-   ostr = CALLOC(right_col_end + 2, sizeof(char));
+   ostr = output_string_init();
 
    if (Debug == 0) {
        /* Format side-by-side comparison of pins */
        Fprintf(stdout, "\nSubcircuit pins:\n");
-       *(ostr + left_col_end) = '|';
-       *(ostr + right_col_end) = '\n';
-       *(ostr + right_col_end + 1) = '\0';
-       for (i = 0; i < left_col_end; i++) *(ostr + i) = ' ';
-       for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = ' ';
-       snprintf(ostr, left_col_end, "Circuit 1: %s", tc1->name);
-       snprintf(ostr + left_col_end + 1, left_col_end, "Circuit 2: %s", tc2->name);
-       for (i = 0; i < right_col_end + 1; i++) if (*(ostr + i) == '\0') *(ostr + i) = ' ';
-       Fprintf(stdout, ostr);
-       for (i = 0; i < left_col_end; i++) *(ostr + i) = '-';
-       for (i = left_col_end + 1; i < right_col_end; i++) *(ostr + i) = '-';
-       Fprintf(stdout, ostr);
+       output_string_print_header(ostr, tc1, tc2);
+       output_string_print_divider(ostr, TRUE);
    }
 
    for (NC = NodeClasses; NC != NULL; NC = NC->next) {
@@ -7619,13 +7655,12 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			nomatch = FALSE;
 	          	if ((IsPort(ob2)) && (ob2->node == obp->node)) {
 			   if (Debug == 0) {
-			      for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-			      for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-			      snprintf(ostr, left_col_end, "%s", ob1->name);
+			      output_string_fill(ostr);
+			      output_string_left(ostr, "%s", ob1->name);
 			   }
 			   if ((*matchfunc)(ob1->name, ob2->name)) {
 			      if (Debug == 0)
-			         snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
+				 output_string_right(ostr, "%s", ob2->name);
 			   }
 			   else {
 			      /* Check remainder of ports to see if there is a name match on the
@@ -7637,7 +7672,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 				     if ((*matchfunc)(ob3->name, ob1->name)) {
 				        ob2 = ob3;
 					if (Debug == 0)
-			         	   snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
+					   output_string_right(ostr, "%s", ob2->name);
 					break;
 				     }
 				  }
@@ -7645,9 +7680,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			      if (ob3 == NULL) {
 				 if (Debug == 0) {
 				    if (ob2->model.port == -1)
-				       snprintf(ostr + left_col_end + 1, left_col_end, "%s **Mismatch**", ob2->name);
+				       output_string_right(ostr, "%s **Mismatch**",
+						ob2->name);
 				    else
-				       snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)", ob2->name);
+				       output_string_right(ostr, "%s", "(no matching pin)");
 				 }
 				 nomatch = TRUE;
 				 /* Pins with different names are on different nets,
@@ -7658,9 +7694,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			   }
 
 			   if (Debug == 0) {
-			      for (m = 0; m < right_col_end + 1; m++)
-				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-			      Fprintf(stdout, ostr);
+			      output_string_print(ostr);
 			   }
 			   else if (nomatch) {
 			      Fprintf(stderr, "No matching pin in cell %s for "
@@ -7699,13 +7733,11 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			   // so don't print out the "no pins" entry.
 
 			   if (strcmp(obn->name, "(no pins)")) {
-			      for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-			      for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-			      snprintf(ostr, 32, "%s", obn->name);
-			      snprintf(ostr + left_col_end + 1, left_col_end, "(no pin, node is %s)", obp->name);
-			      for (m = 0; m < right_col_end + 1; m++)
-				 if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-			      Fprintf(stdout, ostr);
+			      output_string_fill(ostr);
+			      output_string_left(ostr, "%s", obn->name);
+			      output_string_right(ostr, "(no pin, node is %s",
+					obp->name);
+			      output_string_print(ostr);
 			   }
 			}
 			else {
@@ -7747,13 +7779,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
 	       if (ob1 == NULL) {
 		  if (Debug == 0) {
-		     for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-		     for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-		     snprintf(ostr, left_col_end, "%s", obn->name);
-		     snprintf(ostr + left_col_end + 1, left_col_end, "(no matching pin)");
-		     for (m = 0; m < right_col_end + 1; m++)
-			if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-		     Fprintf(stdout, ostr);
+		     output_string_fill(ostr);
+		     output_string_left(ostr, "%s", obn->name);
+		     output_string_right(ostr, "%s", "(no matching pin)");
+		     output_string_print(ostr);
 		  }
 		  else {
 		     Fprintf(stderr, "No netlist match for cell %s pin %s\n",
@@ -7833,13 +7862,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	          *(cover + i) = (char)1;
 
 	          if (Debug == 0) {
-		     for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-		     for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-		     snprintf(ostr, left_col_end, "%s", ob1->name);
-		     snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-		     for (m = 0; m < right_col_end + 1; m++)
-		        if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-		     Fprintf(stdout, ostr);
+		     output_string_fill(ostr);
+		     output_string_left(ostr, "%s", ob1->name);
+		     output_string_right(ostr, "%s", ob2->name);
+		     output_string_print(ostr);
 	          }
 	          else {
 		     Fprintf(stdout, "Circuit %s port %d \"%s\""
@@ -7888,13 +7914,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	                *(cover + i) = (char)1;
 
 	                if (Debug == 0) {
-		           for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-		           for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-		           snprintf(ostr, left_col_end, "%s", ob1->name);
-		           snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-		           for (m = 0; m < right_col_end + 1; m++)
-		              if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-		           Fprintf(stdout, ostr);
+			   output_string_fill(ostr);
+			   output_string_left(ostr, "%s", ob1->name);
+			   output_string_right(ostr, "%s", ob2->name);
+			   output_string_print(ostr);
 	                }
 	                else {
 		           Fprintf(stdout, "Circuit %s port %d \"%s\""
@@ -7952,13 +7975,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	                      *(cover + i) = (char)1;
 
 	                      if (Debug == 0) {
-		                 for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-		                 for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-		                 snprintf(ostr, left_col_end, "%s", ob1->name);
-		                 snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-		                 for (m = 0; m < right_col_end + 1; m++)
-		                    if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-		                 Fprintf(stdout, ostr);
+				 output_string_fill(ostr);
+				 output_string_left(ostr, "%s", ob1->name);
+				 output_string_right(ostr, "%s", ob2->name);
+				 output_string_print(ostr);
 	                      }
 	                      else {
 		                 Fprintf(stdout, "Circuit %s port %d \"%s\""
@@ -8010,13 +8030,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 if (Debug == 0) {
 	    // See above for reverse case
 	    if (strcmp(ob2->name, "(no pins)")) {
-	       for (m = 0; m < left_col_end; m++) *(ostr + m) = ' ';
-	       for (m = left_col_end + 1; m < right_col_end; m++) *(ostr + m) = ' ';
-	       snprintf(ostr, left_col_end, "(no matching pin)");
-	       snprintf(ostr + left_col_end + 1, left_col_end, "%s", ob2->name);
-	       for (m = 0; m < right_col_end + 1; m++)
-		  if (*(ostr + m) == '\0') *(ostr + m) = ' ';
-	       Fprintf(stdout, ostr);
+	       output_string_fill(ostr);
+	       output_string_left(ostr, "%s", "(no matching pin)");
+	       output_string_right(ostr, "%s", ob2->name);
+	       output_string_print(ostr);
 	    }
 	 }
 	 else {
@@ -8179,15 +8196,12 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    }
    FREE(cover);
 
-   if (Debug == 0) {
-      for (i = 0; i < right_col_end; i++) *(ostr + i) = '-';
-      Fprintf(stdout, ostr);
-   }
+   if (Debug == 0)
+      output_string_print_divider(ostr, FALSE);
 
    /* Run cleanuppins on circuit 1 */
-   if (needclean1) {
+   if (needclean1)
       CleanupPins(tc1->name, tc1->file);
-   }
 
    /* Add proxy pins to all instances of Circuit1 */
 
