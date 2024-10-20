@@ -223,6 +223,7 @@ int matchnocase(char *st1, char *st2)
 {
    char *sp1 = st1;
    char *sp2 = st2;
+   char v1 = FALSE, v2 = FALSE;
 
    /* In case of a property that does not exist in one netlist, matchnocase()
     * may be passed a null value, so return 0 to indicate a non-match.
@@ -231,11 +232,26 @@ int matchnocase(char *st1, char *st2)
     */
    if (!sp1 || !sp2) return 0;
 
+   /* Verilog back-slash escaped names should match an equivalent non-
+    * back-slashed name.  (NOTE: This behavior needs to be added to match().)
+    */
+   if ((*sp1 == '\\') && (*sp2 != '\\')) {
+      v1 = TRUE;
+      sp1++;
+   }
+   if ((*sp2 == '\\') && (*sp1 != '\\')) {
+      v2 = TRUE;
+      sp2++;
+   }
+
    while (*sp1 != '\0' && *sp2 != '\0') {
       if (to_lower[*sp1] != to_lower[*sp2]) break;
       sp1++;
       sp2++;
    }
+   if (v1 && (*sp1 == ' ')) sp1++;
+   if (v2 && (*sp2 == ' ')) sp2++;
+
    if ((*sp1 != '\0') || (*sp2 != '\0')) return 0;
    return 1;
 }
