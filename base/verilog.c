@@ -1852,6 +1852,15 @@ skip_endmodule:
 	    }
 	    else {
 		lhs = LookupObject(nexttok, CurrentCell);
+		/* Handle the case in which an assignment is made
+		 * without first declaring a wire for the signal,
+		 * which is considered valid syntax (patch by
+		 * Sylvain Munaut).
+		 */
+		if (lhs == NULL) {
+		    Node(nexttok);
+		    lhs = LookupObject(nexttok, CurrentCell);
+		}
 		strcpy(noderoot, nexttok);
 	    }
 	    SkipTokComments(VLOG_DELIMITERS);
