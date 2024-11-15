@@ -717,10 +717,12 @@ int GetBus(char *astr, struct bus *wb)
     return 0;
 }
 
+//--------------------------------------------------------------------
 // Output a Verilog Module.  Note that since Verilog does not describe
 // low-level devices like transistors, capacitors, etc., then this
 // format is limited to black-box subcircuits.  Cells containing any
 // such low-level devices are ignored.
+//--------------------------------------------------------------------
 
 void VerilogModule(struct nlist *tp)
 {
@@ -1833,8 +1835,9 @@ skip_endmodule:
 	}
 	else {	    /* "assign" */
 	    SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
-	    if (GetBusTok(&wb) == 0) {
-		char *aptr = strvchr(nexttok, '[');
+	    char *aptr = strvchr(nexttok, '[');
+	    if (((aptr == NULL) && (GetBusTok(&wb) == 0)) ||
+			((aptr != NULL) && (GetBus(aptr, &wb) == 0))) {
 		if (aptr != NULL) {
 		    *aptr = '\0';
 		    /* Find object of first net in bus */
@@ -1909,8 +1912,9 @@ skip_endmodule:
 		    break;
 		}
 		else {
-		    if (GetBusTok(&wb2) == 0) {
-			char *aptr = strvchr(nexttok, '[');
+		    char *aptr = strvchr(nexttok, '[');
+		    if (((aptr == NULL) && (GetBusTok(&wb2) == 0)) ||
+				((aptr != NULL) && (GetBus(aptr, &wb2) == 0))) {
 			j = wb2.start;
 			if (aptr != NULL) {
 			    *aptr = '\0';
