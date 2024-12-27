@@ -6604,7 +6604,9 @@ int ResolveAutomorphsByPin()
 		if (N1->hashval != orighash) continue;
 		for (N2 = N1->next; N2 != NULL; N2 = N2->next) {
 		    if ((N2->graph != N1->graph) &&
-				(*matchfunc)(N2->object->name, N1->object->name)) {
+				(*matchfunc)(N2->object->name, N1->object->name) &&
+				(N1->object->type == PORT || N2->object->type == PORT)) {
+
   			if (Debug == TRUE)
 			    Printf("Symmetry group broken by name match (pin %s)\n", N2->object->name);
 			Magic(newhash);
