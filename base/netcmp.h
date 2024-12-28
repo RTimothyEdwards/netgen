@@ -62,7 +62,7 @@ extern void RegroupDataStructures();
 extern void FormatIllegalElementClasses();
 extern void FormatIllegalNodeClasses();
 extern int ResolveAutomorphsByProperty();
-extern int ResolveAutomorphsByPin();
+extern int ResolveAutomorphsByPin(int match_nets);
 extern void SummarizeElementClasses(struct ElementClass *EC);
 extern int remove_group_tags(struct objlist *ob);
 

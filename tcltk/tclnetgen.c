@@ -2512,7 +2512,13 @@ _netcmp_run(ClientData clientData,
 	       if (automorphisms > 0) {
 	          // Next, attempt to resolve automorphisms uniquely by
 	          // using the pin names
-		  automorphisms = ResolveAutomorphsByPin();
+		  automorphisms = ResolveAutomorphsByPin(FALSE);
+	       }
+	       if (automorphisms > 0) {
+	          // Next, attempt to resolve automorphisms uniquely by
+	          // using the net names (should only be done after
+		  // resolving by pin).
+		  automorphisms = ResolveAutomorphsByPin(TRUE);
 	       }
 	       if (automorphisms > 0) {
 	          // Anything left is truly indistinguishable

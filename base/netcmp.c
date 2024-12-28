@@ -6567,11 +6567,16 @@ void PrintAutomorphisms(void)
  * separating out those devices that are connected to matching pins
  * in each circuit.
  *
+ * If match_nets == TRUE, then also match internal nets by name.  Pins
+ * should always be matched by name without considering nets first;
+ * once all symmetries related to pins have been broken, then matching
+ * symmetries by net can keep the output from looking confusing.
+ *
  * Return value is the same as VerifyMatching()
  *-------------------------------------------------------------------------
  */
 
-int ResolveAutomorphsByPin()
+int ResolveAutomorphsByPin(int match_nets)
 {
     struct NodeClass *NC;
     struct Node *N;
@@ -6604,7 +6609,9 @@ int ResolveAutomorphsByPin()
 		if (N1->hashval != orighash) continue;
 		for (N2 = N1->next; N2 != NULL; N2 = N2->next) {
 		    if ((N2->graph != N1->graph) &&
-				(*matchfunc)(N2->object->name, N1->object->name)) {
+				(*matchfunc)(N2->object->name, N1->object->name) &&
+				(N1->object->type == PORT || N2->object->type == PORT)) {
+
   			if (Debug == TRUE)
 			    Printf("Symmetry group broken by name match (pin %s)\n", N2->object->name);
 			Magic(newhash);
