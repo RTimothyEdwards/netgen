@@ -1306,6 +1306,14 @@ int UniquePins(char *name, int filenum)
    return 1;
 }
 
+/* Structure used below for keeping track of node numbers
+ * belonging to removed nodes.
+ */
+struct LinkedNum {
+    int node;
+    struct LinkedNum *next;
+};
+
 /*------------------------------------------------------*/
 /* Callback function for CleanupPins			*/
 /* Note that if the first pin of the instance is a	*/
@@ -1318,6 +1326,7 @@ struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
    struct nlist *ptr;
    struct objlist *ob, *obt, *lob, *nob, *firstpin, *pob;
    struct nlist *tc = (struct nlist *)clientdata;
+   struct LinkedNum *newnodenum, *removedNodes = (struct LinkedNum *)NULL;
    int pinnum;
    char *saveinst = NULL;
 
@@ -1373,6 +1382,15 @@ struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
 		    saveinst = ob->instance.name;
 		}
 		if (ob->model.class != NULL) FREE(ob->model.class);
+
+		// Record the net number of the pin being removed, to
+		// check at the end if the net belonged to a pin that
+		// got orphaned.
+		newnodenum = (struct LinkedNum *)MALLOC(sizeof(struct LinkedNum));
+		newnodenum->node = ob->node;
+		newnodenum->next = removedNodes;
+		removedNodes = newnodenum;
+
 		FREE(ob);
 	     }
 	     else {
@@ -1414,6 +1432,28 @@ struct nlist *cleanuppins(struct hashlist *p, void *clientdata)
 	  if (firstpin && (firstpin->type == FIRSTPIN))
 	     HashPtrInstall(firstpin->instance.name, firstpin, &(ptr->instdict));
       }
+   }
+
+   while (removedNodes != NULL) {
+	int nodenum = removedNodes->node;
+	struct objlist *ob2;
+
+	/* Only concerned with nodes that are in the pin list of ptr->cell */
+	for (ob = ptr->cell; ob != NULL; ob = ob->next) {
+	    if (ob->type != PORT) break;
+	    if (ob->node == nodenum) break;
+	}
+	if (ob && (ob->type == PORT)) {
+	    /* Check if this node number exists only in the port record */
+	    for (nob = ob->next; nob != NULL; nob = nob->next)
+		if (nob->node == nodenum) break;
+	    if (nob == NULL) {
+		ob->node = -1;		/* This pin is now disconnected */
+	    }
+	}
+	newnodenum = removedNodes;
+	removedNodes = removedNodes->next;
+	FREE(newnodenum);
    }
 
    if (saveinst != NULL) FREE(saveinst);

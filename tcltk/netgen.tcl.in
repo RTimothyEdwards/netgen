@@ -655,6 +655,11 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	    }
 	 } elseif {[netgen::print queue] == {} && $result == 0} {
 	    set pinMismatch 1
+	 } else {
+	    # This assumes that proxy pins are added correctly.  Previously,
+	    # that was not trusted, and so an initial pin mismatch would
+	    # always force subcells to be flattened.
+	    set doFlatten 0
 	 }
       }
       if {$doFlatten} {

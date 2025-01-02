@@ -6585,7 +6585,10 @@ int ResolveAutomorphsByPin(int match_nets)
     int portnum;
 
     /* Diagnostic */
-    Fprintf(stdout, "Resolving symmetries by pin name.\n");
+    if (match_nets)
+	Fprintf(stdout, "Resolving symmetries by net name.\n");
+    else
+	Fprintf(stdout, "Resolving symmetries by pin name.\n");
 
     for (NC = NodeClasses; NC != NULL; NC = NC->next) {
 	struct Node *N1, *N2;
@@ -7589,6 +7592,10 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
       if (ob2->type != PORT) break;
       else haspins = 1;
+      /* The model.port record for pins will be used to match the pin order
+       * of the cells in each netlist.  Make sure the value is reset on
+       * entering this subroutine.
+       */
       ob2->model.port = -1;
    }
    numnodes = 0;
@@ -7742,7 +7749,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			   if (strcmp(obn->name, "(no pins)")) {
 			      output_string_fill(ostr);
 			      output_string_left(ostr, "%s", obn->name);
-			      output_string_right(ostr, "(no pin, node is %s",
+			      output_string_right(ostr, "(no pin, node is %s)",
 					obp->name);
 			      output_string_print(ostr);
 			   }
@@ -8034,11 +8041,36 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       if (ob2->type != PORT) break;
       if (ob2->model.port == -1) {
 
+	 /* Find this node in NodeClasses and find the corresponding
+	  * net in the other circuit, if there is one (NOTE:  Needs
+	  * refactoring;  should not be going through NodeClasses
+	  * inside a loop.)
+	  */
+	 obn = NULL;
+	 for (NC = NodeClasses; NC != NULL; NC = NC->next) {
+	    for (N2 = NC->nodes; N2 != NULL; N2 = N2->next) {
+	       if (N2->graph != Circuit1->file) {
+		  obp = N2->object;
+		  if (IsPort(obp) && (obp->node == ob2->node)) {
+		     for (N1 = NC->nodes; N1 != NULL; N1 = N1->next) {
+			if (N1->graph == Circuit1->file) {
+			   obn = N1->object;
+			}
+		     }
+		  }
+	       }
+	    }
+	 }
+
 	 if (Debug == 0) {
 	    // See above for reverse case
 	    if (strcmp(ob2->name, "(no pins)")) {
 	       output_string_fill(ostr);
-	       output_string_left(ostr, "%s", "(no matching pin)");
+	       if (obn == NULL)
+		  output_string_left(ostr, "%s", "(no matching pin)");
+	       else
+		  output_string_left(ostr, "(no pin, node is %s)",
+					obn->name);
 	       output_string_right(ostr, "%s", ob2->name);
 	       output_string_print(ostr);
 	    }
@@ -8155,12 +8187,15 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 if (obn == NULL) ob1->node = -1;	/* Make disconnected */
       }
 
+      /* NOTE:  Previously kept the port if model.port is -1;  however,
+       * all ports are -1 here so not sure why that was in there. . .
+       */
       if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0
-		|| (ob1->node < 0 && tc1->class == CLASS_MODULE)
-		|| (ob1->node < 0 && ob1->model.port == -1)) {
+		|| (ob1->node < 0 && tc1->class == CLASS_MODULE)) {
 
 	 /* Add a proxy pin to tc2 */
          obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));
+         obn->node = -1;
 	 if (ob1 == NULL) {
 	    obn->name = (char *)MALLOC(15);
             sprintf(obn->name, "proxy%d", rand() & 0x3ffffff);
@@ -8172,7 +8207,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
          obn->type = UNKNOWN;
          obn->model.port = (i - j);
          obn->instance.name = NULL;
-         obn->node = -1;
 
 	 if (ob2 == tc2->cell) {
 	    obn->next = ob2;
@@ -8188,9 +8222,16 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 HashPtrInstall(obn->name, obn, &(tc2->objdict));
       }
 
-      else if (ob1 != NULL && ob1->type == PORT) {
+      else if (ob1 != NULL && ob1->type == PORT && ob1->node < 0) {
 	 /* Disconnected node was not meaningful, has no pin match in	*/
-	 /* the compared circuit, and so should be discarded.		*/
+	 /* the compared circuit, and so should be discarded.  This	*/
+	 /* case is not output above, so do it here.			*/
+
+	 output_string_fill(ostr);
+	 output_string_left(ostr, "%s", ob1->name);
+	 output_string_right(ostr, "%s", "(no matching pin)");
+	 output_string_print(ostr);
+
 	 ob1->node = -2;
 	 needclean1 = 1;
 
