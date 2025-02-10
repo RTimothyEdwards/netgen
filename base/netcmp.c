@@ -1217,7 +1217,8 @@ SortFanoutLists(nlist1, nlist2)
 	    	f2 -= 1;
 		matched[f1] = -1;
 		total++;
-	    	if (f2 != f1) {
+	    	if ((f2 != f1) && (nlist2->flist[f1].permute != 0) &&
+				(nlist2->flist[f2].permute != 0)) {
 		    temp = nlist2->flist[f2];
 		    nlist2->flist[f2] = nlist2->flist[f1];
 		    nlist2->flist[f1] = temp;
@@ -1251,7 +1252,8 @@ SortFanoutLists(nlist1, nlist2)
 	    	f1 -= 1;
 		matched[f2] = -1;
 		total++;
-	    	if (f1 != f2) {
+	    	if ((f1 != f2) && (nlist1->flist[f1].permute != 0) &&
+				(nlist1->flist[f2].permute != 0)) {
 		    temp = nlist1->flist[f1];
 		    nlist1->flist[f1] = nlist1->flist[f2];
 		    nlist1->flist[f2] = temp;
@@ -7013,10 +7015,21 @@ int Permute()
 	       return (0);
  	    }
 
-	    /* update magic numbers */
-	    for (NL = E->nodelist; NL != NULL; NL = NL->next) 
-	       if (NL->pin_magic == one)
-		  NL->pin_magic = two;
+	    /* Update magic numbers.  To ensure that this works */
+	    /* regardless of the pin order of the pins in each	*/
+	    /* netlist, always set both pins to the larger of	*/
+	    /* the two pin_magic values.			*/
+
+	    if (one > two) {
+	       for (NL = E->nodelist; NL != NULL; NL = NL->next) 
+	          if (NL->pin_magic == two)
+		     NL->pin_magic = one;
+	    }
+	    else {
+	       for (NL = E->nodelist; NL != NULL; NL = NL->next) 
+	          if (NL->pin_magic == one)
+		     NL->pin_magic = two;
+	    }
 	 }
       }
    }
