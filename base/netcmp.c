@@ -6055,6 +6055,9 @@ PropertyMatch(struct Element *E1, struct Element *E2,
 #endif
    }
 
+   obn1 = ob1->next;
+   obn2 = ob2->next;
+
    /* Find the first property record of each circuit.  obn1, obn2 are	*/
    /* the last device record before the properties for each device.	*/
    for (tp1 = ob1->next; (tp1 != NULL) && tp1->type > FIRSTPIN; tp1 = tp1->next)
