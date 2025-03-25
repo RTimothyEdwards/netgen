@@ -2248,7 +2248,10 @@ int PromoteProperty(struct property *prop, struct valuelist *vl,
     if (prop == NULL || vl == NULL) return -1;
     if (prop->type == vl->type) return 1;	/* Nothing to do */
     result = 0;
-    if (prop->type == PROP_EXPRESSION) {
+    /* If vl is an expression but prop is not, then try to reduce
+     * the expression in vl.
+     */
+    if (vl->type == PROP_EXPRESSION) {
 	ReduceOneExpression(vl, ob, tc, FALSE);
     }
     switch (prop->type) {
