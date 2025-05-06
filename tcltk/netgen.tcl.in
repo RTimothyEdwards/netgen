@@ -490,9 +490,17 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       set perrors 0
       if {![catch {open $setupfile r} fsetup]} {
 	 set sline 0
+	 set has_permute_default 0
+	 set has_property_default 0
 	 set command {}
 	 while {[gets $fsetup line] >= 0} {
 	    incr sline
+	    if {[regexp {^[[:space:]]*permute[[:space:]]+default} $line]} {
+	       set has_permute_default 1
+	    }
+	    if {[regexp {^[[:space:]]*property[[:space:]]+default} $line]} {
+	       set has_property_default 1
+	    }
 	    append command $line "\n"
 	    if {[info complete $command]} {
 	       if {[catch {uplevel 1 [list namespace eval netgen $command]} msg]} {
@@ -504,6 +512,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	    }
 	 }
 	 close $fsetup
+	 if {! $has_permute_default || ! $has_property_default} {
+	    puts stdout "Warning: netgen commands \"permute default\" and \"property default\" should lead the setup file"
+	 }
       } else {
 	 puts stdout "Error:  Cannot read the setup file $setupfile"
       }
