@@ -491,6 +491,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       if {![catch {open $setupfile r} fsetup]} {
 	 set sline 0
 	 set command {}
+	 # preface reading of setup file with defaults
+	 netgen::permute default
+	 netgen::property default
 	 while {[gets $fsetup line] >= 0} {
 	    incr sline
 	    append command $line "\n"
