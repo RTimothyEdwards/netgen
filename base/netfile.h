@@ -36,6 +36,7 @@ extern struct hashdict *definitions;
 
 extern char *nexttok;
 #define SKIPTO(a) do {SkipTok(NULL);} while (!match(nexttok,a))
+extern char *strdtok0(char *pstring, char *delim1, char *delim2, char isverilog);
 extern char *strdtok(char *pstring, char *delim1, char *delim2);
 extern char *GetLineAtTok();
 extern void SkipTok(char *delimiter);
