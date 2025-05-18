@@ -599,7 +599,7 @@ void SpiceTokNoNewline(void)
 {
     int contline;
 
-    if ((nexttok = strdtok(NULL, WHITESPACE_DELIMITER, NULL)) != NULL) return;
+    if ((nexttok = strdtok0(NULL, WHITESPACE_DELIMITER, NULL, FALSE)) != NULL) return;
 
     while (nexttok == NULL) {
 	contline = getc(infile);
@@ -701,7 +701,7 @@ void SpiceSkipNewLine(void)
 /* the boundary between two-character and one-character delimiters.	*/
 /*----------------------------------------------------------------------*/
 
-char *strdtok(char *pstring, char *delim1, char *delim2)
+char *strdtok0(char *pstring, char *delim1, char *delim2, char isverilog)
 {
     static char *stoken = NULL;
     static char *sstring = NULL;
@@ -746,7 +746,7 @@ char *strdtok(char *pstring, char *delim1, char *delim2)
     /* should know whether it is parsing SPICE or verilog and handle the syntax	*/
     /* accordingly (needs to be done).						*/
 
-    if (*s == '\\') {
+    if (isverilog && (*s == '\\')) {
         s++;
         while (*s != '\0') {
 	    if ((*s == ' ') || ((*s == '\\') && (*(s + 1) == '\0'))) {
@@ -815,6 +815,17 @@ char *strdtok(char *pstring, char *delim1, char *delim2)
     strcpy(sstring, stoken);	/* Just copy to the end */
     stoken = s;
     return sstring;
+}
+
+/*----------------------------------------------------------------------*/
+/* strdtok() is the original string tokenizer.  It calls strdtok0()	*/
+/* with isverilog=TRUE, so that tokens are parsed as (potentially)	*/
+/* verilog names, which includes verilog backslash notation.		*/
+/*----------------------------------------------------------------------*/
+
+char *strdtok(char *pstring, char *delim1, char *delim2)
+{
+   return strdtok0(pstring, delim1, delim2, TRUE);
 }
 
 /*----------------------------------------------------------------------*/
