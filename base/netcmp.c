@@ -7530,6 +7530,12 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 	  else {
 	     lob = ob;
 	     ob->type = i++;
+	     if (ob->model.class == NULL) {
+		ob->model.class = strsave(tc->name);
+	     }
+	     if (ob->instance.name == NULL) {
+		ob->instance.name = strsave(firstpin->instance.name);
+	     }
 	     ob = ob->next;
 	  }
 	  tob = tob->next;
