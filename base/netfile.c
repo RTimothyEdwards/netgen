@@ -329,6 +329,11 @@ int GetNextLineNoNewline(char *delimiter)
 	    llen = strlen(line);
 	}
 	while (llen == linesize - 1) {
+	    /* Note that in the rare case where a newline is in the last buffer
+	     * position, we're done.
+	     */
+	    if (*(line + llen - 1) == '\n') break;
+
 	    newbuf = (char *)MALLOC(linesize + 501);
 	    strcpy(newbuf, line);
 	    FREE(line);
