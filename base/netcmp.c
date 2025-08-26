@@ -8482,6 +8482,182 @@ int EquivalentElement(char *name, struct nlist *circuit, struct objlist **retobj
 }
 
 /*------------------------------------------------------*/
+/* Structure and definitins used by derivedprops()	*/
+/*------------------------------------------------------*/
+
+enum DerivedType {area_type, perimeter_type};
+
+typedef struct _derivedpropdata {
+    struct nlist *cell;
+    int fnum;
+    char *pwidth;
+    char *plength;
+    enum DerivedType type;
+} DerivedPropData;
+
+/*------------------------------------------------------*/
+/* derivedprops --- Callback function for a recursive	*/
+/* search over all cells with a pointer clientdata.	*/
+/* The pointer is a DerivedPropData structure that	*/
+/* contains the information needed to determine how to	*/
+/* generate an "area" or "perimeter" property based on	*/
+/* the device length and width.				*/
+/*------------------------------------------------------*/
+
+struct nlist *derivedprops(struct hashlist *p, void *clientdata)
+{
+    struct nlist *ptr;
+    struct objlist *ob;
+    struct valuelist *vl, *newvlist;
+    struct nlist *tc;
+    struct property *prop;
+    int i;
+    double valuew, valuel, valuea = 0.0, valuep = 0.0;
+    int haswidth = FALSE, haslength = FALSE;
+    int hasarea = FALSE, hasperimeter = FALSE;
+
+    DerivedPropData *dpd = (DerivedPropData *)clientdata;
+
+    tc = dpd->cell;
+    ptr = (struct nlist *)(p->ptr);
+    if (ptr->file != tc->file) return NULL;
+
+    /* Search all instances in the cell for properties, find those matching
+     * the cell class to be modified, and create a new derived property for
+     * area or perimeter for that instance.
+     */
+
+    for (ob = ptr->cell; ob; ob = ob->next) {
+       if (ob->type == PROPERTY) {
+	  if ((*matchfunc)(ob->model.class, tc->name)) {
+	     for (i = 0;; i++) {
+		vl = &(ob->instance.props[i]);
+		if (vl->type == PROP_ENDLIST) break;
+		prop = (struct property *)HashLookup(vl->key, &(tc->propdict));
+		if (prop != NULL) {
+		    if ((*matchfunc)(vl->key, dpd->pwidth)) {
+			haswidth = TRUE;
+			if (vl->type == PROP_DOUBLE)
+			    valuew = vl->value.dval;
+			else if (vl->type == PROP_INTEGER)
+			    valuew = (double)vl->value.ival;
+			else
+			   haswidth = FALSE;
+		    }
+		    else if ((*matchfunc)(vl->key, dpd->plength)) {
+			haslength = TRUE;
+			if (vl->type == PROP_DOUBLE)
+			    valuel = vl->value.dval;
+			else if (vl->type == PROP_INTEGER)
+			    valuel = (double)vl->value.ival;
+			else
+			    haslength = FALSE;
+		    }
+		    else if ((dpd->type == area_type)
+				&& ((*matchfunc)(vl->key, "area"))) {
+			hasarea = TRUE;
+		    }
+		    else if ((dpd->type == perimeter_type)
+				&& ((*matchfunc)(vl->key, "perimeter"))) {
+			hasperimeter = TRUE;
+		    }
+		}
+	     }
+	     if (haslength && haswidth) {
+
+		/* Once the property names for device width and length have
+		 * been found, and the values recorded, add the area or
+		 * perimeter value to the property list for the instance,
+		 * unless the instance already has the property.
+		 */
+		newvlist = (struct valuelist *)CALLOC(i + 1, sizeof(struct valuelist));
+		vl = &newvlist[i];
+		vl->key = NULL;
+		vl->type = PROP_ENDLIST;
+		vl->value.ival = 0;
+
+		vl = &newvlist[--i];
+		if ((dpd->type == area_type) && (!hasarea)) {
+		    valuea = valuew * valuel;
+		    vl->key = strsave("area");
+		    vl->type = PROP_DOUBLE;
+		    vl->value.dval = valuea;
+			
+		} else if ((dpd->type == perimeter_type) && (!hasperimeter)) {
+		    valuep = 2 * (valuew + valuel);
+		    vl->key = strsave("perimeter");
+		    vl->type = PROP_DOUBLE;
+		    vl->value.dval = valuep;
+		}
+		for (--i; i >= 0; i--) {
+		   vl = &newvlist[i];
+		   vl->key = ob->instance.props[i].key;
+		   vl->type = ob->instance.props[i].type;
+		   vl->value = ob->instance.props[i].value;
+		}
+		FREE(ob->instance.props);
+		ob->instance.props = newvlist;
+	     }
+	  }
+       }
+    }
+}
+
+/*------------------------------------------------------*/
+/* Create a new "area" or "perimeter" property in all	*/
+/* instances of a given device, based on the specified	*/
+/* names for the width and length parameters.		*/
+/*------------------------------------------------------*/
+
+void
+DeriveProperty(struct nlist *tc, int fnum, char *pwidth, char *plength, 
+	enum DerivedType type)
+{
+    DerivedPropData dpd;
+
+    dpd.pwidth = pwidth;
+    dpd.plength = plength;
+    dpd.fnum = fnum;
+    dpd.cell = tc;
+    dpd.type = type;
+
+    /* Create the new derived property in the cell. */
+    if (type == area_type)
+	PropertyDouble(tc->name, fnum, "area", 0.01, 0.0);    
+    else if (type == perimeter_type)
+	PropertyDouble(tc->name, fnum, "perimeter", 0.01, 0.0);    
+    else
+	return;
+
+    /* Find all instances of the cell and add the derived property */
+    RecurseCellHashTable2(derivedprops, (void *)(&dpd));
+}
+
+/*------------------------------------------------------*/
+/* Create a new "area" property in all instances of a	*/
+/* given device, based on the specified width and	*/
+/* length parameter names.				*/
+/*------------------------------------------------------*/
+
+void
+DeriveAreaProperty(struct nlist *tp, int fnum, char *pwidth, char *plength)
+{
+    DeriveProperty(tp, fnum, pwidth, plength, area_type);
+}
+
+/*------------------------------------------------------*/
+/* Create a new "perimeter" property in all instances	*/
+/* of a given device, based on the specified width and	*/
+/* length parameter names.				*/
+/*------------------------------------------------------*/
+
+void
+DerivePerimeterProperty(struct nlist *tp, int fnum, char *pwidth, char *plength)
+{
+    DeriveProperty(tp, fnum, pwidth, plength, perimeter_type);
+}
+
+/*------------------------------------------------------*/
 /* Flatten the two cells at the top of the compare	*/
 /* queue.						*/
 /*------------------------------------------------------*/

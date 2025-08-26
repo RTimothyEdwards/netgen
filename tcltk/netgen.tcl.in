@@ -594,6 +594,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	    lappend properr [lindex $endval 0]
 	 } elseif {$uresult == -2} {	;# unmatched pins
 	    set doCheckFlatten 1
+	 } elseif {$uresult == -4} {	;# unmatched pins and properties
+	    lappend properr [lindex $endval 0]
+	    set doCheckFlatten 1
 	 }
       } else {
 	 # not equivalent
