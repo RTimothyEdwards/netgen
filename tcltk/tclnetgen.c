@@ -2572,6 +2572,7 @@ _netcmp_run(ClientData clientData,
 /*	 0: not verified				*/
 /*	-1: no elements or nodes			*/
 /*	-3: verified with property error		*/
+/*	-4: verified with property and port errors	*/
 /*   equiv option					*/
 /*	-2: pin mismatch				*/
 /*							*/
@@ -2673,8 +2674,12 @@ _netcmp_verify(ClientData clientData,
       else if (automorphisms == -2) {
 	 if (index == EQUIV_IDX)
 	    Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
-	 else if (index == UNIQUE_IDX)
-	    Tcl_SetObjResult(interp, Tcl_NewIntObj(-2));
+	 else if (index == UNIQUE_IDX) {
+	    if (PropertyErrorDetected == 0)
+	       Tcl_SetObjResult(interp, Tcl_NewIntObj(-2));
+	    else
+	       Tcl_SetObjResult(interp, Tcl_NewIntObj(-4));
+	 }
 	 else if (index > 0)
 	    Fprintf(stdout, "Circuits match uniquely with port errors.\n");
       }
@@ -3428,13 +3433,21 @@ _netcmp_property(ClientData clientData,
     double dval;
     int ival, argstart;
 
+    char *topoptions[] = {
+	"default", "series", "serial", "parallel", "topology", NULL
+    };
+    enum TopOptionIdx {
+	TOP_DEFAULT_IDX, TOP_SERIES_IDX, TOP_SERIAL_IDX, TOP_PARALLEL_IDX,
+	TOP_TOPOLOGY_IDX
+    };
+
     char *options[] = {
 	"add", "create", "remove", "delete", "tolerance", "merge", "serial",
-	"series", "parallel", "associate", "topology", NULL
+	"series", "parallel", "associate", "derive", NULL
     };
     enum OptionIdx {
 	ADD_IDX, CREATE_IDX, REMOVE_IDX, DELETE_IDX, TOLERANCE_IDX, MERGE_IDX,
-	SERIAL_IDX, SERIES_IDX, PARALLEL_IDX, ASSOCIATE_IDX, TOPOLOGY_IDX
+	SERIAL_IDX, SERIES_IDX, PARALLEL_IDX, ASSOCIATE_IDX, DERIVE_IDX
     };
     int result, index, idx2;
 
@@ -3469,6 +3482,14 @@ _netcmp_property(ClientData clientData,
 	COMB_NONE_IDX, COMB_PAR_IDX, COMB_ADD_IDX, COMB_CRITICAL_IDX
     };
 
+    char *deriveoptions[] = {
+	"area", "perimeter", NULL
+    };
+
+    enum DeriveOptionIdx {
+	AREA_IDX, PERIMETER_IDX
+    };
+
     char *yesno[] = {
 	"on", "yes", "true", "enable", "allow",
 	"off", "no", "false", "disable", "prohibit", NULL
@@ -3483,8 +3504,13 @@ _netcmp_property(ClientData clientData,
 	"strict", "relaxed", NULL
     };
 
+    /* Don't need to check return value */
+    index = -1;
+    Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)topoptions,
+		"option", 0, &index);
+
     /* Check for special command "property default" */
-    if ((objc == 2) && (!strcmp(Tcl_GetString(objv[1]), "default"))) {
+    if ((objc == 2) && (index == TOP_DEFAULT_IDX)) {
 
 	/* For each FET device, do "merge {w add_critical}" and	*/
 	/* "remove as ad ps pd".  This allows parallel devices	*/
@@ -3531,7 +3557,7 @@ _netcmp_property(ClientData clientData,
 	}
 	return TCL_OK;
     }
-    else if ((objc == 3) && (!strcmp(Tcl_GetString(objv[1]), "parallel"))) {
+    else if ((objc == 3) && (index == TOP_PARALLEL_IDX)) {
 	if (!strcmp(Tcl_GetString(objv[2]), "none")) {
 	    GlobalParallelNone = TRUE;
 	    SetParallelCombine(FALSE);
@@ -3553,8 +3579,7 @@ _netcmp_property(ClientData clientData,
 	}
 	return TCL_OK;
     }
-    else if ((objc == 3) && ((!strcmp(Tcl_GetString(objv[1]), "series")) ||
-		(!strcmp(Tcl_GetString(objv[1]), "serial")))) {
+    else if ((objc == 3) && ((index == TOP_SERIES_IDX) || (index == TOP_SERIAL_IDX))) {
 	if (!strcmp(Tcl_GetString(objv[2]), "none")) {
 	    SetSeriesCombine(FALSE);
 	}
@@ -3568,7 +3593,7 @@ _netcmp_property(ClientData clientData,
 	}
 	return TCL_OK;
     }
-    else if ((objc > 1) && (!strcmp(Tcl_GetString(objv[1]), "topology"))) {
+    else if ((objc > 1) && (index == TOP_TOPOLOGY_IDX)) {
 	if (objc == 2) {
 	    if (ExactTopology)
 		Tcl_SetResult(interp, "Strict topology property matching.",
@@ -4014,6 +4039,32 @@ _netcmp_property(ClientData clientData,
 		}
 		break;
 
+	    case DERIVE_IDX:
+		/* Create a derived property.  For now, this just creates
+		 * "area" or "perimeter" properties.  There may not (?)
+		 * be enough cause to make other ones.  Unlike other
+		 * "property" options, this option causes the whole circuit
+		 * database to be searched for the device in question, and
+		 * the new property is added.
+		 */
+		if (objc < 6) {
+		    Tcl_WrongNumArgs(interp, 2, objv, "{area|perimeter width length}");
+		    return TCL_ERROR;
+		}
+		result = Tcl_GetIndexFromObj(interp, objv[3],
+			(CONST84 char **)deriveoptions,
+			"area|perimeter", 0, &idx2);
+		if (result != TCL_OK) return result;
+		switch (idx2) {
+		    case AREA_IDX:
+			DeriveAreaProperty(tp, fnum, Tcl_GetString(objv[4]),
+				Tcl_GetString(objv[5]));
+			break;
+		    case PERIMETER_IDX:
+			DerivePerimeterProperty(tp, fnum, Tcl_GetString(objv[4]),
+				Tcl_GetString(objv[5]));
+			break;
+		}
 	}
     }
     return TCL_OK;

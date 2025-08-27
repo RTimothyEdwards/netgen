@@ -70,6 +70,8 @@ extern int remove_group_tags(struct objlist *ob);
 #ifdef TCL_NETGEN
 extern int EquivalentNode();
 extern int EquivalentElement();
+extern void DeriveAreaProperty();
+extern void DerivePerimeterProperty();
 
 extern void enable_interrupt();
 extern void disable_interrupt();
