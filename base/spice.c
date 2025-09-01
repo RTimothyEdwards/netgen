@@ -532,6 +532,7 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 
     SkipTok(NULL); /* get the next token */
     if ((EndParseFile()) && (nexttok == NULL)) break;
+    if (nexttok == NULL) break;
 
     if (nexttok[0] == '*') SkipNewLine(NULL);
 
