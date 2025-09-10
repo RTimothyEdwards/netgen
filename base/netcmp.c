@@ -7601,6 +7601,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    int hasproxy1 = 0, hasproxy2 = 0;
    int needclean1 = 0, needclean2 = 0;
    int nomatch = 0;
+   int P1, P2;
    int filenum = -1;
    int *correspond;
    char *ostr;
@@ -7633,6 +7634,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       return 2;
    }
 
+   correspond = (int *)CALLOC((tc1->nodename_cache_maxnodenum + 1), sizeof(int));
    cover = (char *)CALLOC(numnodes, sizeof(char));
    numorig = numnodes;
 
@@ -7851,8 +7853,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
    ob1 = tc1->cell;
 
-   correspond = (int *)CALLOC((tc1->nodename_cache_maxnodenum + 1), sizeof(int));
-  
    for (i = 0; i < numorig; i++) {
       bangptr1 = strrchr(ob1->name, '!');
       if (bangptr1 && (*(bangptr1 + 1) == '\0'))
@@ -7973,7 +7973,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	             if (bangptr2) *bangptr2 = '!';
 		     break;
 		  }
-		  else {
+		  else if (IsPort(ob1) && IsPort(ob2)) {
 		     struct Permutation *permute1, *permute2;
 		     struct objlist *ob1a = NULL, *ob2a = NULL;
 
@@ -8003,10 +8003,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 		     }
 		     if (ob1a && ob2a) {
 			if ((ob1->node == ob1a->node) && (ob2->node == ob2a->node)) {
-			   /* This should be enough to prove equivalency */
-		           if ((correspond[ob1->node] == 0) || (correspond[ob1->node] == ob2->node)) {
-
-		              correspond[ob1->node] = ob2->node;	/* remember corresponding node */
+		           if ((correspond[ob1->node] == 0) ||
+					(correspond[ob1->node] == ob2->node)) {
 	                      ob2->model.port = i;			/* save order */
 	                      *(cover + i) = (char)1;
 
@@ -8268,6 +8266,38 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
    if (Debug == 0)
       output_string_print_divider(ostr, FALSE);
+
+   /* Catch errors where disconnected ports get effectively hidden by	*/
+   /* pin permutations.							*/
+
+   if (result == 1) {
+      int found = 0;
+      for (NC = NodeClasses; NC != NULL; NC = NC->next) {
+         P1 = P2 = 0;
+         for (N1 = NC->nodes; N1 != NULL; N1 = N1->next) {
+            if (N1->graph == Circuit2->file)
+	       if (IsPort(N1->object)) P2++;
+            if (N1->graph == Circuit1->file)
+	       if (IsPort(N1->object)) P1++;
+         }
+         if (P1 != P2) {
+	    if (found == 0)
+	       Fprintf(stdout, "\nPort connection errors found:\n");
+	    found = 1;
+            for (N1 = NC->nodes; N1 != NULL; N1 = N1->next) {
+	       obn = N1->object;
+
+	       if (IsPort(obn))
+	          Fprintf(stdout, "    %s (%d)\n", obn->name, N1->graph);
+	       else
+	          Fprintf(stdout, "    %s (%d) (no port)\n", obn->name, N1->graph);
+	       if (N1->graph == Circuit1->file)
+		   correspond[obn->node] = -1;
+	    }
+	 }
+      }
+      if (found == 1) Fprintf(stdout, "\n");
+   }
 
    /* Run cleanuppins on circuit 1 */
    if (needclean1)
