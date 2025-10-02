@@ -5218,14 +5218,23 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 
    if (comb == TRUE) {
       double pd;
+      int hascrit = FALSE;
       int mult, cidx = -1;
-      struct valuelist *avl, *cvl = NULL;
+      struct valuelist **avl, **cvl;
+      struct valuelist *cvlp;
+
       critval.type = PROP_ENDLIST;
       critval.value.dval = 0.0;
+
+      /* Track properties separately so that multiple properties can be
+       * added together (e.g., area and perimeter)
+       */
+      avl = (struct valuelist **)CALLOC(pcount, sizeof(struct valuelist *));
+      cvl = (struct valuelist **)CALLOC(pcount, sizeof(struct valuelist *));
+
       for (i = 0; i < run; i++) {
-         avl = NULL;
-	 // if (vlist[0][i] == NULL) continue;
-	 // mult = vlist[0][i]->value.ival;
+	 for (p = 0; p < pcount; p++) avl[p] = NULL;
+
 	 if (vlist[0][i] == NULL)
 	    mult = 1;
 	 else
@@ -5242,6 +5251,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 
 	    /* critical properties never combine, but track them */
 	    if ((series == TRUE) && (ctype & MERGE_S_CRIT)) {
+		hascrit = TRUE;
 	        pd = 2 * fabs(vl->value.dval - critval.value.dval) /
 				(vl->value.dval + critval.value.dval);
 		if ((vl->type != critval.type) || (pd > kl->slop.dval))
@@ -5253,6 +5263,7 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		continue;
 	    }
 	    if ((series == FALSE) && (ctype & MERGE_P_CRIT)) {
+		hascrit = TRUE;
 	        pd = 2 * fabs(vl->value.dval - critval.value.dval) /
 				(vl->value.dval + critval.value.dval);
 		if ((vl->type != critval.type) || (pd > kl->slop.dval))
@@ -5286,19 +5297,30 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		}
 	    }
 	    if (ctype & (MERGE_S_ADD | MERGE_P_ADD | MERGE_S_PAR | MERGE_P_PAR))
-		avl = vl;
+		avl[p] = vl;
          }
-	 if (cidx == i) cvl = avl;
+	 if (hascrit == FALSE) cidx = 0;	/* No critical property */
+
+	 /* Each time a new critical value is found, set the location	*/
+	 /* of the property record that will collect the summation or	*/
+	 /* parallel combination of values.				*/
+	 if (cidx == i) {
+	    for (p = 1; p < pcount; p++) {
+	 	cvl[p] = avl[p];
+	    }
+	 }
 
 	 /* Sorting should have put all records with the same critical	*/
 	 /* value together sequentially.  So if there are still		*/
 	 /* multiple property records, then merge them into the first	*/
-	 /* record with the same critical property value.		*/
+	 /* record with the same critical property value.  If no 	*/
+	 /* critical value exists, then all records can be merged.	*/
 
 	 if ((i > 0) && (cidx >= 0) && (cidx < i)) {
 	    for (p = 1; p < pcount; p++) {
 		vl = vlist[p][i];
 		ctype = clist[p][i];
+		cvlp = cvl[p];
 
 		if (ctype & (MERGE_S_ADD | MERGE_P_ADD)) {
 		    if (!vlist[0][i]) {
@@ -5307,21 +5329,21 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 				sizeof(struct valuelist));
 		    }
 		    vlist[0][i]->value.ival = 0;	/* set M to 0 */
-		    if (cvl && (cvl->type == PROP_INTEGER))
+		    if (cvlp && (cvlp->type == PROP_INTEGER))
 		    {
 			if (vl->type == PROP_INTEGER)
-			    cvl->value.ival += vl->value.ival;
+			    cvlp->value.ival += vl->value.ival;
 			else {
-			    cvl->type = PROP_DOUBLE;
-			    cvl->value.dval = (double)cvl->value.ival + vl->value.dval;
+			    cvlp->type = PROP_DOUBLE;
+			    cvlp->value.dval = (double)cvlp->value.ival + vl->value.dval;
 			}
 		    }
-		    else if ((cvl && vl->type == PROP_DOUBLE))
+		    else if ((cvlp && vl->type == PROP_DOUBLE))
 		    {
 			if (vl->type == PROP_INTEGER)
-			    cvl->value.dval += (double)vl->value.ival;
+			    cvlp->value.dval += (double)vl->value.ival;
 			else
-			    cvl->value.dval += vl->value.dval;
+			    cvlp->value.dval += vl->value.dval;
 		    }
 		}
 		else if (ctype & (MERGE_S_PAR | MERGE_P_PAR)) {
@@ -5331,21 +5353,22 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 				sizeof(struct valuelist));
 		    }
 		    vlist[0][i]->value.ival = 0;    /* set M to 0 */
-		    /* To do parallel combination, both types need to
+		    /* Parallel value combination: (X * Y) / (X + Y)
+		     * To do parallel combination, both types need to
 		     * be double, so recast them if they are integer.
 		     */
 		    if (vl->type == PROP_INTEGER) {
 			vl->type = PROP_DOUBLE;
 			vl->value.dval = (double)(vl->value.ival);
 		    }
-		    if (cvl && (cvl->type == PROP_INTEGER)) {
-			cvl->type = PROP_DOUBLE;
-			cvl->value.dval = (double)cvl->value.ival;
+		    if (cvlp && (cvlp->type == PROP_INTEGER)) {
+			cvlp->type = PROP_DOUBLE;
+			cvlp->value.dval = (double)cvlp->value.ival;
 		    }
-		    if ((cvl && (vl->type == PROP_DOUBLE))) {
-		        cvl->value.dval =
-				sqrt(cvl->value.dval * cvl->value.dval
-				+ vl->value.dval * vl->value.dval);
+		    if ((cvlp && (vl->type == PROP_DOUBLE))) {
+			cvlp->value.dval =
+				(vl->value.dval * cvlp->value.dval) /
+				(vl->value.dval + cvlp->value.dval);
 		    }
 		}
 	    }
@@ -5357,6 +5380,9 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
 		Printf("Combined %d parallel devices.\n", changed);
 	 }
       }
+
+      FREE(avl);
+      FREE(cvl);
    }
 
    // Remove entries with M (S) = 0
