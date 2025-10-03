@@ -534,7 +534,12 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
     if ((EndParseFile()) && (nexttok == NULL)) break;
     if (nexttok == NULL) break;
 
-    if (nexttok[0] == '*') SkipNewLine(NULL);
+    /* Handle comment lines.  Note that some variants of CDL format
+     * use "*." for information that is transparent to SPICE simulators.
+     * Handle "*.GLOBAL" entries.  All others are ignored.
+     */
+    if ((nexttok[0] == '*') && (!matchnocase(nexttok, "*.GLOBAL")))
+	SkipNewLine(NULL);
 
     else if (matchnocase(nexttok, ".SUBCKT")) {
       SpiceTokNoNewline();
@@ -822,7 +827,10 @@ skip_ends:
 
     // Handle some commonly-used cards
 
-    else if (matchnocase(nexttok, ".GLOBAL")) {
+    /* .GLOBAL and *.GLOBAL.  Note that *.GLOBAL is excepted from comment-line
+     * handling, above, so any line starting with '*' is "*.GLOBAL".
+     */
+    else if (matchnocase(nexttok, ".GLOBAL") || (nexttok[0] == '*')) {
       while (nexttok != NULL) {
 	 int numnodes = 0;
          SpiceTokNoNewline();
