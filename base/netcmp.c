@@ -8196,6 +8196,14 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 hasproxy1 = 1;
 
 	 HashPtrInstall(obn->name, obn, &(tc1->objdict));
+
+	 /* If this is a black-box circuit, then the pin has not been output */
+	 if (NodeClasses == NULL) {
+	    output_string_fill(ostr);
+	    output_string_left(ostr, "%s", "(no matching pin)");
+	    output_string_right(ostr, "%s", ob2->name);
+	    output_string_print(ostr);
+	 }
       }
    }
 
@@ -8266,6 +8274,14 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 hasproxy2 = 1;
 
 	 HashPtrInstall(obn->name, obn, &(tc2->objdict));
+
+	 /* If this is a black-box circuit, then the pin has not been output */
+	 if (NodeClasses == NULL) {
+	    output_string_fill(ostr);
+	    output_string_left(ostr, "%s", ob1->name);
+	    output_string_right(ostr, "%s", "(no matching pin)");
+	    output_string_print(ostr);
+	 }
       }
 
       else if (ob1 != NULL && ob1->type == PORT && ob1->node < 0) {
