@@ -2614,13 +2614,15 @@ nextinst:
 	       if (scan == NULL) {
 		  char localnet[MAX_STR_LEN];
 
-		  /* Assume an implicit unconnected pin */
-		  sprintf(localnet, "_noconnect_%d_", localcount++);
-		  Node(localnet);
-		  join(localnet, obptr->name);
-		  Fprintf(stdout,
+		  /* Assume an implicit unconnected pin, unless there are no pins */
+		  if (strcmp(obpinname, "(no pins)")) {
+		     sprintf(localnet, "_noconnect_%d_", localcount++);
+		     Node(localnet);
+		     join(localnet, obptr->name);
+		     Fprintf(stdout,
 			 "Note:  Implicit pin %s in instance %s of %s in cell %s\n",
 			 obpinname, locinst, modulename, CurrentCell->name);
+		  }
 	       }
 	       else if (GetBus(scan->net, &wb) == 0) {
 		   char *bptr2;
