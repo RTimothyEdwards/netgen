@@ -1756,6 +1756,11 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		    flattenInstancesOf(name1, file1, ecomp->cell1->name); 
 		    modified1++;
 		}
+		else if (ecomp->cell1 && (ecomp->num1 > 0)) {
+		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
+				" would make a better match but is prohibited.\n",
+				ecomp->cell1->name, name1, file1);
+		}
 		if (ecomp->cell2 && (ecomp->num2 > 0) &&
 				(!(ecomp->cell2->flags & CELL_PLACEHOLDER))) {
 		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
@@ -1763,6 +1768,11 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				name2, file2);
 		    flattenInstancesOf(name2, file2, ecomp->cell2->name); 
 		    modified2++;
+		}
+		else if (ecomp->cell2 && (ecomp->num2 > 0)) {
+		    Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
+				" would make a better match but is prohibited.\n",
+				ecomp->cell2->name, name2, file2);
 		}
 	    }
 
@@ -1854,6 +1864,11 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 		    	flattenInstancesOf(name2, file2, ecomp->cell2->name); 
 		    	modified2++;
 		    }
+		    else if (ecomp->cell2) {
+			Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
+				" would make a better match but is prohibited.\n",
+				ecomp->cell2->name, name2, file2);
+		    }
 		}
 	    }
 
@@ -1919,6 +1934,11 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 				name1, file1);
 		    	flattenInstancesOf(name1, file1, ecomp->cell1->name); 
 		        modified1++;
+		    }
+		    else if (ecomp->cell1) {
+			Fprintf(stdout, "Flattening instances of %s in cell %s (%d)"
+				" would make a better match but is prohibited.\n",
+				ecomp->cell1->name, name1, file1);
 		    }
 		}
 	    }
@@ -2271,13 +2291,23 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					ecompX0->cell1->file, &compdict);
 			    if (dstr) *dstr = '[';
 			    if ((ncomp == ecomp0X) && (ecomp0X->num2 <= ecompX0->num1)) {
-				Fprintf(stdout, "Flattening instances of %s in cell %s"
-					"(%d) makes a better match\n",
-					ecompX0->cell1->name, name1, file1);
-				flattenInstancesOf(name1, file1, ecompX0->cell1->name); 
-			        ecompX0->num1 = 0;
-			        ecomp0X->num1 += ecompX0->num1;
-				modified1++;
+				if (!(ecompX0->cell1->flags & CELL_PLACEHOLDER)) {
+				    Fprintf(stdout, "Flattening instances of %s in cell"
+						" %s (%d) makes a better match\n",
+						ecompX0->cell1->name, name1, file1);
+				    flattenInstancesOf(name1, file1,
+						ecompX0->cell1->name); 
+				    ecompX0->num1 = 0;
+				    ecomp0X->num1 += ecompX0->num1;
+				    modified1++;
+				}
+				else
+				{
+				    Fprintf(stdout, "Flattening instances of %s in "
+						"cell %s (%d) would make a better "
+						"match but is prohibited.\n",
+						ecompX0->cell1->name, name1, file1);
+				}
 				break;
 			    }
 			}
@@ -2297,13 +2327,22 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					ecomp0X->cell2->file, &compdict);
 			    if (dstr) *dstr = '[';
 			    if ((ncomp == ecompX0) && (ecompX0->num1 <= ecomp0X->num2)) {
-				Fprintf(stdout, "Flattening instances of %s in cell %s"
-					" (%d) makes a better match\n",
-					ecomp0X->cell2->name, name2, file2);
-				flattenInstancesOf(name2, file2, ecomp0X->cell2->name); 
-			        ecomp0X->num2 = 0;
-			        ecompX0->num2 += ecomp0X->num2;
-				modified2++;
+				if (!(ecomp0X->cell2->flags & CELL_PLACEHOLDER)) {
+				    Fprintf(stdout, "Flattening instances of %s in cell"
+						" %s (%d) makes a better match\n",
+						ecomp0X->cell2->name, name2, file2);
+				    flattenInstancesOf(name2, file2,
+						ecomp0X->cell2->name); 
+				    ecomp0X->num2 = 0;
+				    ecompX0->num2 += ecomp0X->num2;
+				    modified2++;
+				}
+				else {
+				    Fprintf(stdout, "Flattening instances of %s in "
+						"cell %s (%d) would make a better "
+						"match but is prohibited.\n",
+						ecompX0->cell2->name, name2, file2);
+				}
 				break;
 			    }
 			}

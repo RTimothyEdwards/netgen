@@ -477,6 +477,18 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       set cell2 [lindex $clist2 $cidx]
    }
 
+   # The "noflat" list is non-file-specific, so run on each file.
+   foreach cell $noflat {
+      set cidx [lsearch -regexp $clist1 ^$cell$]
+      if {$cidx >= 0} {
+          netgen::flatten prohibit "$fnum1 $cell"
+      }
+      set cidx [lsearch -regexp $clist2 ^$cell$]
+      if {$cidx >= 0} {
+          netgen::flatten prohibit "$fnum2 $cell"
+      }
+   }
+
    netgen::compare assign "$fnum1 $cell1" "$fnum2 $cell2"
 
    if {$setupfile == ""} {
