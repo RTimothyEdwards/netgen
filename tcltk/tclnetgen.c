@@ -1021,7 +1021,7 @@ _netgen_flatten(ClientData clientData,
 {
    char *repstr, *file;
    int result, llen, filenum;
-   struct nlist *tp, *tp2;
+   struct nlist *tp, *tp2, *tptop;
 
    if ((objc < 2) || (objc > 4)) {
       Tcl_WrongNumArgs(interp, 1, objv, "?class? valid_cellname");
@@ -1035,7 +1035,7 @@ _netgen_flatten(ClientData clientData,
    if (objc >= 3) {
       char *argv = Tcl_GetString(objv[1]);
       if (!strcmp(argv, "class")) {
-	 tp = GetTopCell(filenum);
+	 tptop = GetTopCell(filenum);
 
 	 if (objc == 4) {
 	    int numflat;
@@ -1046,7 +1046,7 @@ _netgen_flatten(ClientData clientData,
 	    }
 	    else {
 	        Printf("Flattening instances of %s in cell %s within file %s\n",
-			repstr, tp2->name, tp->name);
+			repstr, tp2->name, tptop->name);
 		numflat = flattenInstancesOf(tp2->name, filenum, repstr);
 		if (numflat == 0) {
 		   Tcl_SetResult(interp, "No instances found to flatten.", NULL);
@@ -1055,15 +1055,19 @@ _netgen_flatten(ClientData clientData,
 	    }
 	 }
 	 else {
-	    Printf("Flattening instances of %s in file %s\n", repstr, tp->name);
+	    Printf("Flattening instances of %s in file %s\n", repstr, tptop->name);
             FlattenInstancesOf(repstr, filenum);
 	 }
       }
       else if (!strcmp(argv, "prohibit") || !strcmp(argv, "deny")) {
-	 tp = GetTopCell(filenum);
-	 Printf("Will not flatten instances of %s in file %s\n", repstr, tp->name);
-	 /* Mark cell as placeholder so it will not be flattened */
-	 tp->flags |= CELL_PLACEHOLDER;
+	 tptop = GetTopCell(filenum);
+	 if (tp == NULL)
+	    Printf("Error:  Cell %s does not exist.\n", repstr);
+	 else {
+	    Printf("Will not flatten instances of %s in file %s\n", repstr, tptop->name);
+	    /* Mark cell as placeholder so it will not be flattened */
+	    tp->flags |= CELL_PLACEHOLDER;
+	 }
       }
       else {
 	 Tcl_WrongNumArgs(interp, 1, objv, "class valid_cellname");
