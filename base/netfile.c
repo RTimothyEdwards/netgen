@@ -302,7 +302,7 @@ int GetNextLineNoNewline(char *delimiter)
 {
     char *newbuf;
     int testc;
-    int nested = 0;
+    static int nested = 0;
     int llen;
 
     if (feof(infile)) return -1;
