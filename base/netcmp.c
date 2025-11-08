@@ -8009,21 +8009,21 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 		      */
 		     for (permute1 = tc1->permutes; permute1; permute1 = permute1->next) {
 			if ((*matchfunc)(ob1->name, permute1->pin1)) {
-			   ob1a = LookupObject(permute1->pin1, tc1);
+			   ob2a = LookupObject(permute1->pin2, tc2);
 			   break;
 			}
 			else if ((*matchfunc)(ob1->name, permute1->pin2)) {
-			   ob1a = LookupObject(permute1->pin2, tc1);
+			   ob2a = LookupObject(permute1->pin1, tc2);
 			   break;
 			}
 		     }
 		     for (permute2 = tc2->permutes; permute2; permute2 = permute2->next) {
 			if ((*matchfunc)(ob2->name, permute2->pin1)) {
-			   ob2a = LookupObject(permute2->pin1, tc2);
+			   ob1a = LookupObject(permute2->pin2, tc1);
 			   break;
 			}
 			else if ((*matchfunc)(ob2->name, permute2->pin2)) {
-			   ob2a = LookupObject(permute2->pin2, tc2);
+			   ob1a = LookupObject(permute2->pin1, tc1);
 			   break;
 			}
 		     }
