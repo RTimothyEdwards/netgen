@@ -47,10 +47,6 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 /* Tcl 8.4 compatibility */
 /*-----------------------*/
 
-#ifndef CONST84
-#define CONST84
-#endif
-
 Tcl_Interp *netgeninterp;
 Tcl_Interp *consoleinterp;
 int ColumnBase = 0;
@@ -60,47 +56,47 @@ extern int PropertyErrorDetected;
 
 /* Function prototypes for all Tcl command callbacks */
 
-int _netgen_readnet(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_readlib(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_canonical(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_writenet(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_flatten(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_nodes(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_elements(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_debug(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_protochip(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_instances(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_contents(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_describe(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_cells(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_ports(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_model(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_leaves(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_quit(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_reinit(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netgen_log(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
+int _netgen_readnet(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_readlib(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_canonical(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_writenet(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_flatten(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_nodes(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_elements(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_debug(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_protochip(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_instances(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_contents(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_describe(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_cells(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_ports(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_model(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_leaves(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_quit(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_reinit(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_log(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 #ifdef HAVE_MALLINFO
-int _netgen_printmem(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
+int _netgen_printmem(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 #endif
-int _netgen_help(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_matching(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_compare(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_iterate(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_summary(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_print(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_format(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_run(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_verify(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_automorphs(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_equate(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_ignore(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_permute(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_property(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_exhaustive(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_symmetry(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_restart(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_global(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
-int _netcmp_convert(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST objv[]);
+int _netgen_help(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_matching(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_compare(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_iterate(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_summary(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_print(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_format(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_run(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_verify(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_automorphs(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_equate(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_ignore(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_permute(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_property(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_exhaustive(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_symmetry(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_restart(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_global(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netcmp_convert(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 
 typedef struct _Cmd {
    char 	*name;
@@ -399,7 +395,7 @@ CommonParseCell(Tcl_Interp *interp, Tcl_Obj *objv,
 	    Tcl_ResetResult(interp);
 
 	    /* Is 1st argument a special keyword? */
-	    if (Tcl_GetIndexFromObj(interp, tobj, (CONST84 char **)suboptions,
+	    if (Tcl_GetIndexFromObj(interp, tobj, (const char **)suboptions,
 			"special", 0, &index) == TCL_OK) {
 		switch (index) {
 		    case CIRCUIT1_IDX:
@@ -455,7 +451,7 @@ CommonParseCell(Tcl_Interp *interp, Tcl_Obj *objv,
 
 		    /* Check if 2nd item is a reserved keyword */
 		    if (Tcl_GetIndexFromObj(interp, fobj,
-				(CONST84 char **)suboptions,
+				(const char **)suboptions,
 				"special", 0, &index) == TCL_OK) {
 			switch (index) {
 			    case CIRCUIT1_IDX:
@@ -580,7 +576,7 @@ CommonParseCell(Tcl_Interp *interp, Tcl_Obj *objv,
     } else {
 	/* Only one name given;  check if it matches subOption */
 
-	if (Tcl_GetIndexFromObj(interp, objv, (CONST84 char **)suboptions,
+	if (Tcl_GetIndexFromObj(interp, objv, (const char **)suboptions,
 			"special", 0, &index) == TCL_OK) {
 
 	    switch (index) {
@@ -665,7 +661,7 @@ CommonParseCell(Tcl_Interp *interp, Tcl_Obj *objv,
 
 int
 _netgen_canonical(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
     int result;
     struct nlist *np;
@@ -704,7 +700,7 @@ _netgen_canonical(ClientData clientData,
 
 int
 _netgen_readnet(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *formats[] = {
       "automatic", "ext", "extflat", "sim", "prm", "ntk", "spice",
@@ -741,7 +737,7 @@ _netgen_readnet(ClientData clientData,
       return TCL_ERROR;
    }
    else if (objc > 1) {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)formats,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)formats,
 		"format", 0, &index) != TCL_OK) {
 	 if (objc == 3)
 
@@ -850,7 +846,7 @@ _netgen_readnet(ClientData clientData,
 
 int
 _netgen_readlib(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *formats[] = {
       "actel", "spice", "xilinx", NULL
@@ -883,7 +879,7 @@ _netgen_readlib(ClientData clientData,
       Tcl_WrongNumArgs(interp, 1, objv, "format [file]");
       return TCL_ERROR;
    }
-   if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)formats,
+   if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)formats,
 	"format", 0, &index) != TCL_OK) {
       return TCL_ERROR;
    }
@@ -930,7 +926,7 @@ _netgen_readlib(ClientData clientData,
 
 int
 _netgen_writenet(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *formats[] = {
       "ext", "sim", "ntk", "actel",
@@ -949,7 +945,7 @@ _netgen_writenet(ClientData clientData,
       Tcl_WrongNumArgs(interp, 1, objv, "format file");
       return TCL_ERROR;
    }
-   if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)formats,
+   if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)formats,
 		"format", 0, &index) != TCL_OK) {
       return TCL_ERROR;
    }
@@ -1017,7 +1013,7 @@ _netgen_writenet(ClientData clientData,
 
 int
 _netgen_flatten(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *repstr, *file;
    int result, llen, filenum;
@@ -1091,7 +1087,7 @@ _netgen_flatten(ClientData clientData,
 
 int
 _netgen_nodes(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *estr = NULL, *istr = NULL, *cstr, *fstr;
    char *optstart;
@@ -1209,7 +1205,7 @@ _netgen_nodes(ClientData clientData,
 
 int
 _netgen_elements(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *nstr = NULL, *cstr;
    struct objlist * (*ListSave)();
@@ -1304,7 +1300,7 @@ _netgen_elements(ClientData clientData,
 
 int
 _netgen_debug(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *yesno[] = {
       "on", "off", NULL
@@ -1318,7 +1314,7 @@ _netgen_debug(ClientData clientData,
    if (objc == 1)
       index = YES_IDX;
    else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)yesno,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)yesno,
 		"option", 0, &index) != TCL_OK) {
          index = CMD_IDX;
       }
@@ -1353,7 +1349,7 @@ _netgen_debug(ClientData clientData,
 
 int
 _netgen_protochip(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    if (objc != 1) {
       Tcl_WrongNumArgs(interp, 1, objv, "(no arguments)");
@@ -1373,7 +1369,7 @@ _netgen_protochip(ClientData clientData,
 
 int
 _netgen_instances(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *repstr;
    int result;
@@ -1403,7 +1399,7 @@ _netgen_instances(ClientData clientData,
 
 int
 _netgen_contents(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *repstr;
    int result;
@@ -1432,7 +1428,7 @@ _netgen_contents(ClientData clientData,
 
 int
 _netgen_describe(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *repstr;
    int file = -1;
@@ -1462,7 +1458,7 @@ _netgen_describe(ClientData clientData,
 
 int
 _netgen_cells(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *repstr, *filename = NULL;
    char *optstart;
@@ -1549,7 +1545,7 @@ _netgen_cells(ClientData clientData,
 
 int
 _netgen_model(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    struct nlist *tp, *tp2;
    char *model, *retclass;
@@ -1601,7 +1597,7 @@ _netgen_model(ClientData clientData,
    if (objc == 3) {
       nports = NumberOfPorts(tp->name, fnum);
 
-      if (Tcl_GetIndexFromObj(interp, objv[2], (CONST84 char **)modelclasses,
+      if (Tcl_GetIndexFromObj(interp, objv[2], (const char **)modelclasses,
 		"class", 0, &index) != TCL_OK) {
 	 return TCL_ERROR;
       }
@@ -1771,7 +1767,7 @@ wrongNumPorts:
 
 int
 _netgen_ports(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *repstr;
    int result;
@@ -1801,7 +1797,7 @@ _netgen_ports(ClientData clientData,
 
 int
 _netgen_leaves(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *repstr;
    int result;
@@ -1837,7 +1833,7 @@ _netgen_leaves(ClientData clientData,
 
 int
 _netgen_quit(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    if (objc != 1) {
       Tcl_WrongNumArgs(interp, 1, objv, "(no arguments)");
@@ -1865,7 +1861,7 @@ _netgen_quit(ClientData clientData,
 
 int
 _netgen_reinit(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    if (objc != 1) {
       Tcl_WrongNumArgs(interp, 1, objv, "(no arguments)");
@@ -1885,7 +1881,7 @@ _netgen_reinit(ClientData clientData,
 
 int
 _netgen_log(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *yesno[] = {
       "start", "end", "reset", "suspend", "resume", "file", "echo", "put", NULL
@@ -1902,7 +1898,7 @@ _netgen_log(ClientData clientData,
       index = (LoggingFile) ? RESUME_IDX : START_IDX;
    }
    else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)yesno,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)yesno,
 		"option", 0, &index) != TCL_OK) {
 	 return TCL_ERROR;
       }
@@ -2029,7 +2025,7 @@ _netgen_log(ClientData clientData,
 
 int
 _netgen_printmem(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    if (objc != 1) {
       Tcl_WrongNumArgs(interp, 1, objv, "(no arguments)");
@@ -2051,7 +2047,7 @@ _netgen_printmem(ClientData clientData,
 
 int
 _netcmp_format(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
     int col1_width = 41, col2_width = 41;
 
@@ -2112,7 +2108,7 @@ _netcmp_format(ClientData clientData,
 
 int
 _netcmp_compare(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *name1, *name2, *file1, *file2, *optstart;
    int fnum1, fnum2, dolist = 0;
@@ -2289,7 +2285,7 @@ _netcmp_compare(ClientData clientData,
 
 int
 _netcmp_iterate(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    if (objc != 1) {
       Tcl_WrongNumArgs(interp, 1, objv, "(no arguments)");
@@ -2313,7 +2309,7 @@ _netcmp_iterate(ClientData clientData,
 
 int
 _netcmp_summary(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *options[] = {
       "nodes", "elements", NULL
@@ -2328,7 +2324,7 @@ _netcmp_summary(ClientData clientData,
       return TCL_ERROR;
    }
    if (objc == 2) {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)options,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)options,
 		"option", 0, &index) != TCL_OK) {
          return TCL_ERROR;
       }
@@ -2354,7 +2350,7 @@ _netcmp_summary(ClientData clientData,
 
 int
 _netcmp_print(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *options[] = {
       "nodes", "elements", "queue", NULL
@@ -2392,16 +2388,16 @@ _netcmp_print(ClientData clientData,
       return TCL_ERROR;
    }
    if (objc >= 2) {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)options,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)options,
 		"option", 0, &index) != TCL_OK) {
 	 if ((objc == 2) && (Tcl_GetIndexFromObj(interp, objv[1],
-		(CONST84 char **)classes, "class", 0, &class) != TCL_OK)) {
+		(const char **)classes, "class", 0, &class) != TCL_OK)) {
             return TCL_ERROR;
 	 }
       }
    }
    if (objc == 3 && index != QUEUE_IDX) {
-      if (Tcl_GetIndexFromObj(interp, objv[2], (CONST84 char **)classes,
+      if (Tcl_GetIndexFromObj(interp, objv[2], (const char **)classes,
 		"class", 0, &class) != TCL_OK) {
          return TCL_ERROR;
       }
@@ -2445,7 +2441,7 @@ _netcmp_print(ClientData clientData,
 
 int
 _netcmp_run(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *options[] = {
       "converge", "resolve", NULL
@@ -2472,7 +2468,7 @@ _netcmp_run(ClientData clientData,
    if (objc == 1)
       index = RESOLVE_IDX;
    else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)options,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)options,
 		"option", 0, &index) != TCL_OK) {
          return TCL_ERROR;
       }
@@ -2589,7 +2585,7 @@ _netcmp_run(ClientData clientData,
 
 int
 _netcmp_verify(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *options[] = {
       "nodes", "elements", "properties", "only", "all", "equivalent", "unique", NULL
@@ -2621,7 +2617,7 @@ _netcmp_verify(ClientData clientData,
       return TCL_ERROR;
    }
    if (objc == 2) {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)options,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)options,
 		"option", 0, &index) != TCL_OK) {
          return TCL_ERROR;
       }
@@ -2778,7 +2774,7 @@ _netcmp_verify(ClientData clientData,
 
 int
 _netcmp_automorphs(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    if (objc != 1) {
       Tcl_WrongNumArgs(interp, 1, objv, "(no arguments)");
@@ -2799,7 +2795,7 @@ _netcmp_automorphs(ClientData clientData,
 
 int
 _netcmp_convert(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
     char *cellname;
     int filenum = -1;
@@ -2829,7 +2825,7 @@ _netcmp_convert(ClientData clientData,
 
 int
 _netcmp_global(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *filename, *cellname, *pattern;
    int numchanged = 0, p, fnum, llen, result;
@@ -2866,7 +2862,7 @@ _netcmp_global(ClientData clientData,
 
 int
 _netcmp_ignore(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *options[] = {
       "class", "shorted", NULL
@@ -2880,7 +2876,7 @@ _netcmp_ignore(ClientData clientData,
    char *name = NULL, *name2 = NULL;
 
    if (objc >= 3) {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)options,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)options,
 		"option", 0, &index) == TCL_OK) {
 	 objc--;
 	 objv++;
@@ -2914,7 +2910,7 @@ _netcmp_ignore(ClientData clientData,
 
 int
 _netcmp_equate(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *options[] = {
       "nodes", "elements", "classes", "pins", NULL
@@ -2959,7 +2955,7 @@ _netcmp_equate(ClientData clientData,
       return TCL_ERROR;
    }
    else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)options,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)options,
 		"option", 0, &index) != TCL_OK) {
          return TCL_ERROR;
       }
@@ -3428,7 +3424,7 @@ _netcmp_equate(ClientData clientData,
 
 int
 _netcmp_property(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
     int fnum, i, llen;
     struct nlist *tp;
@@ -3510,7 +3506,7 @@ _netcmp_property(ClientData clientData,
 
     /* Don't need to check return value */
     index = -1;
-    Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)topoptions,
+    Tcl_GetIndexFromObj(interp, objv[1], (const char **)topoptions,
 		"option", 0, &index);
 
     /* Check for special command "property default" */
@@ -3608,7 +3604,7 @@ _netcmp_property(ClientData clientData,
 	}
 	else if (objc == 3) {
 	    if (Tcl_GetIndexFromObj(interp, objv[2],
-			(CONST84 char **)topo,
+			(const char **)topo,
 			"topology", 0, &idx2) == TCL_OK) {
 		if (idx2 == 0)
 		    ExactTopology = TRUE;
@@ -3667,7 +3663,7 @@ _netcmp_property(ClientData clientData,
 	Tcl_SetObjResult(interp, tobj1);
     }
     else {
-	if (Tcl_GetIndexFromObj(interp, objv[2], (CONST84 char **)options,
+	if (Tcl_GetIndexFromObj(interp, objv[2], (const char **)options,
 		"option", 0, &index) != TCL_OK) {
 	    index = ADD_IDX;
 	    argstart = 2;
@@ -3700,7 +3696,7 @@ _netcmp_property(ClientData clientData,
 		    // Each value must be a list of two, or a yes/no answer.
 
 		    if (Tcl_GetIndexFromObj(interp, objv[i],
-				(CONST84 char **)yesno,
+				(const char **)yesno,
 				"combine", 0, &idx2) == TCL_OK) {
 			if (idx2 <= 4) {	/* true, enable, etc. */
 			    if (index == SERIAL_IDX || index == SERIES_IDX)
@@ -3732,7 +3728,7 @@ _netcmp_property(ClientData clientData,
 			if (result != TCL_OK) return result;
 
 			result = Tcl_GetIndexFromObj(interp, tobj2,
-				(CONST84 char **)combineoptions,
+				(const char **)combineoptions,
 				"combine_type", 0, &idx2);
 			if (result != TCL_OK) return result;
 
@@ -3817,7 +3813,7 @@ _netcmp_property(ClientData clientData,
 			    /* {key, type} or {key, tolerance} duplet */
 
 			    if (Tcl_GetIndexFromObj(interp, tobj2,
-					(CONST84 char **)suboptions,
+					(const char **)suboptions,
 					"type", 0, &idx2) != TCL_OK) {
 				Tcl_ResetResult(interp);
 				if (Tcl_GetDoubleFromObj(interp, tobj2, &dval)
@@ -3861,7 +3857,7 @@ _netcmp_property(ClientData clientData,
 			    /* {key, type, tolerance} triplet */
 
 			    if (Tcl_GetIndexFromObj(interp, tobj2,
-					(CONST84 char **)suboptions,
+					(const char **)suboptions,
 					"type", 0, &idx2) != TCL_OK)
 				return TCL_ERROR;
 
@@ -4004,7 +4000,7 @@ _netcmp_property(ClientData clientData,
 			if (result != TCL_OK) return result;
 
 			result = Tcl_GetIndexFromObj(interp, tobj2,
-				(CONST84 char **)mergeoptions,
+				(const char **)mergeoptions,
 				"merge_type", 0, &idx2);
 			if (result != TCL_OK) return result;
 
@@ -4056,7 +4052,7 @@ _netcmp_property(ClientData clientData,
 		    return TCL_ERROR;
 		}
 		result = Tcl_GetIndexFromObj(interp, objv[3],
-			(CONST84 char **)deriveoptions,
+			(const char **)deriveoptions,
 			"area|perimeter", 0, &idx2);
 		if (result != TCL_OK) return result;
 		switch (idx2) {
@@ -4088,7 +4084,7 @@ _netcmp_property(ClientData clientData,
 
 int
 _netcmp_permute(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *model, *pin1, *pin2;
    char *permuteclass[] = {
@@ -4109,7 +4105,7 @@ _netcmp_permute(ClientData clientData,
       index = DEFLT_IDX;
    }
    else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)permuteclass,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)permuteclass,
 		"permute class", 0, &index) != TCL_OK) {
 	    if (objc != 4) {
 		Tcl_WrongNumArgs(interp, 1, objv, "?valid_cellname pin1 pin2?");
@@ -4229,7 +4225,7 @@ _netcmp_permute(ClientData clientData,
 
 int
 _netcmp_symmetry(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    Printf("Symmetry breaking method has been deprecated.\n");
    return TCL_OK;
@@ -4245,7 +4241,7 @@ _netcmp_symmetry(ClientData clientData,
 
 int
 _netcmp_exhaustive(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *yesno[] = {
       "on", "off", NULL
@@ -4258,7 +4254,7 @@ _netcmp_exhaustive(ClientData clientData,
    if (objc == 1)
       index = -1;
    else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)yesno,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)yesno,
 		"option", 0, &index) != TCL_OK)
          return TCL_ERROR;
    }
@@ -4287,7 +4283,7 @@ _netcmp_exhaustive(ClientData clientData,
 
 int
 _netcmp_restart(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    if (objc != 1) {
       Tcl_WrongNumArgs(interp, 1, objv, "(no arguments)");
@@ -4307,7 +4303,7 @@ _netcmp_restart(ClientData clientData,
 
 int
 _netgen_help(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    int n;
 
@@ -4338,7 +4334,7 @@ _netgen_help(ClientData clientData,
 
 int
 _netcmp_matching(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *options[] = {
       "nodes", "elements", NULL
@@ -4360,7 +4356,7 @@ _netcmp_matching(ClientData clientData,
       name = Tcl_GetString(objv[1]);
    }
    else {
-      if (Tcl_GetIndexFromObj(interp, objv[1], (CONST84 char **)options,
+      if (Tcl_GetIndexFromObj(interp, objv[1], (const char **)options,
 		"option", 0, &index) != TCL_OK) {
          return TCL_ERROR;
       }
@@ -4526,7 +4522,7 @@ char *Tcl_Strdup(const char *s)
 /*------------------------------------------------------*/
 
 int _tkcon_interrupt(ClientData clientData,
-    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    InterruptPending = 1;
    return TCL_OK;
@@ -4574,7 +4570,8 @@ int Tclnetgen_Init(Tcl_Interp *interp)
    }
    for (n = 0; netcmp_cmds[n].name != NULL; n++) {
       sprintf(keyword, "netgen::%s", netcmp_cmds[n].name);
-      Tcl_CreateObjCommand(interp, keyword, netcmp_cmds[n].handler,
+      Tcl_CreateObjCommand(interp, keyword,
+		(Tcl_ObjCmdProc *)netcmp_cmds[n].handler,
 		(ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
    }
 
