@@ -25,6 +25,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdio.h>
 #include <stdlib.h>	/* for strtof() */
 #include <stdarg.h>
+#include <string.h>
+#include <strings.h>
 #include <ctype.h>	/* toupper() */
 #ifdef IBMPC
 #include <alloc.h>

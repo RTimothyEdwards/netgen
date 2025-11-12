@@ -24,6 +24,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdarg.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <strings.h> /* for strncasecmp() */
 #include <time.h>    /* for time() as a seed for random number generator */
 #include <limits.h>
 #include <math.h>    /* for fabs() */

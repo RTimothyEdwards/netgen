@@ -21,6 +21,9 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "config.h"
 
 #include <stdio.h>
+#include <string.h>
+#include <strings.h>
+#include <ctype.h>
 #if 0
 #include <stdarg.h>  /* what about varargs, like in pdutils.c ??? */
 #endif
