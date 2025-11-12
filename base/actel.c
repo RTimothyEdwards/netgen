@@ -22,6 +22,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <strings.h>
 #include <ctype.h>
 #ifdef IBMPC
 #include <stdlib.h>  /* for strtol on PC */
