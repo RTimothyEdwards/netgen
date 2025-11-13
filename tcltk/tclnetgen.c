@@ -21,6 +21,8 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdio.h>
 #include <stdlib.h>	/* for getenv */
 #include <string.h>
+#include <strings.h>
+#include <stdarg.h>	/* for va_list */
 
 #include <tcl.h>
 
@@ -41,6 +43,10 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #endif
 #ifndef FALSE
 #define FALSE 0
+#endif
+
+#if TCL_MAJOR_VERSION < 9
+typedef int Tcl_Size;
 #endif
 
 /*-----------------------*/
@@ -283,7 +289,7 @@ GetTopCell(int fnum)
 int
 CommonGetFilenameOrFile(Tcl_Interp *interp, Tcl_Obj *fobj, int *fnumptr)
 {
-    int result, llen;
+    int result;
     int fnum, ftest;
     char *filename;
     struct nlist *tp;
@@ -366,7 +372,8 @@ CommonParseCell(Tcl_Interp *interp, Tcl_Obj *objv,
 	struct nlist **tpr, int *fnumptr)
 {
     Tcl_Obj *tobj, *fobj;
-    int result, llen;
+    int result;
+    Tcl_Size llen;
     int fnum, ftest, index;
     char *filename, *cellname;
     struct nlist *tp, *tp2;
@@ -1016,7 +1023,7 @@ _netgen_flatten(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *repstr, *file;
-   int result, llen, filenum;
+   int result, filenum;
    struct nlist *tp, *tp2, *tptop;
 
    if ((objc < 2) || (objc > 4)) {
@@ -2114,7 +2121,7 @@ _netcmp_compare(ClientData clientData,
    int fnum1, fnum2, dolist = 0;
    int dohierarchy = FALSE;
    int assignonly = FALSE;
-   int argstart = 1, qresult, llen, result;
+   int argstart = 1, qresult, result;
    int hascontents1, hascontents2;
    struct Correspond *nextcomp;
    struct nlist *tp1 = NULL, *tp2 = NULL;
@@ -2828,7 +2835,7 @@ _netcmp_global(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *filename, *cellname, *pattern;
-   int numchanged = 0, p, fnum, llen, result;
+   int numchanged = 0, p, fnum, result;
    struct nlist *tp;
 
    if (objc < 2) {
@@ -2925,7 +2932,8 @@ _netcmp_equate(ClientData clientData,
    struct ElementClass *saveEclass = NULL;
    struct NodeClass *saveNclass = NULL;
    int file1, file2;
-   int i, l1, l2, ltest, lent, dolist = 0, doforce = 0, dounique = 0;
+   int i, dolist = 0, doforce = 0, dounique = 0;
+   Tcl_Size l1, l2, lent, ltest;
    Tcl_Obj *tobj1, *tobj2, *tobj3;
 
    while (objc > 1) {
@@ -3426,10 +3434,11 @@ int
 _netcmp_property(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-    int fnum, i, llen;
+    int fnum, i;
     struct nlist *tp;
     struct property *kl, *kllast, *klnext;
     Tcl_Obj *tobj1, *tobj2, *tobj3;
+    Tcl_Size llen;
     double dval;
     int ival, argstart;
 
@@ -4485,14 +4494,14 @@ void tcl_vprintf(FILE *f, const char *fmt, va_list args_in)
 
 void tcl_stdflush(FILE *f)
 {   
-   Tcl_SavedResult state;
+   Tcl_InterpState state;
    static char stdstr[] = "::flush stdxxx";
    char *stdptr = stdstr + 11;
     
-   Tcl_SaveResult(netgeninterp, &state);
+   state = Tcl_SaveInterpState(netgeninterp, TCL_OK);
    strcpy(stdptr, (f == stderr) ? "err" : "out");
    Tcl_Eval(netgeninterp, stdstr);
-   Tcl_RestoreResult(netgeninterp, &state);
+   Tcl_RestoreInterpState(netgeninterp, state);
 }
 
 /*------------------------------------------------------*/
