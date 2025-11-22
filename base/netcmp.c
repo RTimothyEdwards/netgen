@@ -3582,7 +3582,7 @@ int FlattenUnmatched(struct nlist *tc, char *parent, int stoplevel, int loclevel
 				tc->name, parent, tc->file);
       changed = flattenInstancesOf(parent, tc->file, tc->name);
       Fprintf(stdout, "(%d instance%s)\n", changed, ((changed == 1) ? "" : "s"));
-      return 1;
+      return (changed != 0);
    }
 
    if (tc->cell == NULL) return 0;
