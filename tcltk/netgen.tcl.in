@@ -429,7 +429,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
          set file1 $name1
          set cell1 $name1
       }
-      puts stdout "Reading netlist file $file1"
+      puts stdout "Reading netlist file $file1 for $name1"
       set fnum1 [netgen::readnet $file1]
    } else {
       set cell1 [lindex $flist1 0]
@@ -446,7 +446,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
          set file2 $name2
          set cell2 $name2
       }
-      puts stdout "Reading netlist file $file2"
+      puts stdout "Reading netlist file $file2 for $name2"
       set fnum2 [netgen::readnet $file2]
    } else {
       set cell2 [lindex $flist2 0]
@@ -461,7 +461,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    }
 
    set clist1 [cells list $fnum1]
-   set cidx [lsearch -regexp $clist1 ^$cell1$]
+   set cidx [lsearch -exact $clist1 $cell1]
    if {$cidx < 0} {
       puts stderr "Cannot find cell $cell1 in file $file1"
       return
@@ -469,7 +469,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       set cell1 [lindex $clist1 $cidx]
    }
    set clist2 [cells list $fnum2]
-   set cidx [lsearch -regexp $clist2 ^$cell2$]
+   set cidx [lsearch -exact $clist2 $cell2]
    if {$cidx < 0} {
       puts stderr "Cannot find cell $cell2 in file $file2"
       return
