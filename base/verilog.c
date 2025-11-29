@@ -156,7 +156,8 @@ struct expr_stack {
 //-------------------------------------------------------------------------
 // Evaluate an expression for an array bound.  This is much like
 // ReduceOneExpression() in netgen.c, but only handles basic integer
-// arithmetic (+,-,*,/) and grouping by parentheses.
+// arithmetic (+,-,*,/), grouping by parentheses, bit shifts, and
+// if-else operators.
 //
 // Returns 1 if successful, 0 on error.
 // Evaluated result is placed in the integer pointed to by "valptr".
@@ -217,6 +218,39 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 			modified = TRUE;
 		    }
 		}
+	    }
+	}
+
+	/* Reduce (a << b) and (a >> b) */
+
+	for (texp = start; texp; texp = texp->next) {
+	    if ((texp->last != NULL) && (texp->next != NULL) && (texp->oper != '\0')) {
+		if ((texp->last->oper == '\0') && (texp->next->oper == '\0')) {
+		    if (texp->oper == '<') {
+			/* Left shift */
+			texp->last->value <<= texp->next->value;
+			/* Remove two items from the stack */
+			tmp = texp;
+			texp = texp->last;
+			texp->next = tmp->next->next;
+			if (tmp->next->next) tmp->next->next->last = texp;
+			FREE(tmp->next);
+			FREE(tmp);
+			modified = TRUE;
+		    }
+		    if (texp->oper == '>') {
+			/* Right shift */
+			texp->last->value >>= texp->next->value;
+			/* Remove two items from the stack */
+			tmp = texp;
+			texp = texp->last;
+			texp->next = tmp->next->next;
+			if (tmp->next->next) tmp->next->next->last = texp;
+			FREE(tmp->next);
+			FREE(tmp);
+			modified = TRUE;
+		    }
+		} 
 	    }
 	}
 
@@ -289,6 +323,39 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 			if (tmp->next->next) tmp->next->next->last = texp;
 			FREE(tmp->next);
 			FREE(tmp);
+			modified = TRUE;
+		    }
+		} 
+	    }
+	}
+
+	/* Reduce (a ? b : c) */
+
+	for (texp = start; texp; texp = texp->next) {
+	    /* There must be at least five objects on the stack */
+	    if ((texp->last != NULL) && (texp->next != NULL) && (texp->oper != '\0')
+			&& (texp->next->next != NULL)
+			&& (texp->next->next->next != NULL)) {
+		if ((texp->last->oper == '\0') && (texp->next->oper == '\0')
+			&& (texp->next->next->next->oper == '\0')) {
+		    if ((texp->oper == '?') && (texp->next->next->oper == ':')) {
+			/* If-Else conditional */
+			if (texp->last->value)
+			    texp->last->value = texp->next->value;
+			else
+			    texp->last->value = texp->next->next->next->value;
+
+			/* Remove four items from the stack */
+			tmp = texp;
+			texp = texp->last;
+			texp->next = tmp->next->next->next->next;
+			if (tmp->next->next->next->next)
+			    tmp->next->next->next->next->last = texp;
+			FREE(tmp->next->next->next);
+			FREE(tmp->next->next);
+			FREE(tmp->next);
+			FREE(tmp);
+
 			modified = TRUE;
 		    }
 		} 
@@ -373,8 +440,15 @@ int ParseIntegerExpression(char *expr, int *iptr)
 
 	if (match(sptr, "+") || match(sptr, "-")
 	    	|| match(sptr, "*") || match(sptr, "/")
-	    	|| match(sptr, "(") || match(sptr, ")")) {
+	    	|| match(sptr, "(") || match(sptr, ")")
+	    	|| match(sptr, "<<") || match(sptr, ">>")
+	    	|| match(sptr, "?") || match(sptr, ":")) {
 	    newexp = (struct expr_stack *)MALLOC(sizeof(struct expr_stack));
+	    /* Note that "oper" is one character and that "<<" and ">>"
+	     * become '<' and '>', respectively.  The less-than and greater-
+	     * than operators are not (yet) handled but will need to be
+	     * recast to some other character in "oper".
+	     */
 	    newexp->oper = *sptr;
 	    newexp->value = 0;
 	    newexp->next = NULL;
@@ -389,7 +463,7 @@ int ParseIntegerExpression(char *expr, int *iptr)
 	if ((result = sscanf(sptr, "%d", &value)) != 1) {
 
 	    // Is name in the parameter list?
-	    kl = (struct property *)HashLookup(nexttok, &verilogparams);
+	    kl = (struct property *)HashLookup(sptr, &verilogparams);
 	    if (kl == NULL) {
 		Printf("Value %s in expression is not a number or a parameter.\n",
 				sptr);
@@ -402,27 +476,29 @@ int ParseIntegerExpression(char *expr, int *iptr)
 		    if (result != 1) {
 		        Printf("Parameter %s has value %s that cannot be parsed"
 				" as an integer.\n",
-				nexttok, kl->pdefault.string);
+				sptr, kl->pdefault.string);
 		    	value = 0;
 			break;
 		    }
 		}
 		else if (kl->type == PROP_INTEGER) {
 		    value = kl->pdefault.ival;
+		    result = 1;		// Assert valid result
 		}
 		else if (kl->type == PROP_DOUBLE) {
 		    value = (int)kl->pdefault.dval;
 		    if ((double)value != kl->pdefault.dval) {
 		        Printf("Parameter %s has value %g that cannot be parsed"
 				" as an integer.\n",
-				nexttok, kl->pdefault.dval);
+				sptr, kl->pdefault.dval);
 		    	value = 0;
 			break;
 		    }
+		    result = 1;		// Assert valid result
 		}
 		else {
 		    Printf("Parameter %s has unknown type; don't know how"
-				" to parse.\n", nexttok);
+				" to parse.\n", sptr);
 		    value = 0;
 		    break;
 		}
@@ -516,7 +592,8 @@ int GetBusTok(struct bus *wb)
 	    }
 	    else if (match(nexttok, "+") || match(nexttok, "-")
 	    		|| match(nexttok, "*") || match(nexttok, "/")
-	    		|| match(nexttok, "(") || match(nexttok, ")")) {
+	    		|| match(nexttok, "(") || match(nexttok, ")")
+	    		|| match(nexttok, "<<") || match(nexttok, ">>")) {
 		newexp = (struct expr_stack *)MALLOC(sizeof(struct expr_stack));
 		newexp->oper = *nexttok;
 		newexp->value = 0;
@@ -1879,7 +1956,8 @@ skip_endmodule:
 	// Allowed uses of "assign" for netlists:
 	//    "assign a = b" joins two nets.
 	//    "assign a = {b, c, ...}" creates a bus from components.
-	//    "assign" using any boolean arithmetic is not structural verilog.
+	//    "assign" using if-else constructs or bit shifts.
+	//   ("assign" using any other boolean arithmetic is not structural verilog.)
 	//    "assign a = {x{b}}" creates a bus by repeating a component.
 
 	if (nexttok && match(nexttok, "=")) {
@@ -2140,6 +2218,19 @@ nextinst:
 	 }
 	 SkipTokComments(VLOG_DELIMITERS);
       }
+      else if (loop.loopvar != NULL) {
+	 /* Instances created within a generate block for loop have an
+	  * implicit array
+	  */
+	 int loopval;
+	 struct property *klr;
+
+	 klr = (struct property *)HashLookup(loop.loopvar, &verilogparams);
+	 loopval = klr->pdefault.ival;
+
+         arraystart = arrayend = loopval;
+         sprintf(instancename + strlen(instancename), "[%d]", loopval);
+      }
 
       if (match(nexttok, "(")) {
 	 char savetok = (char)0;
@@ -2202,7 +2293,8 @@ nextinst:
 			 strcat(new_wire_bundle, nexttok);
 			 FREE(wire_bundle);
 			 wire_bundle = new_wire_bundle;
-			 if (!strcmp(nexttok, "}")) break;
+			 if (!strcmp(nexttok, "}"))
+			    break;
 			 SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 		     }
 		     if (!nexttok) {
@@ -2578,6 +2670,7 @@ nextinst:
 	 char *brackptr;
 	 int j;
 	 char locinst[MAX_STR_LEN];
+	 int arraypos = (arraystart > arrayend) ? arraymax - i : i;
 
          if (i != -1)
 	    sprintf(locinst, "%s[%d]", instancename, i);
@@ -2627,7 +2720,14 @@ nextinst:
 	       else if (GetBus(scan->net, &wb) == 0) {
 		   char *bptr2;
 		   char *scanroot;
-		   scanroot = strsave(scan->net);
+		   int isbundle = FALSE;
+		   /* Skip over a bundle delimiter */
+		   if (*scan->net == '{') {
+		      scanroot = strsave(scan->net + 1);
+		      isbundle = TRUE;
+		   }
+		   else
+		      scanroot = strsave(scan->net);
 		   brackptr = strvchr(scanroot, '[');
 		   if (brackptr) *brackptr = '\0';
 
@@ -2660,6 +2760,7 @@ nextinst:
 		   else {
 		       // Instance must be an array
 		       char netname[MAX_STR_LEN];
+		       char *spos = scanroot;
 		       int slice, portlen, siglen;
 
 		       /* Get the array size of the port for bit slicing */
@@ -2671,27 +2772,49 @@ nextinst:
 		       if (siglen < 0) siglen = -siglen;
 		       siglen++;
 
-		       // If signal array is smaller than the portlength *
-		       // length of instance array, then the signal wraps.
+		       // If this is a bundle, then count out to the current
+		       // slice and read off the index.  NOTE:  Need to
+		       // handle multiple bits per bundle entry!
+		       if (isbundle) {
+			   int j;
+			   if (brackptr) *brackptr = '[';
+			   for (j = 0; j < arraypos * portlen; j++) {
+			       spos = strvchr(spos, ',');
+			       if (spos == NULL) break;
+			       spos++;
+			   }
+			   if (spos != NULL) {
+			       brackptr = strvchr(spos, '[');
+			       *brackptr = '\0';
+			       sscanf(brackptr + 1, "%d", &slice);
+			   }
+			   else spos = scanroot;  /* should emit an error here */
+		       }
+		       else {	/* not a bundle */
 
-		       if (wb2.start >= wb2.end && arraystart >= arrayend) {
-			   slice = wb.start - (arraystart - i) * portlen;
-			   while (slice < wb2.end) slice += siglen;
-		       }
-		       else if (wb2.start < wb2.end && arraystart > arrayend) {
-			   slice = wb.start + (arraystart - i) * portlen;
-			   while (slice > wb2.end) slice -= siglen;
-		       }
-		       else if (wb2.start > wb2.end && arraystart < arrayend) {
-			   slice = wb.start - (arraystart + i) * portlen;
-			   while (slice < wb2.end) slice += siglen;
-		       }
-		       else { // (wb2.start < wb2.end && arraystart < arrayend)
-			   slice = wb.start + (arraystart + i) * portlen;
-			   while (slice > wb2.end) slice -= siglen;
+		          // If signal array is smaller than the portlength *
+		          // length of instance array, then the signal wraps.
+
+		          if (wb2.start >= wb2.end && arraystart >= arrayend) {
+			      slice = wb.start - (arraystart - i) * portlen;
+			      while (slice < wb2.end) slice += siglen;
+		          }
+		          else if (wb2.start < wb2.end && arraystart > arrayend) {
+			      slice = wb.start + (arraystart - i) * portlen;
+			      while (slice > wb2.end) slice -= siglen;
+		          }
+		          else if (wb2.start > wb2.end && arraystart < arrayend) {
+			      slice = wb.start - (arraystart + i) * portlen;
+			      while (slice < wb2.end) slice += siglen;
+		          }
+		          else { // (wb2.start < wb2.end && arraystart < arrayend)
+			      slice = wb.start + (arraystart + i) * portlen;
+			      while (slice > wb2.end) slice -= siglen;
+		          }
+			  spos = scanroot;
 		       }
 
-		       sprintf(netname, "%s[%d]", scanroot, slice);
+		       sprintf(netname, "%s[%d]", spos, slice);
 	               if (LookupObject(netname, CurrentCell) == NULL) Node(netname);
 	               join(netname, obptr->name);
 		   }
