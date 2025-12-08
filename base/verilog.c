@@ -76,7 +76,8 @@ struct hashdict verilogparams;
 // Global storage for verilog definitions
 struct hashdict verilogdefs;
 // Record file pointer that is associated with the hash tables
-int hashfile = -1;
+int hashfilep = -1;	/* for parameters */
+int hashfiled = -1;	/* for definitions */
 
 // Global storage for wire buses
 struct hashdict buses;
@@ -2999,18 +3000,25 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
      hashfunc = hashcase;
   }
 
-  if ((hashfile != -1) && (hashfile != *fnum)) {
-      /* Started a new file, so remove all the parameters and definitions */
+  if ((hashfilep != -1) && (hashfilep != *fnum)) {
+      /* Started a new file, so remove all the parameters */
       RecurseHashTable(&verilogparams, freeprop);
       HashKill(&verilogparams);
+      hashfilep = -1;
+  }
+  if ((hashfiled != -1) && (hashfiled != *fnum)) {
+      /* Started a new file, so remove all the definitions */
       RecurseHashTable(&verilogdefs, freeprop);
       HashKill(&verilogdefs);
-      hashfile = -1;
+      hashfiled = -1;
   }
-  if (hashfile == -1) {
+  if (hashfilep == -1) {
       InitializeHashTable(&verilogparams, OBJHASHSIZE);
+      hashfilep = filenum;
+  }
+  if (hashfiled == -1) {
       InitializeHashTable(&verilogdefs, OBJHASHSIZE);
-      hashfile = *fnum;
+      hashfiled = filenum;
   }
   definitions = &verilogdefs;
 
