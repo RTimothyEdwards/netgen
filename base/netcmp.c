@@ -7544,6 +7544,11 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 	     }
 	     else {
 		lob = ob;
+		if (ob == NULL) {
+		    Fprintf(stdout, "Error:  Premature end of pin list on "
+			"instance %s.\n", firstpin->instance.name);
+		    break;
+		}
 		ob->type = i++;
 		ob = ob->next;
 	     }
