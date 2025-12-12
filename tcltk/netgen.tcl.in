@@ -516,6 +516,14 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	    }
 	 }
 	 close $fsetup
+      	 if {$command != {}} {
+	    # Incomplete command.  Evaluate it to get a meaningful error message
+	    if {[catch {uplevel 1 [list namespace eval netgen $command]} msg]} {
+		set msg [string trimright $msg "\n"]
+		puts stderr "Error $setupfile:$sline (ignoring), $msg"
+		incr perrors
+	    }
+	 }
       } else {
 	 puts stdout "Error:  Cannot read the setup file $setupfile"
       }
