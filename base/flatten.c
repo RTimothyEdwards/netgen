@@ -2019,7 +2019,7 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					    }
 					}
 
-					/* Do NOT remove shorting devices that	*/
+					/* Beware remove shorting devices that	*/
 					/* connect two ports.  Otherwise the	*/
 					/* port lists get screwed up.  It is	*/
 					/* better in that case to force the	*/
@@ -2027,6 +2027,10 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 					/* This is ignored for a top-level cell	*/
 					/* because it will just show up as a	*/
 					/* port mismatch error as it should.	*/
+					/* (12/12/2025---disabling this worked;	*/
+					/* may need to go back to a failing	*/
+					/* example and determine how pin	*/
+					/* matching gets scrambled.)		*/
 
 					if ((not_top == TRUE) &&
 						(ecomp->cell1->class != CLASS_ISOURCE)) {
@@ -2039,7 +2043,13 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 						else if (ob2->node == node2)
 						    found2 = TRUE;
 						if (found1 && found2) {
-						    found = FALSE;
+						    Fprintf(stdout, "Warning: "
+							"zero-valued device connects "
+							"port %s to another port;  pin "
+							"matching may be affected.\n",
+							ob2->name);
+						    // found = FALSE;
+						    found = TRUE;
 						    break;
 						}
 					    }
