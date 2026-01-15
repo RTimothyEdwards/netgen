@@ -2018,7 +2018,10 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 						    break;
 					    }
 					}
+					if (found) break;
+				    }
 
+				    if (found) {
 					/* Beware remove shorting devices that	*/
 					/* connect two ports.  Otherwise the	*/
 					/* port lists get screwed up.  It is	*/
@@ -2049,14 +2052,12 @@ PrematchLists(char *name1, int file1, char *name2, int file2)
 							"matching may be affected.\n",
 							ob2->name);
 						    // found = FALSE;
-						    found = TRUE;
 						    break;
 						}
 					    }
 					}
-
-					if (found) break;
 				    }
+
 				    if (found) {
 					Fprintf(stdout, "Removing zero-valued device "
 						"%s from cell %s (%d) makes a better "

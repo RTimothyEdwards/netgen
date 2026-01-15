@@ -1622,8 +1622,8 @@ void FormatIllegalElementClasses()
   char *permcount;
   int bytesleft;
 
-  permname = CALLOC(right_col_end + 2, sizeof(char));
-  permcount = CALLOC(right_col_end + 2, sizeof(char));
+  permname = CALLOC(right_col_end + 100, sizeof(char));
+  permcount = CALLOC(right_col_end + 100, sizeof(char));
   ostr = output_string_init();
 
   found = 0;
