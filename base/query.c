@@ -319,7 +319,7 @@ void Fanout(char *cell, char *node, int filter)
     while (ob != NULL) {
       char *obname = ob->name;
       if (*obname == '/') obname++;
-      if (ob->node == nodenum)
+      if (ob->node == nodenum) {
 	 if (filter == ALLOBJECTS) {
 	   Printf("  %s (", obname);
 	   PrintObjectType(ob->type);
@@ -331,6 +331,7 @@ void Fanout(char *cell, char *node, int filter)
 	 else if (ob->type == filter) {
 	   Printf("  %s\n", obname);
 	 }
+      }
       ob = ob->next;
     }
   }
@@ -933,7 +934,7 @@ static int PrintLeavesInCellHash(struct hashlist *p)
   struct nlist *ptr;
 
   ptr = (struct nlist *)(p->ptr);
-  if ((ptr->class == CLASS_SUBCKT)) PrintLeavesInCell(ptr->name, ptr->file);
+  if (ptr->class == CLASS_SUBCKT) PrintLeavesInCell(ptr->name, ptr->file);
   return(0);
 }
 
