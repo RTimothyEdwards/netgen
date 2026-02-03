@@ -685,6 +685,7 @@ void SpiceSkipNewLine(void)
   ungetc(contline, infile);
 }
 
+#if 0 /* Commented with "#if 0" due to comment characters in the comment */
 /*----------------------------------------------------------------------*/
 /* Function similar to strtok() for token parsing.  The difference is	*/
 /* that it takes two sets of delimiters.  The first is whitespace	*/
@@ -705,6 +706,7 @@ void SpiceSkipNewLine(void)
 /* the first character of the delimiter string in addition to marking	*/
 /* the boundary between two-character and one-character delimiters.	*/
 /*----------------------------------------------------------------------*/
+#endif
 
 char *strdtok0(char *pstring, char *delim1, char *delim2, char isverilog)
 {

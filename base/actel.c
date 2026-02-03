@@ -91,7 +91,7 @@ char	*ActelName(char *Name)
   /* strip physical-pin information, if it exists */
   if ((nm = strrchr(name,PHYSICALPIN[0])) != NULL) *nm = '\0';
   if (strlen(name) > 13) {
-    ActelIndex = (++ActelIndex) % ACTELNAMESIZE;
+    ActelIndex = (ActelIndex + 1) % ACTELNAMESIZE;
     /* format the value of the hashed value of the string */
     sprintf(ActelNames[ActelIndex], "$%lX", ActelNameHash(name));
 if (Debug) 
@@ -102,7 +102,7 @@ Printf("ActelNameHash returns %s on name %s\n",ActelNames[ActelIndex], name);
   NeedsQuoting = 0;
   if (NULL != strpbrk(name, ".,:; \t\"'\n\r")) NeedsQuoting = 1;
 
-  ActelIndex = (++ActelIndex) % ACTELNAMESIZE;
+  ActelIndex = (ActelIndex + 1) % ACTELNAMESIZE;
   if (!NeedsQuoting) {
     strcpy(ActelNames[ActelIndex], name);
     return(ActelNames[ActelIndex]);

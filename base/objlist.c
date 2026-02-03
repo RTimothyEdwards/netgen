@@ -449,6 +449,7 @@ int removeshorted(struct hashlist *p, int file)
          ob = nob;
       }
    }
+   return 1;
 }
 
 /* Remove shorted instances of class "class" from the database */
@@ -539,6 +540,7 @@ int deleteclass(struct hashlist *p, int file)
       }
    }
    FREE(checknodes);
+   return 1;
 }
 
 /* Remove all instances of class "class" from the database */
@@ -576,6 +578,7 @@ int renameinstances(struct hashlist *p, int file)
 	 }
       }
    }
+   return 1;
 }
 
 void InstanceRename(char *from, char *to, int file)
@@ -598,9 +601,10 @@ int freeprop(struct hashlist *p)
    struct property *prop;
 
    prop = (struct property *)(p->ptr);
-   if (prop->type == PROP_STRING)
+   if (prop->type == PROP_STRING) {
       if (prop->pdefault.string != NULL)
 	 FREE(prop->pdefault.string);
+   }
    else if (prop->type == PROP_EXPRESSION) {
       struct tokstack *stackptr, *nptr;
       stackptr = prop->pdefault.stack;

@@ -196,7 +196,7 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 		 if (ob->type == PROPERTY) {
 		    struct valuelist *vl;
 		    int i;
-		    for (i == 0;; i++) {
+		    for (i = 0;; i++) {
 		       vl = &(ob->instance.props[i]);
 		       if (vl->type == PROP_ENDLIST) break;
 		       else if (vl->type == PROP_VALUE) {
@@ -216,7 +216,7 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 		 if (ob->type == PROPERTY) {
 		    struct valuelist *vl;
 		    int i;
-		    for (i == 0;; i++) {
+		    for (i = 0;; i++) {
 		       vl = &(ob->instance.props[i]);
 		       if (vl->type == PROP_ENDLIST) break;
 		       else if (vl->type == PROP_VALUE) {
@@ -236,7 +236,7 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 	      if (ob->type == PROPERTY) {
 		 struct valuelist *vl;
 		 int i;
-		 for (i == 0;; i++) {
+		 for (i = 0;; i++) {
 		    vl = &(ob->instance.props[i]);
 		    if (vl->type == PROP_ENDLIST) break;
 		    else if (vl->type == PROP_VALUE) {
@@ -399,7 +399,7 @@ int renamepins(struct hashlist *p, int file)
    ptr = (struct nlist *)(p->ptr);
 
    if (ptr->file != file)
-      return 1;
+      return 0;
 
    for (ob = ptr->cell; ob != NULL; ob = ob->next) {
       if (ob->type == FIRSTPIN) {
@@ -426,6 +426,7 @@ int renamepins(struct hashlist *p, int file)
 	 }
       }
    }
+   return 1;
 }
 
 /* If any pins are marked unconnected, see if there are	*/
