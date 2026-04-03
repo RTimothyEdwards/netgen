@@ -164,8 +164,10 @@ unsigned long hashcase(char *s, int hashsize)
 unsigned long genhash(char *s, int c, int hashsize)
 {
 	unsigned long hashval = 2166136261ul;
+	hashval ^= (unsigned long)c;
+	hashval *= 16777619ul;
 	for (; *s != '\0'; s++) {
-	    hashval ^= (unsigned long)c;
+	    hashval ^= (unsigned char)(*s);
 	    hashval *= 16777619ul;
 	}
 	return (hashsize == 0) ? hashval : (hashval % hashsize);
