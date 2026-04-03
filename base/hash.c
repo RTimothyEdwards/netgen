@@ -137,32 +137,37 @@ static unsigned char uppercase[] = {
 // horrible things can happen, as, for example, names AOI12 and OAI12
 // have exactly the same hash result.  Lousy for binning and even
 // lousier for generating class magic numbers.
+//
+// Updated again 4/2/2026 to the FNV-1a hash, which is better than
+// SDBM for this application, according to ChatGPT.
 
 unsigned long hashnocase(char *s, int hashsize)
 {
-	unsigned long hashval;
-	
-	for (hashval = 0; *s != '\0'; )
-	    hashval = uppercase[*s++]
-			+ (hashval << 6) + (hashval << 16) - hashval;
+	unsigned long hashval = 2166136261ul;
+	for (; *s != '\0'; s++) {
+	    hashval ^= uppercase[*s];
+	    hashval *= 16777619ul;
+	}
 	return (hashsize == 0) ? hashval : (hashval % hashsize);
 }
 
 unsigned long hashcase(char *s, int hashsize)
 {
-	unsigned long hashval;
-	
-	for (hashval = 0; *s != '\0'; )
-	    hashval = (*s++) + (hashval << 6) + (hashval << 16) - hashval;
+	unsigned long hashval = 2166136261ul;
+	for (; *s != '\0'; s++) {
+	    hashval ^= (unsigned char)(*s);
+	    hashval *= 16777619ul;
+	}
 	return (hashsize == 0) ? hashval : (hashval % hashsize);
 }
 
 unsigned long genhash(char *s, int c, int hashsize)
 {
-	unsigned long hashval;
-	
-	for (hashval = (unsigned long)c; *s != '\0'; )
-	    hashval = (*s++) + (hashval << 6) + (hashval << 16) - hashval;
+	unsigned long hashval = 2166136261ul;
+	for (; *s != '\0'; s++) {
+	    hashval ^= (unsigned long)c;
+	    hashval *= 16777619ul;
+	}
 	return (hashsize == 0) ? hashval : (hashval % hashsize);
 }
 
