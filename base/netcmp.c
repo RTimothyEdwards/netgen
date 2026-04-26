@@ -52,7 +52,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifdef TCL_NETGEN
 int InterruptPending = 0;
-void (*oldinthandler)() = SIG_DFL;
+void (*oldinthandler)(int) = SIG_DFL;
 extern Tcl_Interp *netgeninterp;
 extern int check_interrupt();
 #endif
