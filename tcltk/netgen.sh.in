@@ -16,6 +16,7 @@ TKCON=true
 BATCH=
 GUI=
 NETGEN_WISH=WISH_EXE
+VERSION=VERSION
 export NETGEN_WISH
 
 # Hacks for Cygwin
@@ -24,6 +25,20 @@ if [ ${TERM:=""} = "cygwin" ]; then
    export DISPLAY=${DISPLAY:=":0"}
 fi
 
+usage() {
+   echo "Usage: netgen [-noconsole] [<command_line>]"
+   echo "       netgen -batch <command_line>"
+   echo "       netgen -gui"
+   echo "       netgen [-help | -version]"
+   echo "Options:"
+   echo "  -noconsole   no console window, interpreter prompt will be in the terminal"
+   echo "  -batch       implies -noconsole, and exits after executing <command_line> argument"
+   echo "  -gui         runs the LVS manager"
+   echo "  -help        show help and exit"
+   echo "  -version     show version and exit"
+   exit 1
+}
+
 # Preserve quotes in arguments (thanks, Stackoverflow!)
 arglist=''
 for i in "$@" ; do
@@ -31,6 +46,8 @@ for i in "$@" ; do
       -noc*) TKCON=;;
       -bat*) BATCH=true; TKCON=;;
       -gui) GUI=true; TKCON=;;
+      -v | -version | --version) echo ${VERSION}; exit 1;;
+      -h | -help | --help) usage;;
       *) arglist="$arglist${arglist:+ }\"${i//\"/\\\"}\"";;
    esac
 done 
