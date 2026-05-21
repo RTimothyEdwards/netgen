@@ -2295,7 +2295,18 @@ nextinst:
 			 FREE(wire_bundle);
 			 wire_bundle = new_wire_bundle;
 			 if (!strcmp(nexttok, "}"))
+			 {
+			    /* If a "bundle" has only one component, then it is
+			     * not really a bundle and should be treated as a
+			     * single wire.
+			     */
+			    if (strchr(wire_bundle, ',') == NULL) {
+				int blen = strlen(wire_bundle + 1) - 1;
+				memmove(wire_bundle, wire_bundle + 1, blen);
+				*(wire_bundle + blen) = '\0';
+			    }
 			    break;
+			 }
 			 SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 		     }
 		     if (!nexttok) {
