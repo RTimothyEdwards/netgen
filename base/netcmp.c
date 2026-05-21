@@ -7896,7 +7896,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       if (*(cover + i) == (char)0) {
 	 j = 0;
          for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
-	    char *name1, *name2;
+	    char *name1, *name2, *aptr1 = NULL, *aptr2 = NULL;
 
 	    if (!IsPort(ob2)) break;
 
@@ -7914,7 +7914,58 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    if (!strncmp(name1, "proxy", 5) && (ob2->node == -1)) name1 +=5;
 	    if (!strncmp(name2, "proxy", 5) && (ob1->node == -1)) name2 +=5;
 
+	    /* Recognize an array as matching a non-array of the same	*/
+	    /* name if the array is size 1.  There must be a better way	*/
+	    /* to do this;  this method makes excessive calls to	*/
+	    /* matchfunc().						*/
+
+	    if ((tc1->flags & CELL_PLACEHOLDER) || (tc2->flags && CELL_PLACEHOLDER)) {
+		aptr1 = strchr(name1, '[');
+		aptr2 = strchr(name2, '[');
+
+		if ((aptr1 != NULL) && (aptr2 == NULL)) {
+		    *aptr1 = '\0';
+		    if ((*matchfunc)(name1, name2)) {
+			/* Check that name1 does not have another array
+			 * component in ob1
+			 */
+			struct objlist *ob3;
+			for (ob3 = tc1->cell; ob3; ob3 = ob3->next) {
+			    if (!IsPort(ob3)) break;
+			    if (ob3 == ob1) continue;
+			    if (!strncmp(ob3->name, name1, strlen(name1)) &&
+				  *(ob3->name + strlen(name1)) == '[') {
+				*aptr1 = '[';
+				break;
+			    }
+			}
+		    }
+		}
+
+		if ((aptr1 == NULL) && (aptr2 != NULL)) {
+		    *aptr2 = '\0';
+		    if ((*matchfunc)(name1, name2)) {
+			/* Check that name2 does not have another array
+			 * component in ob1
+			 */
+			struct objlist *ob3;
+			for (ob3 = tc2->cell; ob3; ob3 = ob3->next) {
+			    if (!IsPort(ob3)) break;
+			    if (ob3 == ob2) continue;
+			    if (!strncmp(ob3->name, name2, strlen(name2)) &&
+				  *(ob3->name + strlen(name2)) == '[') {
+				*aptr2 = '[';
+				break;
+			    }
+			}
+		    }
+		}
+	    }
+
 	    if ((*matchfunc)(name1, name2)) {
+
+	       if (aptr1) *aptr1 = '[';
+	       if (aptr2) *aptr2 = '[';
 
 	       /* If both sides have unconnected nodes, then pins with	*/
 	       /* matching names are an automatic match.  Otherwise, if	*/
@@ -8069,6 +8120,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       }
 	    }
 	    if (bangptr2) *bangptr2 = '!';
+	    if (aptr1) *aptr1 = '[';
+	    if (aptr2) *aptr2 = '[';
 	    j++;
          }
       }
