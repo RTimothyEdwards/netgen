@@ -1783,10 +1783,19 @@ skip_ends:
       if (scan->next != NULL) scan = scan->next;
       tail->next = NULL;
 
+      /* Check for class defined inside itself (self-referential loop) */
+
+      if (!strcasecmp(model, scan->name)) {
+	 Fprintf(stderr, "Fatal: Class \"%s\" is instanced inside of itself!\n",
+		scan->name);
+         InputParseError(stderr);
+	 return;
+      }
+
       /* Check for ignored class */
 
-      if ((itype = IsIgnored(subcktname, filenum)) == IGNORE_CLASS) {
-          Printf("Class '%s' instanced in input but is being ignored.\n", model);
+      if ((itype = IsIgnored(scan->name, filenum)) == IGNORE_CLASS) {
+          Printf("Class '%s' instanced in input but is being ignored.\n", scan->name);
           return;
       }
 
@@ -1801,7 +1810,7 @@ skip_ends:
                break;
          }
          if (shorted == (unsigned char)1) {
-            Printf("Instance of '%s' is shorted, ignoring.\n", subcktname);
+            Printf("Instance of '%s' is shorted, ignoring.\n", scan->name);
 	    while (head) {
 	       p = head->next;
 	       FREE(head);
