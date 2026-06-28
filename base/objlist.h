@@ -309,6 +309,8 @@ extern int  match(char *, char *);
 extern int  matchnocase(char *, char *);
 extern int  matchfile(char *, char *, int, int);
 extern int  matchfilenocase(char *, char *, int, int);
+extern int  is_delimiter(char);
+extern char *get_array_delimiter(char *, char *);
 
 extern void GarbageCollect(void);
 extern void InitGarbageCollection(void);

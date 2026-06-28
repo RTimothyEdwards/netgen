@@ -282,6 +282,33 @@ int matchfilenocase(char *st1, char *st2, int f1, int f2)
    return 1;
 }
 
+/* Delimiter matching---Find an opening delimiter in a string.		*/
+/* Return the position of the first opening delimeter in the string,	*/
+/* like strchr().  Place the actual delimeter character in *delim.	*/
+
+char *get_array_delimiter(char *name, char *delim)
+{
+    char *stest = name;
+
+    while (*stest != '\0')
+    {
+	if (to_lower[*stest] == '<') {
+	    *delim = *stest;
+	    return stest;
+	}
+	stest++;
+    }
+    return NULL;
+}
+
+/* Delimiter parsing---Check if a character is an opening array delimiter. */
+/* Return TRUE if the character is an opening delimiter, FALSE if not.	   */
+
+int is_delimiter(char testc)
+{
+    return (to_lower[testc] == '<') ? TRUE : FALSE;
+}
+
 #ifdef HAVE_MALLINFO
 void PrintMemoryStats(void)
 {
