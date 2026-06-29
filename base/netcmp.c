@@ -7897,6 +7897,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	 j = 0;
          for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
 	    char *name1, *name2, *aptr1 = NULL, *aptr2 = NULL;
+	    char delim1, delim2;
 
 	    if (!IsPort(ob2)) break;
 
@@ -7920,8 +7921,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    /* matchfunc().						*/
 
 	    if ((tc1->flags & CELL_PLACEHOLDER) || (tc2->flags && CELL_PLACEHOLDER)) {
-		aptr1 = strchr(name1, '[');
-		aptr2 = strchr(name2, '[');
+		aptr1 = get_array_delimiter(name1, &delim1);
+		aptr2 = get_array_delimiter(name2, &delim2);
 
 		if ((aptr1 != NULL) && (aptr2 == NULL)) {
 		    *aptr1 = '\0';
@@ -7934,8 +7935,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			    if (!IsPort(ob3)) break;
 			    if (ob3 == ob1) continue;
 			    if (!strncmp(ob3->name, name1, strlen(name1)) &&
-				  *(ob3->name + strlen(name1)) == '[') {
-				*aptr1 = '[';
+				  is_delimiter(*(ob3->name + strlen(name1)))) {
+				*aptr1 = delim1;
 				break;
 			    }
 			}
@@ -7953,8 +7954,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			    if (!IsPort(ob3)) break;
 			    if (ob3 == ob2) continue;
 			    if (!strncmp(ob3->name, name2, strlen(name2)) &&
-				  *(ob3->name + strlen(name2)) == '[') {
-				*aptr2 = '[';
+				  is_delimiter(*(ob3->name + strlen(name2)))) {
+				*aptr2 = delim2;
 				break;
 			    }
 			}
@@ -7964,8 +7965,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
 	    if ((*matchfunc)(name1, name2)) {
 
-	       if (aptr1) *aptr1 = '[';
-	       if (aptr2) *aptr2 = '[';
+	       if (aptr1) *aptr1 = delim1;
+	       if (aptr2) *aptr2 = delim2;
 
 	       /* If both sides have unconnected nodes, then pins with	*/
 	       /* matching names are an automatic match.  Otherwise, if	*/
@@ -8120,8 +8121,8 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	       }
 	    }
 	    if (bangptr2) *bangptr2 = '!';
-	    if (aptr1) *aptr1 = '[';
-	    if (aptr2) *aptr2 = '[';
+	    if (aptr1) *aptr1 = delim1;
+	    if (aptr2) *aptr2 = delim2;
 	    j++;
          }
       }
