@@ -1914,6 +1914,38 @@ skip_endmodule:
 	else {	    /* "assign" */
 	    SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
 	    char *aptr = strvchr(nexttok, '[');
+
+	    /* This is a repeat of code to handle reading of pins, and
+	     * makes sure that all input has been read to the closing
+	     * bracket.  There needs to be a single routine to do this,
+	     * or (better) rewrite the parser with lex instead of trying
+	     * to enumerate all the syntax cases separately.
+	     */
+	    if ((aptr != NULL) && (strvchr(nexttok, ']') == NULL))
+	    {
+		/* If a bus expressions has whitespace, then concatenate
+		 * to the closing ']'.
+		 */
+		char *array_expr = (char *)MALLOC(1);
+		char *new_array_expr = NULL;
+		*array_expr = '\0';
+		/* Read to "]" */
+		while (nexttok) {
+		    new_array_expr = (char *)MALLOC(strlen(array_expr) +
+				    strlen(nexttok) + 1);
+		    /* Roundabout way to do realloc() becase there is no REALLOC() */
+		    strcpy(new_array_expr, array_expr);
+		    strcat(new_array_expr, nexttok);
+		    FREE(array_expr);
+		    array_expr = new_array_expr;
+		    if (strchr(nexttok, ']')) break;
+		    SkipTokComments(VLOG_PIN_CHECK_DELIMITERS);
+		}
+		if (!nexttok) {
+		    Printf("Unterminated array in assignment %s\n", array_expr);
+		}
+	    }
+
 	    if (((aptr == NULL) && (GetBusTok(&wb) == 0)) ||
 			((aptr != NULL) && (GetBus(aptr, &wb) == 0))) {
 		if (aptr != NULL) {
