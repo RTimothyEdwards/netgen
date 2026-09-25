@@ -2549,7 +2549,7 @@ nextinst:
 	       if ((*matchfunc)(obptr->name, scan->name)) {
 		  if (sscanf(delimiter + 1, "%d", &portnum) == 1) {
 		     if (portstart == -1)
-			portstart = portnum;
+			portstart = portend = portnum;
 		     else
 		        portend = portnum;
 		  }
@@ -2596,7 +2596,7 @@ nextinst:
 
 	       // Net is bit-sliced across array of instances.
 
-	       if (wb.start > wb.end) {
+	       if ((wb.start != -1) && (wb.start >= wb.end)) {
 		  char *bptr = NULL, *cptr = NULL, cchar, *netname;
 		  unsigned char is_bundle = 0;
 		  struct bus wbb;
