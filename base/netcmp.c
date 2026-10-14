@@ -4999,9 +4999,9 @@ int PropertyOptimize(struct objlist *ob, struct nlist *tp, int run, int series,
       vlist[ptop->prop->idx] = (struct valuelist **)CALLOC(run,
 		sizeof(struct valuelist *));
       clist[ptop->prop->idx] = (unsigned char *)CALLOC(run, sizeof(unsigned char));
-      plink = ptop;
+      plink = ptop->next;
       FREE(ptop);
-      ptop = plink->next;
+      ptop = plink;
    }
    
    // Now, for each property record, sort the properties of interest
