@@ -99,23 +99,23 @@ proc netgen::convert_to_json {filename lvs_final} {
 	          puts $fjson "       \["
 		  set cktval [lindex $value 0]
 		  foreach dev [lrange $cktval 0 end-1] {
-		     set devname [lindex $dev 0]
+		     set devname [string map {"\\" "\\\\"} [lindex $dev 0]]
 		     set devnum  [lindex $dev 1]
 		     puts $fjson "         \[\"${devname}\", ${devnum}\],"
 		  }
 		  set dev [lindex $cktval end]
-		  set devname [lindex $dev 0]
+		  set devname [string map {"\\" "\\\\"} [lindex $dev 0]]
 		  set devnum  [lindex $dev 1]
 		  puts $fjson "         \[\"${devname}\", ${devnum} \]"
 	          puts $fjson "       \], \["
 		  set cktval [lindex $value 1]
 		  foreach dev [lrange $cktval 0 end-1] {
-		     set devname [lindex $dev 0]
+		     set devname [string map {"\\" "\\\\"} [lindex $dev 0]]
 		     set devnum  [lindex $dev 1]
 		     puts $fjson "         \[\"${devname}\", ${devnum} \],"
 		  }
 		  set dev [lindex $cktval end]
-		  set devname [lindex $dev 0]
+		  set devname [string map {"\\" "\\\\"} [lindex $dev 0]]
 		  set devnum  [lindex $dev 1]
 		  puts $fjson "         \[\"${devname}\", ${devnum} \]"
 	          puts $fjson "       \]"
@@ -145,15 +145,15 @@ proc netgen::convert_to_json {filename lvs_final} {
 		        puts $fjson "            \["
 			set netconn [lindex $net 1]
 			foreach fanout [lrange $netconn 0 end-1] {
-			   set devname [lindex $fanout 0]
-			   set pinname [lindex $fanout 1]
+			   set devname [string map {"\\" "\\\\"} [lindex $fanout 0]]
+			   set pinname [string map {"\\" "\\\\"} [lindex $fanout 1]]
 			   set count [lindex $fanout 2]
 			   if {$count == {}} {set count 0}
 		           puts $fjson "              \[ \"$devname\", \"$pinname\", $count \],"
 			}
 			set fanout [lindex $netconn end]
-			set devname [lindex $fanout 0]
-			set pinname [lindex $fanout 1]
+			set devname [string map {"\\" "\\\\"} [lindex $fanout 0]]
+			set pinname [string map {"\\" "\\\\"} [lindex $fanout 1]]
 			set count [lindex $fanout 2]
 			if {$count == {}} {set count 0}
 		        puts $fjson "              \[ \"$devname\", \"$pinname\", $count \]"
@@ -176,15 +176,15 @@ proc netgen::convert_to_json {filename lvs_final} {
 		        puts $fjson "            \["
 			set netconn [lindex $net 1]
 			foreach fanout [lrange $netconn 0 end-1] {
-			   set devname [lindex $fanout 0]
-			   set pinname [lindex $fanout 1]
+			   set devname [string map {"\\" "\\\\"} [lindex $fanout 0]]
+			   set pinname [string map {"\\" "\\\\"} [lindex $fanout 1]]
 			   set count [lindex $fanout 2]
 			   if {$count == {}} {set count 0}
 		           puts $fjson "              \[ \"$devname\", \"$pinname\", $count \],"
 			}
 			set fanout [lindex $netconn end]
-			set devname [lindex $fanout 0]
-			set pinname [lindex $fanout 1]
+			set devname [string map {"\\" "\\\\"} [lindex $fanout 0]]
+			set pinname [string map {"\\" "\\\\"} [lindex $fanout 1]]
 			set count [lindex $fanout 2]
 			if {$count == {}} {set count 0}
 		        puts $fjson "              \[ \"$devname\", \"$pinname\", $count \]"
@@ -228,13 +228,13 @@ proc netgen::convert_to_json {filename lvs_final} {
 		        puts $fjson "            \["
 			set instpins [lindex $inst 1]
 			foreach fanout [lrange $instpins 0 end-1] {
-			   set pinname [lindex $fanout 0]
+			   set pinname [string map {"\\" "\\\\"} [lindex $fanout 0]]
 			   set count [lindex $fanout 1]
 			   if {$count == {}} {set count 0}
 		           puts $fjson "              \[ \"$pinname\", $count \],"
 			}
 			set fanout [lindex $instpins end]
-			set pinname [lindex $fanout 0]
+			set pinname [string map {"\\" "\\\\"} [lindex $fanout 0]]
 			set count [lindex $fanout 1]
 			if {$count == {}} {set count 0}
 		        puts $fjson "              \[ \"$pinname\", $count \]"
@@ -257,13 +257,13 @@ proc netgen::convert_to_json {filename lvs_final} {
 		        puts $fjson "            \["
 			set instpins [lindex $inst 1]
 			foreach fanout [lrange $instpins 0 end-1] {
-			   set pinname [lindex $fanout 0]
+			   set pinname [string map {"\\" "\\\\"} [lindex $fanout 0]]
 			   set count [lindex $fanout 1]
 			   if {$count == {}} {set count 0}
 		           puts $fjson "              \[ \"$pinname\", $count \],"
 			}
 			set fanout [lindex $instpins end]
-			set pinname [lindex $fanout 0]
+			set pinname [string map {"\\" "\\\\"} [lindex $fanout 0]]
 			set count [lindex $fanout 1]
 			if {$count == {}} {set count 0}
 		        puts $fjson "              \[ \"$pinname\", $count \]"
