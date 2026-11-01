@@ -89,6 +89,7 @@ struct NodeList {
 struct Element {
 	unsigned long hashval;
 	short graph;  /* which graph did this element come from ? */
+	short propchecked;  /* properties checked against matching element */
 	struct objlist *object;  /* points to the START of the object */
 	struct Element *next;
 	struct ElementClass *elemclass;
@@ -6510,11 +6511,22 @@ int VerifyMatching(void)
     if (C1 != 1)
        ret++;
     else if (PropertyErrorDetected != 1) {
+       /* A matched pair of elements stays matched (classes are only	*/
+       /* ever split), so once its properties have been checked	*/
+       /* without error, the result cannot change, and the check is	*/
+       /* not repeated.  This matters when VerifyMatching() is called	*/
+       /* many times, as when resolving automorphisms one at a time.	*/
+       if (EC->elements->propchecked && EC->elements->next->propchecked)
+	  continue;
        PropertyCheck(EC, 0, 0, &result);
        if (result > 0)
 	  PropertyErrorDetected = 1;
        else if (result < 0)
 	  PropertyErrorDetected = -1;
+       else {
+	  EC->elements->propchecked = 1;
+	  EC->elements->next->propchecked = 1;
+       }
     }
   }
 
