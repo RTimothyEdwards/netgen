@@ -2538,23 +2538,34 @@ nextinst:
       scan = head;
       while (scan != NULL) {
 	 int portstart, portend, portnum;
+	 char odelim = '[', cdelim = ']';
 
 	 scannext = scan->next;
 	 portstart = -1;
 
+	 /* NOTE:  The cell may have been read from SPICE or CDL, in which	*/
+	 /* case the port may be a bus bit using angle brackets (e.g.,	*/
+	 /* "A<0>") instead of square brackets.  Accept either.		*/
+
 	 for (obptr = tp->cell; obptr && obptr->type == PORT; obptr = obptr->next) {
-	    char *delimiter;
-	    if ((delimiter = strrchr(obptr->name, '[')) != NULL) {
+	    char *delimiter, dchar;
+	    delimiter = strrchr(obptr->name, '[');
+	    if (delimiter == NULL) delimiter = strrchr(obptr->name, '<');
+	    if (delimiter != NULL) {
+	       dchar = *delimiter;
 	       *delimiter = '\0';
 	       if ((*matchfunc)(obptr->name, scan->name)) {
 		  if (sscanf(delimiter + 1, "%d", &portnum) == 1) {
-		     if (portstart == -1)
+		     if (portstart == -1) {
 			portstart = portend = portnum;
+			odelim = dchar;
+			cdelim = (dchar == '<') ? '>' : ']';
+		     }
 		     else
 		        portend = portnum;
 		  }
 	       }
-	       *delimiter = '[';
+	       *delimiter = dchar;
 	    }
 	 }
 	 if (portstart != -1) {
@@ -2627,7 +2638,7 @@ nextinst:
 		  while (1) {
 	             new_port = (struct portelement *)CALLOC(1,
 				sizeof(struct portelement));
-	             sprintf(vname, "%s[%d]", scan->name, j);
+	             sprintf(vname, "%s%c%d%c", scan->name, odelim, j, cdelim);
 	             new_port->name = strsave(vname);
 		     if (i == -1)
 			 sprintf(vname, "%s", netname); 
@@ -2742,7 +2753,7 @@ nextinst:
 	       scan = head;
 	       obpinidx = -1;
 	       while (scan != NULL) {
-		  if (match(obpinname, scan->name)) {
+		  if ((*matchfunc)(obpinname, scan->name)) {
 		     scan->flags |= PORT_FOUND;
 		     break;
 		  }

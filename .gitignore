@@ -1,6 +1,7 @@
 netgen
 netgenexec
 defs.mak
+CLAUDE.md
 scripts/defs.mak
 config.cache
 config.log
