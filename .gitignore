@@ -8,6 +8,7 @@ config.log
 scripts/config.log
 config.status
 scripts/config.status
+scripts/*.cache
 python/lvs_manager.py
 *.o
 *.so
@@ -16,3 +17,10 @@ python/lvs_manager.py
 UPDATE_ME
 tcltk/netgen.sh
 tcltk/netgen.tcl
+*.dSYM
+
+*.whl
+__pycache__
+wheelhouse
+dist
+/*venv
