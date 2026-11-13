@@ -403,7 +403,7 @@ if test $usingTk ; then
   tk_config_sh=""
   if test "$netgen_with_tk" = "no" ; then
     netgen_with_tk=""
-  elif test "$netgen_with_tk" != "yes" || test "netgen_with_tcl" != "yes"; then
+  elif test "$netgen_with_tk" != "yes" || test "$netgen_with_tcl" != "yes"; then
     #
     # Verify that a tkConfig.sh file exists in the directory specified
     # by --with-tcl or --with-tk.
