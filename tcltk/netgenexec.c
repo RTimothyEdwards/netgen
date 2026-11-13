@@ -39,6 +39,7 @@
 /*----------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <stdlib.h>
 
 // #include <tk.h>
 #include <tcl.h>
@@ -50,11 +51,10 @@
 /*----------------------------------------------------------------------*/
 
 int
-netgen_AppInit(interp)
-    Tcl_Interp *interp;
+netgen_AppInit(Tcl_Interp *interp)
 {
     if (Tcl_Init(interp) == TCL_ERROR) {
-	return TCL_ERROR;
+        return TCL_ERROR;
     }
     // if (Tk_Init(interp) == TCL_ERROR) {
     //	return TCL_ERROR;
@@ -65,7 +65,26 @@ netgen_AppInit(interp)
     /* This is where we replace the home ".wishrc" file with	*/
     /* netgen's startup script.					*/
 
-    Tcl_SetVar(interp, "tcl_rcFileName", TCL_DIR "/netgen.tcl", TCL_GLOBAL_ONLY);
+    char pathbuf[1024];
+    const char *cadroot = getenv("CAD_ROOT");
+    const char *rcFileName = TCL_DIR "/netgen.tcl";
+    if (cadroot != NULL) {
+        Tcl_SetVar(interp, "CAD_ROOT", cadroot, TCL_GLOBAL_ONLY);
+        size_t printed = snprintf(pathbuf, sizeof pathbuf, "%s/netgen/tcl/netgen.tcl", cadroot);
+        if (printed > (sizeof pathbuf) - 1) {
+            return TCL_ERROR;
+        }
+
+        // check that script is readable
+        FILE *f = fopen(pathbuf, "r");
+        if (f != NULL) {
+            fclose(f);
+            rcFileName = pathbuf;
+        }
+    }
+
+    Tcl_SetVar(interp, "tcl_rcFileName", rcFileName, TCL_GLOBAL_ONLY);
+
     return TCL_OK;
 }
 
@@ -74,9 +93,7 @@ netgen_AppInit(interp)
 /*----------------------------------------------------------------------*/
 
 int
-main(argc, argv)
-   int argc;
-   char **argv;
+main(int argc, char **argv)
 {
     // Tk_Main(argc, argv, netgen_AppInit);
     Tcl_Main(argc, argv, netgen_AppInit);

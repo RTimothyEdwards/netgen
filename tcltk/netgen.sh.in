@@ -12,10 +12,20 @@
 # Parse for the argument "-c[onsole]".  If it exists, run netgen
 # with the TkCon console.  Strip this argument from the argument list.
 
+tcl_dir_resolved=TCL_DIR
+py_dir_resolved=PY_DIR
+if [ -n $CAD_ROOT ]; then
+   if [ -d "$CAD_ROOT/lib/netgen/tcl" ]; then
+      tcl_dir_resolved="$CAD_ROOT/lib/netgen/tcl"
+   fi
+   if [ -d "$CAD_ROOT/lib/netgen/python" ]; then
+      tcl_dir_resolved=$CAD_ROOT/lib/netgen/python
+   fi
+fi
 TKCON=true
 BATCH=
 GUI=
-NETGEN_WISH=WISH_EXE
+NETGEN_WISH=${NETGEN_WISH:-WISH_EXE}
 export NETGEN_WISH
 
 # Hacks for Cygwin
@@ -36,25 +46,19 @@ for i in "$@" ; do
 done 
 
 if [ $TKCON ]; then
-
-   exec TCL_DIR/tkcon.tcl \
-	-eval "source TCL_DIR/console.tcl" \
-	-slave "package require Tk; set argc $#; set argv [list $arglist]; \
-	source TCL_DIR/netgen.tcl"
+   exec $tcl_dir_resolved/tkcon.tcl \
+      -eval "source $tcl_dir_resolved/console.tcl" \
+      -slave "package require Tk; set argc $#; set argv [list $arglist]; \
+      source $tcl_dir_resolved/netgen.tcl"
 
 # Run the Python LVS manager GUI
-
 elif [ $GUI ]; then
-    exec PY_DIR/lvs_manager.py $@
+   exec $py_dir_resolved/lvs_manager.py $@
 
-#
 # Run the stand-in for wish (netgenexec), which acts exactly like "wish"
 # except that it replaces ~/.wishrc with netgen.tcl.  This executable is
 # *only* needed when running without the console; the console itself is
 # capable of sourcing the startup script.
-#
-
 else
-   exec TCL_DIR/netgenexec -- "$@"
-
+   exec $tcl_dir_resolved/netgenexec -- "$@"
 fi

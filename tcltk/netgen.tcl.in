@@ -23,7 +23,11 @@ foreach i $nlist {
 # -lazy option not needed if stubs libraries are handled correctly
 # load -lazy TCL_DIR/tclnetgenSHDLIB_EXT
 
-load TCL_DIR/tclnetgenSHDLIB_EXT
+if { [info exists CAD_ROOT] && [file exists $CAD_ROOT/netgen/tcl/tclnetgenSHDLIB_EXT] } {
+    load $CAD_ROOT/netgen/tcl/tclnetgenSHDLIB_EXT
+} else {
+    load TCL_DIR/tclnetgenSHDLIB_EXT
+}
 
 #----------------------------------------------------------------
 # Convert LVS list result into a JSON file 
