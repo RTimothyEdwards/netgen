@@ -711,7 +711,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -794,7 +793,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1047,15 +1045,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1193,7 +1182,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1346,7 +1335,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -4759,6 +4747,7 @@ netgen_with_tk_libraries=""
 
 
 usingTcl=1
+usingTk=1
 usingX11=
 
 
@@ -4851,7 +4840,6 @@ fi
 
 if test $usingTcl ; then
   TCL_INC_DIR="."
-  TK_INC_DIR="."
 
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for tclConfig.sh" >&5
 $as_echo_n "checking for tclConfig.sh... " >&6; }
@@ -4932,6 +4920,7 @@ $as_echo "${tcl_config_sh}" >&6; }
     echo "Can't find Tcl configuration script \"tclConfig.sh\""
     echo "Reverting to non-Tcl compilation"
     usingTcl=
+    usingTk=
   fi
 fi
 
@@ -4939,12 +4928,17 @@ fi
 # Find the Tk build configuration file "tkConfig.sh"
 # -----------------------------------------------------------------------
 
-if test $usingTcl ; then
+if ! test $usingTcl ; then
+  usingTk=
+fi
 
+if test $usingTk ; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for tkConfig.sh" >&5
 $as_echo_n "checking for tkConfig.sh... " >&6; }
   tk_config_sh=""
-  if test "$netgen_with_tk" != "yes"; then
+  if test "$netgen_with_tk" = "no" ; then
+    netgen_with_tk=""
+  elif test "$netgen_with_tk" != "yes" || test "$netgen_with_tcl" != "yes"; then
     #
     # Verify that a tkConfig.sh file exists in the directory specified
     # by --with-tcl or --with-tk.
@@ -5019,38 +5013,41 @@ $as_echo "${tk_config_sh}" >&6; }
 
   if test "x$tk_config_sh" = "x" ; then
     echo "can't find Tk configuration script \"tkConfig.sh\""
-    echo "Reverting to non-Tcl compilation"
-    usingTcl=
+    echo "Reverting to non-Tk compile"
+    usingTk=
   fi
 fi
 
 # -----------------------------------------------------------------------
 # Source in the Tcl/Tk configuration scripts.
 # -----------------------------------------------------------------------
-
-if test $usingTcl ; then
+#
+# Should probably trust the config file contents, but this configure
+# file checks the Tcl and Tk include and lib directories.  Since
+# the config file doesn't separate out the libraries from the strings
+# passed to the compiler/linker, do it manually here.
+#
+# Extract TCL_LIB_DIR from TCL_LIB_SPEC
+# Extract TK_LIB_DIR from TK_LIB_SPEC
+# Extract TCL_INC_DIR from TCL_INCLUDE_SPEC
+# Extract TK_INC_DIR from TK_INCLUDE_SPEC
+#
+# These will be the defaults unless overridden by configure command line
+if test $usingTcl; then
   . $tcl_config_sh
-  . $tk_config_sh
-
-  # Should probably trust the config file contents, but this configure
-  # file checks the Tcl and Tk include and lib directories.  Since
-  # the config file doesn't separate out the libraries from the strings
-  # passed to the compiler/linker, do it manually here.
-  #
-  # Extract TCL_LIB_DIR from TCL_LIB_SPEC
-  # Extract TK_LIB_DIR from TK_LIB_SPEC
-  # Extract TCL_INC_DIR from TCL_INCLUDE_SPEC
-  # Extract TK_INC_DIR from TK_INCLUDE_SPEC
-  #
-  # These will be the defaults unless overridden by configure command line
-
   tmpstr=${TCL_LIB_SPEC#*-L}
   TCL_LIB_DIR=${tmpstr% -l*}
+  TCL_INC_DIR=${TCL_INCLUDE_SPEC#*-I}
+fi
+
+if test $usingTk; then
+  . $tk_config_sh
   tmpstr=${TK_LIB_SPEC#*-L}
   TK_LIB_DIR=${tmpstr% -l*}
-  TCL_INC_DIR=${TCL_INCLUDE_SPEC#*-I}
   TK_INC_DIR=${TK_INCLUDE_SPEC#*-I}
+fi
 
+if test $usingTcl && test $usingTk; then
   if test "$TCL_VERSION" = "7.6" -a "$TK_VERSION" = "4.2" ; then
     :
   elif test "$TCL_VERSION" = "7.5" -a "$TK_VERSION" = "4.1" ; then
@@ -5059,8 +5056,8 @@ if test $usingTcl ; then
     :
   else
     echo "Mismatched Tcl/Tk versions ($TCL_VERSION != $TK_VERSION)"
-    echo "Reverting to non-Tcl compile"
-    usingTcl=
+    echo "Reverting to non-Tk compile"
+    usingTk=
   fi
 fi
 
@@ -5072,6 +5069,7 @@ if test $usingTcl ; then
       echo "Can't find tcl.h in \"${netgen_with_tcl_includes}\""
       echo "Reverting to non-Tcl compile"
       usingTcl=
+      usingTk=
     fi
   else
     for dir in \
@@ -5089,18 +5087,19 @@ if test $usingTcl ; then
       echo "Can't find tcl.h header file"
       echo "Reverting to non-Tcl compile"
       usingTcl=
+      usingTk=
     fi
   fi
 fi
 
-if test $usingTcl ; then
+if test $usingTk ; then
   if test "x${netgen_with_tk_includes}" != "x" ; then
     if test -r "${netgen_with_tk_includes}/tk.h" ; then
       TK_INC_DIR=${netgen_with_tk_includes}
     else
       echo "Can't find tk.h in \"${netgen_with_tk_includes}\""
-      echo "Reverting to non-Tcl compile"
-      usingTcl=
+      echo "Reverting to non-Tk compile"
+      usingTk=
     fi
   else
     for dir in \
@@ -5117,8 +5116,8 @@ if test $usingTcl ; then
     done
     if test "x${TK_INC_DIR}" = "x" ; then
       echo "Can't find tk.h header file"
-      echo "Reverting to non-Tcl compile"
-      usingTcl=
+      echo "Reverting to non-Tk compile"
+      usingTk=
     fi
   fi
 fi
@@ -5246,6 +5245,7 @@ $as_echo "${TCLSH_EXE}" >&6; }
       echo "Can't find tcl library in \"${netgen_with_tcl_libraries}\""
       echo "Reverting to non-Tcl compile"
       usingTcl=
+      usingTk=
     fi
   else
     for libname in \
@@ -5262,11 +5262,12 @@ $as_echo "${TCLSH_EXE}" >&6; }
       echo "Can't find tcl library"
       echo "Reverting to non-Tcl compile"
       usingTcl=
+      usingTk=
     fi
   fi
 fi
 
-if test $usingTcl ; then
+if test $usingTk ; then
   if test "x${netgen_with_tk_libraries}" != "x" ; then
     for libname in \
      "${netgen_with_tk_libraries}/${TCL_LIB_FILE}" \
@@ -5280,8 +5281,8 @@ if test $usingTcl ; then
     done
     if test "x${TK_LIB_DIR}" = "x" ; then
       echo "Can't find tk library in \"${netgen_with_tk_libraries}\""
-      echo "Reverting to non-Tcl compile"
-      usingTcl=
+      echo "Reverting to non-Tk compile"
+      usingTk=
     fi
   else
     for libname in \
@@ -5296,8 +5297,8 @@ if test $usingTcl ; then
     done
     if test "x${TK_LIB_DIR}" = "x" ; then
       echo "Can't find tk library"
-      echo "Reverting to non-Tcl compile"
-      usingTcl=
+      echo "Reverting to non-Tk compile"
+      usingTk=
     fi
   fi
 fi
@@ -6018,10 +6019,6 @@ if test "x$no_x" != "x"; then
      echo Graphics options will be NULL only!
      usingX11=
   fi
-  if test $usingTcl ; then
-    echo "Cannot compile TCL version without X11, disabling."
-    usingTcl=
-  fi
 fi
 
 
@@ -6117,48 +6114,15 @@ esac
 # -----------------------------------------------------------------------
 
 if test $usingTcl ; then
-    LIB_SPECS_NOSTUB="${LIB_SPECS}"
+  LIB_SPECS_NOSTUB="${LIB_SPECS}"
 
-# -----------------------------------------------------------------------
-#
-# Tk libraries and header files
-#
-# -----------------------------------------------------------------------
-if test $usingX11 ; then
-  if test "${TK_INC_DIR}" != "/usr/include" ; then
-    INC_SPECS="${INC_SPECS} -I${TK_INC_DIR}"
-  fi
-  if test "${TK_LIB_DIR}" = "/usr/lib" -o \
-        "${TK_LIB_DIR}" = "/usr/lib64" ; then
-    LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} ${TK_LIB_SPEC}"
-    LIB_SPECS="${LIB_SPECS} ${TK_STUB_LIB_SPEC}"
-  else
-    LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} -L${TK_LIB_DIR} ${TK_LIB_SPEC}"
-    LIB_SPECS="${LIB_SPECS} -L${TK_LIB_DIR} ${TK_STUB_LIB_SPEC}"
-    if test "x${loader_run_path}" = "x" ; then
-      loader_run_path="${TK_LIB_DIR}"
-    else
-      loader_run_path="${TK_LIB_DIR}:${loader_run_path}"
-    fi
-  fi
-fi
-
-# -----------------------------------------------------------------------
-#
-# Tcl libraries and header files
-#
-# Add a header file directory specification only if the Tcl headers reside
-# in a different directory from Tk's.
-#
-## -----------------------------------------------------------------------
-  if test "${TCL_INC_DIR}" != "/usr/include" -a \
-        "${TCL_INC_DIR}" != "${TK_INC_DIR}" ; then
+  # Tcl headers/libraries
+  if test "${TCL_INC_DIR}" != "/usr/include"; then
     INC_SPECS="${INC_SPECS} -I${TCL_INC_DIR}"
   fi
 
   if test "${TCL_LIB_DIR}" = "/usr/lib" -o \
-        "${TCL_LIB_DIR}" = "/usr/lib64" -o \
-        "${TCL_LIB_DIR}" = "${TK_LIB_DIR}" ; then
+        "${TCL_LIB_DIR}" = "/usr/lib64"; then
     LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} ${TCL_LIB_SPEC}"
     LIB_SPECS="${LIB_SPECS} ${TCL_STUB_LIB_SPEC}"
   else
@@ -6168,6 +6132,28 @@ fi
       loader_run_path="${TCL_LIB_DIR}"
     else
       loader_run_path="${TCL_LIB_DIR}:${loader_run_path}"
+    fi
+  fi
+
+  # Tk headers/libraries
+  if test $usingTk ; then
+    if test "${TK_INC_DIR}" != "/usr/include" -a \
+            "${TK_INC_DIR}" != "${TCL_INC_DIR}"; then
+      INC_SPECS="${INC_SPECS} -I${TK_INC_DIR}"
+    fi
+    if test "${TK_LIB_DIR}" = "/usr/lib" -o \
+            "${TK_LIB_DIR}" = "/usr/lib64" -o \
+            "${TK_LIB_DIR}" = "${TCL_LIB_DIR}"; then
+      LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} ${TK_LIB_SPEC}"
+      LIB_SPECS="${LIB_SPECS} ${TK_STUB_LIB_SPEC}"
+    else
+      LIB_SPECS_NOSTUB="${LIB_SPECS_NOSTUB} -L${TK_LIB_DIR} ${TK_LIB_SPEC}"
+      LIB_SPECS="${LIB_SPECS} -L${TK_LIB_DIR} ${TK_STUB_LIB_SPEC}"
+      if test "x${loader_run_path}" = "x" ; then
+        loader_run_path="${TK_LIB_DIR}"
+      else
+        loader_run_path="${TK_LIB_DIR}:${loader_run_path}"
+      fi
     fi
   fi
 
@@ -7750,9 +7736,13 @@ echo "-----------------------------------------------------------"
 echo "Configuration Summary (principle requirements):"
 echo
 
-${ECHO_N} "Tcl/Tk:      "
+${ECHO_N} "Tcl/Tk:     "
 if test $usingTcl ; then
-   echo "yes"
+  if test $usingTk ; then
+    echo "yes"
+  else
+    echo "tcl only"
+  fi
 else
    echo "no"
    echo

@@ -2537,11 +2537,15 @@ nextinst:
       last = (struct portelement *)NULL;
       scan = head;
       while (scan != NULL) {
-	 int portstart, portend, portnum;
+	 int portstart, portend, portnum, portmin, portmax, portlast;
+	 int portdir, monotonic;
 	 char odelim = '[', cdelim = ']';
 
 	 scannext = scan->next;
 	 portstart = -1;
+	 portmin = portmax = portlast = -1;
+	 portdir = 0;
+	 monotonic = TRUE;
 
 	 /* NOTE:  The cell may have been read from SPICE or CDL, in which	*/
 	 /* case the port may be a bus bit using angle brackets (e.g.,	*/
@@ -2558,15 +2562,38 @@ nextinst:
 		  if (sscanf(delimiter + 1, "%d", &portnum) == 1) {
 		     if (portstart == -1) {
 			portstart = portend = portnum;
+			portmin = portmax = portnum;
 			odelim = dchar;
 			cdelim = (dchar == '<') ? '>' : ']';
 		     }
-		     else
+		     else {
 		        portend = portnum;
+			if (portnum < portmin) portmin = portnum;
+			if (portnum > portmax) portmax = portnum;
+
+			/* Check that the indexes run in one direction */
+			if (portdir == 0)
+			   portdir = (portnum > portlast) ? 1 : -1;
+			else if (((portdir > 0) && (portnum < portlast)) ||
+				((portdir < 0) && (portnum > portlast)))
+			   monotonic = FALSE;
+		     }
+		     portlast = portnum;
 		  }
 	       }
 	       *delimiter = dchar;
 	    }
+	 }
+
+	 /* If the bus bits are not listed in order in the cell (e.g., a	*/
+	 /* SPICE netlist with pins sorted alphabetically, so that "A[10]"	*/
+	 /* comes before "A[2]"), then the first and last entries do not	*/
+	 /* give the bus range.  Use the full range, and assume the usual	*/
+	 /* verilog convention of [max:min].				*/
+
+	 if ((portstart != -1) && (monotonic == FALSE)) {
+	    portstart = portmax;
+	    portend = portmin;
 	 }
 	 if (portstart != -1) {
 	    struct bus wb;

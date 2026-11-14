@@ -23,7 +23,11 @@ foreach i $nlist {
 # -lazy option not needed if stubs libraries are handled correctly
 # load -lazy TCL_DIR/tclnetgenSHDLIB_EXT
 
-load TCL_DIR/tclnetgenSHDLIB_EXT
+if { [info exists CAD_ROOT] && [file exists $CAD_ROOT/netgen/tcl/tclnetgenSHDLIB_EXT] } {
+    load $CAD_ROOT/netgen/tcl/tclnetgenSHDLIB_EXT
+} else {
+    load TCL_DIR/tclnetgenSHDLIB_EXT
+}
 
 #----------------------------------------------------------------
 # Convert LVS list result into a JSON file 
@@ -560,6 +564,8 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    }
    set properr {}
    set matcherr {}
+   set bboxerr1 {}		;# black-boxed cells with contents in circuit 1
+   set bboxerr2 {}		;# black-boxed cells with contents in circuit 2
    set childMismatch 0		;# 1 indicates black-box child subcircuit mismatch
    while {$endval != {}} {
       if {$dolist == 1} {
@@ -568,6 +574,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
          netgen::run converge
       }
       set pinMismatch 0		;# indicates pin mismatch in top cell
+      set netMismatch 0		;# indicates netlist (topology) mismatch in top cell
       set doCheckFlatten 0
       set doFlatten 0
       if {[netgen::print queue] == {}} {
@@ -610,6 +617,14 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	 }
 	 if {$uresult == -1} {		;# black box
 	    set forceMatch 1
+	    # If one side has contents, those contents were not compared.
+	    # Keep track of these for the final summary.
+	    if {[netgen::contents -check "$fnum1 [lindex $endval 0]"]} {
+	       lappend bboxerr1 [lindex $endval 0]
+	    }
+	    if {[netgen::contents -check "$fnum2 [lindex $endval 1]"]} {
+	       lappend bboxerr2 [lindex $endval 1]
+	    }
 	 } elseif {$uresult == -3} {	;# property error
 	    lappend properr [lindex $endval 0]
 	 } elseif {$uresult == -2} {	;# unmatched pins
@@ -624,6 +639,7 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	 # netgen::log put "  DEBUG: not equivalent $endval\n"
 	 netgen::log echo off
 	 set doCheckFlatten 1
+	 set netMismatch 1
       }
       if {$doCheckFlatten} {
 	 # Flatten the non-matching subcircuit (but not the top-level cell,
@@ -665,7 +681,10 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 				"$fnum2 [lindex $endval 1]"]
 	    }
 	 }
-	 if {$result >= 0} {
+	 # Do not equate classes for a top level cell that failed to match
+	 # topologically.  (Non-matching subcells that are black-boxed must
+	 # still be equated so that the parent cell can be compared.)
+	 if {$result >= 0 && !($netMismatch && [netgen::print queue] == {})} {
 	    equate classes "$fnum1 [lindex $endval 0]" \
 		        "$fnum2 [lindex $endval 1]"
 	 }
@@ -702,8 +721,30 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       }
    }
    netgen::log echo on
+   # Report black-boxed cells before the final result, so that scripts
+   # parsing the end of the output are not affected.  Use a single
+   # "log put" because each call adds a newline on the console.
+   if {$bboxerr1 != {} || $bboxerr2 != {}} {
+      set bboxmsg "\nThe following subcircuits were treated as black boxes,\n"
+      append bboxmsg "and their contents were not compared:\n"
+      if {$bboxerr1 != {}} {
+	 append bboxmsg "  Circuit ($fnum1): [join $bboxerr1 { }]\n"
+      }
+      if {$bboxerr2 != {}} {
+	 append bboxmsg "  Circuit ($fnum2): [join $bboxerr2 { }]\n"
+      }
+      netgen::log put $bboxmsg
+   }
    netgen::log put "\nFinal result: "
-   if {$pinMismatch || $childMismatch} {
+   if {$netMismatch} {
+      # The top level failed to match topologically.  Report that
+      # result;  any pin mismatch is a consequence of it and is not
+      # meaningful on its own.
+      verify only
+      if {$childMismatch} {
+	 netgen::log put "Subcell(s) failed matching.\n"
+      }
+   } elseif {$pinMismatch || $childMismatch} {
       if {$childMismatch} {
 	 netgen::log put "Subcell(s) failed matching.\n"
       }

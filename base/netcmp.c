@@ -7718,17 +7718,32 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 			}
 	             }
 	             if (N2 == NULL) {
+			/* The node class has fewer nodes in circuit 2 than	*/
+			/* in circuit 1, which happens when the netlists do	*/
+			/* not match.  There is no corresponding node, so	*/
+			/* report the pin as unmatched and keep going (do not	*/
+			/* return early, or the rest of the pin list is lost).	*/
+
+			if (Debug == 0) {
+			   output_string_fill(ostr);
+			   output_string_left(ostr, "%s", ob1->name);
+			   output_string_right(ostr, "%s", "(no matching pin)");
+			   output_string_print(ostr);
+			}
+			else {
+			   Fprintf(stderr, "No netlist match for cell %s pin %s\n",
+					tc1->name, ob1->name);
+			}
 #ifdef TCL_NETGEN
 			if (dolist) {
-			   Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL,
-					Tcl_NewStringObj("pins", -1),
-					TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
-			   Tcl_SetVar2Ex(netgeninterp, "lvs_out", NULL, mlist,
-					TCL_APPEND_VALUE | TCL_LIST_ELEMENT);
+			   Tcl_ListObjAppendElement(netgeninterp, plist1,
+					Tcl_NewStringObj(ob1->name, -1));
+			   Tcl_ListObjAppendElement(netgeninterp, plist2,
+					Tcl_NewStringObj("(no matching pin)", -1));
 			}
 #endif
-			FREE(ostr);
-			return 1;
+			result = 0;
+			break;
 		     }
 
 		     obp = N2->object;
@@ -7932,7 +7947,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 	    /* to do this;  this method makes excessive calls to	*/
 	    /* matchfunc().						*/
 
-	    if ((tc1->flags & CELL_PLACEHOLDER) || (tc2->flags && CELL_PLACEHOLDER)) {
+	    if ((tc1->flags & CELL_PLACEHOLDER) || (tc2->flags & CELL_PLACEHOLDER)) {
 		aptr1 = get_array_delimiter(name1, &delim1);
 		aptr2 = get_array_delimiter(name2, &delim2);
 
@@ -8141,7 +8156,6 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       ob1 = ob1->next;
       if (bangptr1) *bangptr1 = '!';
    }
-   FREE(correspond);
 
    /* Find the end of the pin list in tc1, for adding proxy pins */
 
@@ -8412,6 +8426,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
       }
       if (found == 1) Fprintf(stdout, "\n");
    }
+   FREE(correspond);
 
    /* Run cleanuppins on circuit 1 */
    if (needclean1)

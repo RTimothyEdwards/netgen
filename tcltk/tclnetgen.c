@@ -146,8 +146,9 @@ Command netgen_cmds[] = {
 		"<cell>\n   "
 		"list instances of the cell"},
 	{"contents",		_netgen_contents,
-		"<cell>\n   "
-		"list contents of the cell"},
+		"[-check] <cell>\n   "
+		"list contents of the cell\n   "
+		"-check:  return 1 if the cell has contents, 0 if not"},
 	{"describe",		_netgen_describe,
 		"<cell>\n   "
 		"describe the cell"},
@@ -1411,14 +1412,28 @@ _netgen_contents(ClientData clientData,
    char *repstr;
    int result;
    int fnum = -1;
+   int docheck = FALSE;
    struct nlist *np = NULL;
 
+   if ((objc == 3) && !strcmp(Tcl_GetString(objv[1]), "-check")) {
+      docheck = TRUE;
+      objv++;
+      objc--;
+   }
    if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 1, objv, "valid_cellname");
+      Tcl_WrongNumArgs(interp, 1, objv, "[-check] valid_cellname");
       return TCL_ERROR;
    }
    result = CommonParseCell(interp, objv[1], &np, &fnum);
    if (result != TCL_OK) return result;
+
+   /* With "-check", return 1 if the cell contains any device or	*/
+   /* subcircuit instance, and 0 if it is empty (pins only).		*/
+
+   if (docheck) {
+      Tcl_SetObjResult(interp, Tcl_NewBooleanObj(HasContents(np)));
+      return TCL_OK;
+   }
 
    repstr = np->name;
    PrintCell(repstr, fnum);
@@ -2229,11 +2244,16 @@ _netcmp_compare(ClientData clientData,
    hascontents1 = HasContents(tp1);
    hascontents2 = HasContents(tp2);
 
-   if (hascontents1 && !hascontents2 && (tp2->flags & CELL_PLACEHOLDER)) {
+   /* If one cell is empty and the other is not, then the cells will	*/
+   /* be treated as black boxes whether or not the empty cell was	*/
+   /* marked as a placeholder, so there is no point in flattening	*/
+   /* the contents of the other cell.					*/
+
+   if (hascontents1 && !hascontents2) {
        Fprintf(stdout, "\nCircuit 2 cell %s is a black box; will not flatten "
                         "Circuit 1\n", name2);
    }
-   else if (hascontents2 && !hascontents1 && (tp1->flags & CELL_PLACEHOLDER)) {
+   else if (hascontents2 && !hascontents1) {
        Fprintf(stdout, "\nCircuit 1 cell %s is a black box; will not flatten "
                         "Circuit 2\n", name1);
    }
