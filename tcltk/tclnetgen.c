@@ -4661,6 +4661,7 @@ int Tclnetgen_Init(Tcl_Interp *interp)
 {
    int n;
    char keyword[128];
+   const char *argvstr;
    char *cadroot;
 
    /* Sanity checks! */
@@ -4699,10 +4700,20 @@ int Tclnetgen_Init(Tcl_Interp *interp)
       Tcl_CreateObjCommand(consoleinterp, "netgen::interrupt", _tkcon_interrupt,
 		(ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 
+   /* Make the full version number available to Tcl scripts */
+   sprintf(keyword, "%s.%s", NETGEN_VERSION, NETGEN_REVISION);
+   Tcl_SetVar(interp, "netgen_version", keyword, TCL_GLOBAL_ONLY);
+
    InitializeCommandLine(0, NULL);
-   sprintf(keyword, "Netgen %s.%s compiled on %s\n", NETGEN_VERSION,
+
+   /* Print the version banner, except for "netgen --version", which	*/
+   /* prints only the version number (see netgen.tcl).			*/
+   argvstr = Tcl_GetVar(interp, "argv", TCL_GLOBAL_ONLY);
+   if ((argvstr == NULL) || (strstr(argvstr, "--version") == NULL)) {
+      sprintf(keyword, "Netgen %s.%s compiled on %s\n", NETGEN_VERSION,
 		NETGEN_REVISION, NETGEN_DATE);
-   Printf(keyword);
+      Printf(keyword);
+   }
 
    return TCL_OK;	/* Drop back to interpreter for input */
 }

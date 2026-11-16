@@ -29,6 +29,12 @@ if { [info exists CAD_ROOT] && [file exists $CAD_ROOT/netgen/tcl/tclnetgenSHDLIB
     load TCL_DIR/tclnetgenSHDLIB_EXT
 }
 
+# "netgen --version" prints the version number (e.g., "1.5.330") and exits
+if {[info exists argv] && ([lsearch -exact $argv "--version"] >= 0)} {
+   puts stdout $netgen_version
+   exit 0
+}
+
 #----------------------------------------------------------------
 # Convert LVS list result into a JSON file 
 #----------------------------------------------------------------
