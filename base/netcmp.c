@@ -3676,6 +3676,18 @@ void DescendCompareQueue(struct nlist *tc, struct nlist *tctop, int stoplevel,
 
       if (sdup) *sdup = '[';
 
+      // A cell that is not part of the other circuit's hierarchy (for
+      // example, a cell that is defined but not used, such as the
+      // original of a subcircuit that elaboration replaced with copies
+      // for each set of parameters) is not a match.
+
+      if ((tc2 != NULL) && !(tc2->flags & CELL_REACHABLE)) {
+         if (Debug == TRUE)
+	    Fprintf(stdout, "Level %d Class %s is not used in circuit %d\n",
+			loclevel, tc2->name, tc2->file);
+	 tc2 = NULL;
+      }
+
       if (tc2 != NULL) {
 	 newcomp = (struct Correspond *)CALLOC(1, sizeof(struct Correspond));
 	 newcomp->next = NULL;
@@ -3759,6 +3771,36 @@ void AssignCircuits(char *name1, int file1, char *name2, int file2)
 /*--------------------------------------------------------------*/
 
 
+/*--------------------------------------------------------------*/
+/* Mark the cells in the hierarchy of cell "tc" as reachable,	*/
+/* so that only cells that are used are matched against cells	*/
+/* in the other circuit.					*/
+/*--------------------------------------------------------------*/
+
+int clearreachable(struct hashlist *p, int file)
+{
+   struct nlist *tc = (struct nlist *)(p->ptr);
+   if (tc->file == file) tc->flags &= ~CELL_REACHABLE;
+   return 0;
+}
+
+void MarkReachable(struct nlist *tc)
+{
+   struct objlist *ob;
+   struct nlist *tcsub;
+
+   if (tc->flags & CELL_REACHABLE) return;
+   tc->flags |= CELL_REACHABLE;
+
+   for (ob = tc->cell; ob != NULL; ob = ob->next) {
+      if (ob->type != FIRSTPIN) continue;
+      tcsub = LookupCellFile(ob->model.class, tc->file);
+      if (!tcsub || ((tcsub->class != CLASS_SUBCKT) &&
+		(tcsub->class != CLASS_MODULE))) continue;
+      MarkReachable(tcsub);
+   }
+}
+
 int CreateCompareQueue(char *name1, int file1, char *name2, int file2)
 {
    struct nlist *tc1, *tc2, *tcsub1, *tcsub2;
@@ -3770,6 +3812,11 @@ int CreateCompareQueue(char *name1, int file1, char *name2, int file2)
 
    if (tc1 == NULL) return 1;
    if (tc2 == NULL) return 2;
+
+   RecurseCellFileHashTable(clearreachable, file1);
+   RecurseCellFileHashTable(clearreachable, file2);
+   MarkReachable(tc1);
+   MarkReachable(tc2);
 
    level = 0;
 

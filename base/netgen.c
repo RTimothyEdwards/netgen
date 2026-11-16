@@ -193,7 +193,73 @@ struct tokstack *CopyTokStack(struct tokstack *stack)
 
 #define MAX_PARAM_DEPTH 32
 
-int ReduceOneExpression(struct valuelist *, struct objlist *, struct nlist *, int);
+/* Global (.param) parameters of each netlist, saved after the netlist	*/
+/* is read so that they are available during elaboration.  Entries	*/
+/* are keyed by "<file number> <parameter name>".			*/
+
+static struct hashdict fileparams;
+static int ParamFile = -1;	/* File whose saved globals are in use */
+
+/* Set the file whose saved global parameters are used to resolve	*/
+/* expressions with "glob" = PARAM_ELABORATE (-1 for none).		*/
+
+void SetParamFile(int file)
+{
+    ParamFile = file;
+}
+
+/* Save a copy of the global parameters read from a netlist, for file	*/
+/* number "file".  Parameters of the same name read earlier into the	*/
+/* same file are replaced.						*/
+
+static int SaveFile;
+
+static struct property *LookupFileParam(char *name, int file)
+{
+    char *pkey;
+    struct property *kl;
+
+    pkey = (char *)MALLOC(strlen(name) + 16);
+    sprintf(pkey, "%d %s", file, name);
+    kl = (struct property *)HashLookup(pkey, &fileparams);
+    FREE(pkey);
+    return kl;
+}
+
+static int saveglobalparam(struct hashlist *p)
+{
+    struct property *kl = (struct property *)(p->ptr);
+    struct property *klc, *klo;
+    char *pkey;
+
+    klo = LookupFileParam(kl->key, SaveFile);
+    if (klo != NULL) {
+	FREE(klo->key);
+	if (klo->pdefault.string) FREE(klo->pdefault.string);
+	FREE(klo);
+    }
+    klc = NewProperty();
+    klc->key = strsave(kl->key);
+    klc->idx = 0;
+    klc->type = PROP_STRING;
+    klc->slop.dval = 0.0;
+    klc->pdefault.string = (kl->pdefault.string) ?
+		strsave(kl->pdefault.string) : NULL;
+    pkey = (char *)MALLOC(strlen(kl->key) + 16);
+    sprintf(pkey, "%d %s", SaveFile, kl->key);
+    HashPtrInstall(pkey, klc, &fileparams);
+    FREE(pkey);
+    return 0;
+}
+
+void SaveGlobalParams(struct hashdict *params, int file)
+{
+    if (fileparams.hashtab == NULL)
+	InitializeHashTable(&fileparams, TINYHASHSIZE);
+    SaveFile = file;
+    RecurseHashTable(params, saveglobalparam);
+}
+
 
 int ParamStringValue(struct property *kl, struct nlist *parent,
 		struct objlist *parprops, int glob, double *dval)
@@ -306,6 +372,7 @@ int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
 			break;
 		}
 		/* Found in this scope;  do not look in outer scopes */
+		if (glob == PARAM_GLOBAL_ONLY) return -1;
 		return ((result == 1) ? 1 : -1);
 	    }
 	}
@@ -314,9 +381,10 @@ int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
     /* (2) Check parameters defined by .param inside the subcircuit */
     if ((parent != NULL) && (parent->paramdict.hashtab != NULL)) {
 	kl = (struct property *)HashLookup(estr, &(parent->paramdict));
-	if (kl != NULL)
-	    return ParamStringValue(kl, parent, parprops,
-			glob, dval);
+	if (kl != NULL) {
+	    if (glob == PARAM_GLOBAL_ONLY) return -1;
+	    return ParamStringValue(kl, parent, parprops, glob, dval);
+	}
     }
 
     /* (3) Check parameters declared on the .subckt line */
@@ -325,6 +393,7 @@ int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
     else
 	kl = NULL;
     if (kl != NULL) {
+	if (glob == PARAM_GLOBAL_ONLY) return -1;
 	switch(kl->type) {
 	    case PROP_STRING:
 		return ParamStringValue(kl, parent, parprops,
@@ -342,10 +411,18 @@ int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
 	return ((result == 1) ? 1 : -1);
     }
 
-    /* (4) Check global parameters (only while reading a netlist).	*/
+    /* (4) Check global parameters:  while reading a netlist, those	*/
+    /* read so far;  during elaboration, those saved for the file.	*/
     /* A global parameter's value is evaluated in global scope.	*/
-    if ((glob == TRUE) && (spiceparams.hashtab != NULL)) {
+    if (((glob == PARAM_GLOBAL) || (glob == PARAM_GLOBAL_ONLY)) &&
+		(spiceparams.hashtab != NULL)) {
 	kl = (struct property *)HashLookup(estr, &spiceparams);
+	if (kl != NULL)
+	    return ParamStringValue(kl, NULL, NULL, glob, dval);
+    }
+    else if ((glob == PARAM_ELABORATE) && (ParamFile >= 0) &&
+		(fileparams.hashtab != NULL)) {
+	kl = LookupFileParam(estr, ParamFile);
 	if (kl != NULL)
 	    return ParamStringValue(kl, NULL, NULL, glob, dval);
     }
@@ -541,6 +618,7 @@ int ReduceOneExpression(struct valuelist *kv, struct objlist *parprops,
 		    *tstr = '\0';
 		    result = TokGetValue(estr, parent, parprops, glob, &dval);
 		    if (result == 1) PushTok(TOK_DOUBLE, &dval, &expstack);
+		    else if (result == -1) PushTok(TOK_STRING, estr, &expstack);
 		    PushTok(TOK_GROUP_CLOSE, NULL, &expstack);
 		    estr = tstr + 1;
 		    numlast = 1;

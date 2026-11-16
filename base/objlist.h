@@ -232,6 +232,7 @@ struct nlist {
 #define CELL_PROPSMATCHED	0x010	/* properties matched to matching cell */
 #define CELL_DUPLICATE		0x020	/* cell has a duplicate */
 #define CELL_VERILOG		0x040	/* cell is verilog module */
+#define CELL_REACHABLE		0x080	/* cell is in the hierarchy being compared */
 
 /* Flags for combination allowances and prohibitions */
 

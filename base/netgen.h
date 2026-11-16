@@ -50,6 +50,38 @@ extern int SetPropertyDefault(struct property *, struct valuelist *);
 extern struct objlist *LinkProperties(char *model, struct keyvalue *topptr);
 extern int ReduceExpressions(struct objlist *instprop, struct objlist *parprops,
 		struct nlist *parent, int glob);
+extern int ReduceOneExpression(struct valuelist *kv, struct objlist *parprops,
+		struct nlist *parent, int glob);
+extern int ParamStringValue(struct property *kl, struct nlist *parent,
+		struct objlist *parprops, int glob, double *dval);
+extern struct tokstack *CopyTokStack(struct tokstack *stack);
+extern void SetParamFile(int file);
+struct hashdict;
+extern void SaveGlobalParams(struct hashdict *params, int file);
+
+/* Values of "glob" for ReduceExpressions(), which say where parameter	*/
+/* names in expressions are looked up.					*/
+
+#define PARAM_LOCAL		0  /* Instance and cell parameters only	*/
+#define PARAM_GLOBAL		1  /* Also global (.param) values (reading) */
+#define PARAM_GLOBAL_ONLY	2  /* Global values only;  leave names	*/
+				   /* defined in the cell unresolved	*/
+#define PARAM_ELABORATE		3  /* Instance and cell parameters, and	*/
+				   /* the saved global values of the	*/
+				   /* file (see SetParamFile())		*/
+
+/* Record of a copy of a subcircuit made by elaboration */
+
+struct elabrec {
+    char *cellname;	/* Name of the original subcircuit */
+    char *variant;	/* Name of the copy */
+    char *params;	/* Parameter values of the copy ("key=value ...") */
+    struct elabrec *next;
+};
+
+extern int ElaborateFile(int file);
+extern void ElaborateReset(int file);
+extern struct elabrec *ElaborateRecords(int file);
 extern void Node(char *name);
 extern void Global(char *name);
 extern void UniqueGlobal(char *name);

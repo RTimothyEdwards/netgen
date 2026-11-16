@@ -1587,6 +1587,7 @@ skip_ends:
 			"voltage source.\n", inst);
 	 goto baddevice;
       }
+      snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, pos, neg);
       pobj = LinkProperties(model, kvlist);
       DeleteProperties(&kvlist);
@@ -1640,6 +1641,7 @@ skip_ends:
 			"current source.\n");
 	 goto baddevice;
       }
+      snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, pos, neg);
       pobj = LinkProperties(model, kvlist);
       DeleteProperties(&kvlist);
@@ -1704,6 +1706,7 @@ skip_ends:
 			"controlled voltage source.\n");
 	 goto baddevice;
       }
+      snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, pos, neg, ctrlp, ctrln);
       pobj = LinkProperties(model, kvlist);
       DeleteProperties(&kvlist);
@@ -1999,11 +2002,14 @@ baddevice:
 }
 
 /*----------------------------------------------------------------------*/
-/* Callback to reduce all parameter expressions in the instances of a	*/
-/* cell.  This is run at the end of reading a SPICE file, rather than	*/
-/* after each line is read, so that parameters which are defined after	*/
-/* they are used are known.  Parameters are resolved in the scope of	*/
-/* the cell containing the instance (see TokGetValue()).		*/
+/* Callback to reduce parameter expressions in the instances of a cell.	*/
+/* This is run at the end of reading a SPICE file, rather than after	*/
+/* each line is read, so that parameters which are defined after they	*/
+/* are used are known.  Only global parameters are substituted here.	*/
+/* Names of the cell's own parameters (on the .subckt line or defined	*/
+/* by .param inside the subcircuit) are left unresolved, since their	*/
+/* values depend on the instance;  they are resolved by elaboration	*/
+/* (see elaborate.c).							*/
 /*----------------------------------------------------------------------*/
 
 int reducecellexpressions(struct hashlist *p, int file)
@@ -2016,7 +2022,7 @@ int reducecellexpressions(struct hashlist *p, int file)
 
    for (ob = ptr->cell; ob; ob = ob->next)
       if (ob->type == PROPERTY)
-	 ReduceExpressions(ob, NULL, ptr, TRUE);
+	 ReduceExpressions(ob, NULL, ptr, PARAM_GLOBAL_ONLY);
 
    return 0;
 }
@@ -2082,6 +2088,11 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
   // known (including those defined after they were used), reduce all
   // parameter expressions in the file's cells.
   RecurseCellFileHashTable(reducecellexpressions, filenum);
+
+  // Save the global parameters for use during elaboration, and mark
+  // the netlist as needing to be elaborated.
+  SaveGlobalParams(&spiceparams, filenum);
+  ElaborateReset(filenum);
 
   RecurseHashTable(&spiceparams, freeprop);
   HashKill(&spiceparams);

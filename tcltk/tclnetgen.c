@@ -73,6 +73,7 @@ int _netgen_debug(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_protochip(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_instances(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_contents(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_elaborate(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_describe(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_cells(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_ports(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
@@ -130,6 +131,11 @@ Command netgen_cmds[] = {
 	{"flatten",		_netgen_flatten,
 		"[class] [<parent>] <cell>\n   "
 		"flatten a hierarchical cell"},
+	{"elaborate",		_netgen_elaborate,
+		"<netlist>\n   "
+		"resolve parameters passed to subcircuits in a netlist;\n   "
+		"return a list of subcircuit copies made for each unique\n   "
+		"set of parameters"},
 	{"nodes",		_netgen_nodes,
 		"[<element>] <cell> <file>\n   "
 		"print nodes of an element or cell"},
@@ -838,6 +844,9 @@ _netgen_readnet(ClientData clientData,
    }
 
    /* Return the file number to the interpreter */
+   /* A netlist read into the file must be elaborated (again) */
+   if (filenum >= 0) ElaborateReset(filenum);
+
    Tcl_SetObjResult(interp, Tcl_NewIntObj(filenum));
 
    if (savstr) FREE(savstr);
@@ -1035,6 +1044,16 @@ _netgen_flatten(ClientData clientData,
    result = CommonParseCell(interp, objv[objc - 1], &tp, &filenum);
    if (result != TCL_OK) return result;
    repstr = tp->name;
+
+   /* Parameters must be resolved before flattening (but not for	*/
+   /* "flatten prohibit", which only marks a cell).			*/
+   if ((objc < 3) || (strcmp(Tcl_GetString(objv[1]), "prohibit") &&
+		strcmp(Tcl_GetString(objv[1]), "deny"))) {
+      ElaborateFile(filenum);
+      /* Elaboration may have replaced the cell's instances with copies */
+      tp = LookupCellFile(repstr, filenum);
+      if (tp == NULL) return TCL_ERROR;
+   }
 
    if (objc >= 3) {
       char *argv = Tcl_GetString(objv[1]);
@@ -1394,6 +1413,62 @@ _netgen_instances(ClientData clientData,
 
    repstr = np->name;
    PrintInstances(repstr, fnum);
+   return TCL_OK;
+}
+
+/*------------------------------------------------------*/
+/* Function name: _netgen_elaborate			*/
+/* Syntax: netgen::elaborate <netlist>			*/
+/* Formerly: (none)					*/
+/* Results:						*/
+/*	A list of the copies of subcircuits made for	*/
+/*	each unique set of parameters passed to them.	*/
+/*	Each entry is a list of the original subcircuit	*/
+/*	name, the name of the copy, and its parameter	*/
+/*	values ("key=value key=value ...").		*/
+/* Side Effects:					*/
+/*	Parameter expressions in all cells of the	*/
+/*	netlist are resolved.  This is done		*/
+/*	automatically before flattening or comparing,	*/
+/*	and only once after a netlist is read.		*/
+/*------------------------------------------------------*/
+
+int
+_netgen_elaborate(ClientData clientData,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+   int result, fnum = -1;
+   struct nlist *np = NULL;
+   struct elabrec *er;
+   Tcl_Obj *lobj, *eobj;
+
+   if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 1, objv, "netlist");
+      return TCL_ERROR;
+   }
+
+   /* The netlist may be given as a file number or a name */
+   if (Tcl_GetIntFromObj(interp, objv[1], &fnum) != TCL_OK) {
+      Tcl_ResetResult(interp);
+      result = CommonParseCell(interp, objv[1], &np, &fnum);
+      if (result != TCL_OK) return result;
+   }
+   if (fnum < 0) {
+      Tcl_SetResult(interp, "Cannot use wildcard with elaborate command.", NULL);
+      return TCL_ERROR;
+   }
+
+   ElaborateFile(fnum);
+
+   lobj = Tcl_NewListObj(0, NULL);
+   for (er = ElaborateRecords(fnum); er; er = er->next) {
+      eobj = Tcl_NewListObj(0, NULL);
+      Tcl_ListObjAppendElement(interp, eobj, Tcl_NewStringObj(er->cellname, -1));
+      Tcl_ListObjAppendElement(interp, eobj, Tcl_NewStringObj(er->variant, -1));
+      Tcl_ListObjAppendElement(interp, eobj, Tcl_NewStringObj(er->params, -1));
+      Tcl_ListObjAppendElement(interp, lobj, eobj);
+   }
+   Tcl_SetObjResult(interp, lobj);
    return TCL_OK;
 }
 
@@ -2200,6 +2275,10 @@ _netcmp_compare(ClientData clientData,
 	    return TCL_ERROR;
 	 }
          name2 = tp2->name;
+
+	 /* Resolve parameters passed to subcircuits before comparing */
+	 ElaborateFile(fnum1);
+	 ElaborateFile(fnum2);
 
          if (dohierarchy) {
 	    RemoveCompareQueue();
