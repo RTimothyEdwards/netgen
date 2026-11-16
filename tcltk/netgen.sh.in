@@ -14,12 +14,12 @@
 
 tcl_dir_resolved=TCL_DIR
 py_dir_resolved=PY_DIR
-if [ -n $CAD_ROOT ]; then
+if [ -n "$CAD_ROOT" ]; then
    if [ -d "$CAD_ROOT/lib/netgen/tcl" ]; then
       tcl_dir_resolved="$CAD_ROOT/lib/netgen/tcl"
    fi
    if [ -d "$CAD_ROOT/lib/netgen/python" ]; then
-      tcl_dir_resolved=$CAD_ROOT/lib/netgen/python
+      py_dir_resolved=$CAD_ROOT/lib/netgen/python
    fi
 fi
 TKCON=true
