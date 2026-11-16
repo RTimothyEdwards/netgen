@@ -265,22 +265,30 @@ int ParamStringValue(struct property *kl, struct nlist *parent,
 		struct objlist *parprops, int glob, double *dval)
 {
     static struct property *pstack[MAX_PARAM_DEPTH];
-    static int depth = 0;
+    static struct property *reported[MAX_PARAM_DEPTH];
+    static int depth = 0, nreported = 0;
     struct valuelist kv;
     struct tokstack *stackptr, *nptr;
     char *pstr;
-    int i, result = -1;
+    int i, j, result = -1;
 
     pstr = kl->pdefault.string;
     if (pstr == NULL) return -1;
     if (ConvertStringToFloat(pstr, dval) == 1) return 1;
 
     /* Guard against circular parameter definitions (e.g., a='b'	*/
-    /* and b='a'), which would otherwise recurse indefinitely.		*/
+    /* and b='a'), which would otherwise recurse indefinitely.  An	*/
+    /* expression may be evaluated several times, so report each	*/
+    /* parameter only once.						*/
     for (i = 0; i < depth; i++) {
 	if (pstack[i] == kl) {
-	    Fprintf(stderr, "Error:  Parameter \"%s\" has a circular "
+	    for (j = 0; j < nreported; j++)
+		if (reported[j] == kl) break;
+	    if (j == nreported) {
+		Fprintf(stderr, "Error:  Parameter \"%s\" has a circular "
 			"definition.\n", kl->key);
+		if (nreported < MAX_PARAM_DEPTH) reported[nreported++] = kl;
+	    }
 	    return -1;
 	}
     }
@@ -2220,6 +2228,10 @@ void AddProperty(struct keyvalue **topptr, char *key, char *value)
     struct keyvalue *kv;
 
     if (Debug) Printf("   Defining key:value property pair: %s:%s\n", key, value);
+
+    /* A property with no value (e.g., "key=" with nothing after it) */
+    /* is ignored.						     */
+    if ((value == NULL) || (*value == '\0')) return;
     if ((kv = NewKeyValue()) == NULL) {
 	perror("Failed NewKeyValue in Property");
 	return;

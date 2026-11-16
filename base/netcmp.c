@@ -49,6 +49,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include "print.h"
 #include "dbug.h"
 #include "hash.h"
+#include "flatten.h"
 
 #ifdef TCL_NETGEN
 int InterruptPending = 0;
@@ -5858,13 +5859,22 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	 if (rval != NULL) mismatches++;
       }
 
-      else switch (klt->type) {
+      /* The values have the same type, but it may not be the type of	*/
+      /* the property definition (klt), if they could not be promoted	*/
+      /* to it (e.g., unresolved expressions, or strings that are not	*/
+      /* numbers).  Compare according to the type of the values, and	*/
+      /* use the tolerance of the definition only if the type agrees.	*/
+
+      else switch (vl1->type) {
 	 case PROP_DOUBLE:
 	 case PROP_VALUE:
 	    dval1 = vl1->value.dval;
 	    dval2 = vl2->value.dval;
 
-	    dslop = klt->slop.dval;
+	    if ((klt->type == PROP_DOUBLE) || (klt->type == PROP_VALUE))
+	       dslop = klt->slop.dval;
+	    else
+	       dslop = 0.0;
 	    pd = 2 * fabs(dval1 - dval2) / (dval1 + dval2);
 	    if (pd > dslop) {
 	       if (do_print) {
@@ -5892,7 +5902,7 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	    ival1 = vl1->value.ival;
 	    ival2 = vl2->value.ival;
 
-	    islop = klt->slop.ival;
+	    islop = (klt->type == PROP_INTEGER) ? klt->slop.ival : 0;
 	    if (abs(ival1 - ival2) > islop) {
 	       if (do_print) {
 		  if (mismatches == 0)
@@ -5922,7 +5932,7 @@ PropertyCheckMismatch(struct objlist *tp1, struct nlist *tc1,
 	    }
 	    break;
 	 case PROP_STRING:
-	    islop = (int)(klt->slop.dval + 0.5);
+	    islop = (klt->type == PROP_STRING) ? (int)(klt->slop.dval + 0.5) : 0;
 	    if (islop == 0) {
 	       if (!(*matchfunc)(vl1->value.string, vl2->value.string)) {
 		  if (do_print) {
@@ -7597,8 +7607,9 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 		HashPtrInstall(obn->name, obn, &(ptr->objdict));
 
 		if (tob == tc->cell) {
-		    // Rehash the instance in instdict
-		    HashPtrInstall(firstpin->instance.name, firstpin, &(ptr->instdict));
+		    // The new pin is now the instance's first pin:  rehash
+		    // the instance in instdict
+		    HashPtrInstall(firstpin->instance.name, obn, &(ptr->instdict));
 		}
 	     }
 	     else {
@@ -7630,6 +7641,21 @@ struct nlist *addproxies(struct hashlist *p, void *clientdata)
 	     ob = ob->next;
 	  }
 	  tob = tob->next;
+       }
+
+       /* If none of the instance's pins was matched to a port of the	*/
+       /* cell, then the instance has pins that the cell does not have,	*/
+       /* and it would be found again here (and given more proxy pins)	*/
+       /* without end.  Report the error and skip over the instance.	*/
+
+       if (ob == firstpin) {
+	  Fprintf(stderr, "Error:  Instance %s of %s has pins that are not "
+			"in the cell definition.\n", firstpin->instance.name,
+			tc->name);
+	  do {
+	     lob = ob;
+	     ob = ob->next;
+	  } while (ob && (ob->type > FIRSTPIN));
        }
     }
 
@@ -7692,6 +7718,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
    int hasproxy1 = 0, hasproxy2 = 0;
    int needclean1 = 0, needclean2 = 0;
    int nomatch = 0;
+   int blackbox;
    int P1, P2;
    int filenum = -1;
    int *correspond;
@@ -7702,6 +7729,11 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
    if (tc1 == NULL) tc1 = Circuit1;
    if (tc2 == NULL) tc2 = Circuit2;
+
+   /* A black box has no contents to compare, so its pins must all	*/
+   /* match by name;  any pin without a match is an error.		*/
+   blackbox = ((NodeClasses == NULL) || (tc1->flags & CELL_PLACEHOLDER) ||
+		(tc2->flags & CELL_PLACEHOLDER)) ? TRUE : FALSE;
 
    for (ob2 = tc2->cell; ob2 != NULL; ob2 = ob2->next) {
       if (ob2->type != PORT) break;
@@ -8290,7 +8322,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 #endif
 	    continue;
 	 }
-	 else if (notempty == 1) {
+	 else if ((notempty == 1) || (blackbox && strcmp(ob2->name, "(no pins)"))) {
 	    /* Flag this as an error */
 	    result = 0;
 #ifdef TCL_NETGEN
@@ -8330,13 +8362,7 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
 	 HashPtrInstall(obn->name, obn, &(tc1->objdict));
 
-	 /* If this is a black-box circuit, then the pin has not been output */
-	 if (NodeClasses == NULL) {
-	    output_string_fill(ostr);
-	    output_string_left(ostr, "%s", "(no matching pin)");
-	    output_string_right(ostr, "%s", ob2->name);
-	    output_string_print(ostr);
-	 }
+	 /* (The pin was already listed as unmatched, above.) */
       }
    }
 
@@ -8376,9 +8402,17 @@ int MatchPins(struct nlist *tc1, struct nlist *tc2, int dolist)
 
       /* NOTE:  Previously kept the port if model.port is -1;  however,
        * all ports are -1 here so not sure why that was in there. . .
+       *
+       * The pins of a black box (a module or placeholder, or a cell with
+       * no contents) are always kept:  they connect to nothing inside the
+       * cell, but they are all there is to compare.
        */
       if (ob1 == NULL || ob1->type != PORT || ob1->node >= 0
-		|| (ob1->node < 0 && tc1->class == CLASS_MODULE)) {
+		|| (ob1->node < 0 && ((tc1->class == CLASS_MODULE) ||
+		(tc1->flags & CELL_PLACEHOLDER) || !HasContents(tc1)))) {
+
+	 /* A black box pin with no match is an error */
+	 if (blackbox && ob1 && strcmp(ob1->name, "(no pins)")) result = 0;
 
 	 /* Add a proxy pin to tc2 */
          obn = (struct objlist *)CALLOC(1, sizeof(struct objlist));

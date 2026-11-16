@@ -43,6 +43,7 @@ extern void SkipTok(char *delimiter);
 extern void SkipTokNoNewline(char *delimiter);
 extern void SkipTokComments(char *delimiter);
 extern void SkipNewLine(char *delimiter);
+extern int JoinEquals;
 extern void SpiceTokNoNewline(void);	/* handles SPICE "+" continuation line */
 extern void SpiceSkipNewLine(void);	/* handles SPICE "+" continuation line */
 extern void InputParseError(FILE *f);

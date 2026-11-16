@@ -676,8 +676,8 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	       netgen::log echo on
 	       netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
 	       netgen::log echo off
-	       lappend matcherr [lindex $endval 0]"($fnum1)"
-	       lappend matcherr [lindex $endval 1]"($fnum2)"
+	       lappend matcherr "[lindex $endval 0]($fnum1)"
+	       lappend matcherr "[lindex $endval 1]($fnum2)"
 	       netgen::flatten prohibit "[lindex $endval 0] $fnum1"
 	       netgen::flatten prohibit "[lindex $endval 1] $fnum2"
 	       set doEquatePins 1
@@ -705,6 +705,16 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 				"$fnum2 [lindex $endval 1]"]
 	    }
 	 }
+	 # A black box has nothing to compare but its pins, so if its pins
+	 # do not all match by name, it is a subcell that failed to match.
+	 if {$forceMatch && $result == 0 && [netgen::print queue] != {}} {
+	    if {[lsearch -exact $matcherr "[lindex $endval 0]($fnum1)"] < 0} {
+	       lappend matcherr "[lindex $endval 0]($fnum1)"
+	       lappend matcherr "[lindex $endval 1]($fnum2)"
+	    }
+	    set childMismatch 1
+	 }
+
 	 # Do not equate classes for a top level cell that failed to match
 	 # topologically.  (Non-matching subcells that are black-boxed must
 	 # still be equated so that the parent cell can be compared.)

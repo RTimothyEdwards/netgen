@@ -1035,6 +1035,7 @@ _netgen_flatten(ClientData clientData,
    char *repstr, *file;
    int result, filenum;
    struct nlist *tp, *tp2, *tptop;
+   struct elabrec *er;
 
    if ((objc < 2) || (objc > 4)) {
       Tcl_WrongNumArgs(interp, 1, objv, "?class? valid_cellname");
@@ -1055,6 +1056,10 @@ _netgen_flatten(ClientData clientData,
       if (tp == NULL) return TCL_ERROR;
    }
 
+   /* Commands naming a subcircuit that elaboration has replaced with	*/
+   /* copies (one for each unique set of parameters) also apply to	*/
+   /* the copies.							*/
+
    if (objc >= 3) {
       char *argv = Tcl_GetString(objv[1]);
       if (!strcmp(argv, "class")) {
@@ -1062,6 +1067,8 @@ _netgen_flatten(ClientData clientData,
 
 	 if (objc == 4) {
 	    int numflat;
+	    struct elabrec *erp;
+
 	    tp2 = LookupCellFile(Tcl_GetString(objv[2]), filenum);
 	    if (tp2 == NULL) {
 		Tcl_SetResult(interp, "No such cell.", NULL);
@@ -1071,6 +1078,19 @@ _netgen_flatten(ClientData clientData,
 	        Printf("Flattening instances of %s in cell %s within file %s\n",
 			repstr, tp2->name, tptop->name);
 		numflat = flattenInstancesOf(tp2->name, filenum, repstr);
+		for (er = ElaborateRecords(filenum); er; er = er->next)
+		   if ((*matchfunc)(er->cellname, repstr))
+		      numflat += flattenInstancesOf(tp2->name, filenum,
+				er->variant);
+		/* Copies of the parent cell */
+		for (erp = ElaborateRecords(filenum); erp; erp = erp->next) {
+		   if (!(*matchfunc)(erp->cellname, tp2->name)) continue;
+		   numflat += flattenInstancesOf(erp->variant, filenum, repstr);
+		   for (er = ElaborateRecords(filenum); er; er = er->next)
+		      if ((*matchfunc)(er->cellname, repstr))
+			 numflat += flattenInstancesOf(erp->variant, filenum,
+				er->variant);
+		}
 		if (numflat == 0) {
 		   Tcl_SetResult(interp, "No instances found to flatten.", NULL);
 		   return TCL_ERROR;
@@ -1080,6 +1100,12 @@ _netgen_flatten(ClientData clientData,
 	 else {
 	    Printf("Flattening instances of %s in file %s\n", repstr, tptop->name);
             FlattenInstancesOf(repstr, filenum);
+	    for (er = ElaborateRecords(filenum); er; er = er->next)
+	       if ((*matchfunc)(er->cellname, repstr)) {
+		  Printf("Flattening instances of %s in file %s\n", er->variant,
+				tptop->name);
+		  FlattenInstancesOf(er->variant, filenum);
+	       }
 	 }
       }
       else if (!strcmp(argv, "prohibit") || !strcmp(argv, "deny")) {
@@ -1090,6 +1116,11 @@ _netgen_flatten(ClientData clientData,
 	    Printf("Will not flatten instances of %s in file %s\n", repstr, tptop->name);
 	    /* Mark cell as placeholder so it will not be flattened */
 	    tp->flags |= CELL_PLACEHOLDER;
+	    for (er = ElaborateRecords(filenum); er; er = er->next)
+	       if ((*matchfunc)(er->cellname, repstr)) {
+		  tp2 = LookupCellFile(er->variant, filenum);
+		  if (tp2 != NULL) tp2->flags |= CELL_PLACEHOLDER;
+	       }
 	 }
       }
       else {
@@ -1100,6 +1131,11 @@ _netgen_flatten(ClientData clientData,
    else {
       Printf("Flattening contents of cell %s\n", repstr);
       Flatten(repstr, filenum);
+      for (er = ElaborateRecords(filenum); er; er = er->next)
+	 if ((*matchfunc)(er->cellname, repstr)) {
+	    Printf("Flattening contents of cell %s\n", er->variant);
+	    Flatten(er->variant, filenum);
+	 }
    }
    return TCL_OK;
 }
@@ -3218,13 +3254,11 @@ _netcmp_equate(ClientData clientData,
 	    ElementClasses = NULL;
 	    NodeClasses = NULL;
 	 }
+	 /* (Pin matching does not depend on the current cell, so do not	*/
+	 /* return early if there is none;  that also skipped restoring	*/
+	 /* the element and node classes saved above for "-force".)	*/
 	 if ((ElementClasses == NULL) && (auto_blackbox == FALSE)) {
-	    if (CurrentCell == NULL) {
-		Fprintf(stderr, "Equate elements:  no current cell.\n");
-		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
-		return TCL_OK;
-	    }
-	    else if ((tp1->flags & CELL_PLACEHOLDER) ||
+	    if ((tp1->flags & CELL_PLACEHOLDER) ||
 			(tp2->flags & CELL_PLACEHOLDER)) {
 		if (tp1->flags & CELL_PLACEHOLDER) {
 		    Fprintf(stdout, "Warning: Equate pins:  cell %s "

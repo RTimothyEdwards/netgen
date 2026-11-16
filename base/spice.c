@@ -516,12 +516,18 @@ extern void IncludeSpice(char *, int, struct cellstack **, int);
 /* Read a SPICE deck					*/
 /*------------------------------------------------------*/
 
+/* Set when a file is included from inside a subcircuit definition, so	*/
+/* that the included file is read as part of the subcircuit.		*/
+
+static char IncludeInSubckt = (char)0;
+
 void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		int blackbox)
 {
   int cdnum = 1, rdnum = 1;
   int warnings = 0, update = 0, hasports = 0;
-  char *eqptr, devtype, in_subckt;
+  char *eqptr, devtype, in_subckt, inherited;
+  struct cellstack *entrystack;
   struct keyvalue *kvlist = NULL;
   char inst[MAX_STR_LEN], model[MAX_STR_LEN], instname[MAX_STR_LEN];
   struct nlist *tp, *tpsave;
@@ -530,7 +536,14 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   inst[MAX_STR_LEN-1] = '\0';
   model[MAX_STR_LEN-1] = '\0';
   instname[MAX_STR_LEN-1] = '\0';
-  in_subckt = (char)0;
+
+  /* If this file was included from inside a subcircuit, then it is	*/
+  /* part of that subcircuit.  Only cells opened in this file are	*/
+  /* closed at the end of the file.					*/
+  in_subckt = IncludeInSubckt;
+  inherited = in_subckt;
+  IncludeInSubckt = (char)0;
+  entrystack = *CellStackPtr;
   
   while (!EndParseFile()) {
 
@@ -919,7 +932,9 @@ skip_ends:
 		*quotptr != '\0' && *quotptr != '\n') quotptr++;
       if (*quotptr == '\'' || *quotptr == '\"' || *quotptr == '`') *quotptr = '\0';
 	
+      IncludeInSubckt = in_subckt;
       IncludeSpice(iptr, filenum, CellStackPtr, blackbox);
+      IncludeInSubckt = (char)0;
       FREE(iname);
       SpiceSkipNewLine();
     }
@@ -1982,12 +1997,16 @@ baddevice:
 
   /* Watch for bad ending syntax */
 
-  if (in_subckt == (char)1) {
+  if ((in_subckt == (char)1) && (inherited == (char)0)) {
      Fprintf(stderr, "Missing .ENDS statement on subcircuit.\n");
      InputParseError(stderr);
   }
 
-  if (*(CellStackPtr)) {
+  /* Close the cell left open by this file (if any).  Do not close a	*/
+  /* cell that was open when the file was started (when this file is	*/
+  /* included from another file).					*/
+
+  if (*(CellStackPtr) && (*CellStackPtr != entrystack)) {
      CleanupSubcell();
      EndCell();
      if (*CellStackPtr) PopStack(CellStackPtr);
@@ -2078,7 +2097,9 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
   /* but we won't depend upon it.  Any comment line	*/
   /* will be handled by the main SPICE file processing.	*/
 
+  JoinEquals = TRUE;	  /* Read "key = value" as "key=value" */
   ReadSpiceFile(fname, filenum, &CellStack, blackbox);
+  JoinEquals = FALSE;
   CloseParseFile();
 
   // Cleanup
