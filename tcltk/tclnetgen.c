@@ -132,7 +132,7 @@ Command netgen_cmds[] = {
 		"[class] [<parent>] <cell>\n   "
 		"flatten a hierarchical cell"},
 	{"elaborate",		_netgen_elaborate,
-		"<netlist>\n   "
+		"<filename>\n   "
 		"resolve parameters passed to subcircuits in a netlist;\n   "
 		"return a list of subcircuit copies made for each unique\n   "
 		"set of parameters"},
@@ -1454,7 +1454,7 @@ _netgen_instances(ClientData clientData,
 
 /*------------------------------------------------------*/
 /* Function name: _netgen_elaborate			*/
-/* Syntax: netgen::elaborate <netlist>			*/
+/* Syntax: netgen::elaborate <valid_filename>		*/
 /* Formerly: (none)					*/
 /* Results:						*/
 /*	A list of the copies of subcircuits made for	*/
@@ -1479,11 +1479,11 @@ _netgen_elaborate(ClientData clientData,
    Tcl_Obj *lobj, *eobj;
 
    if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 1, objv, "netlist");
+      Tcl_WrongNumArgs(interp, 1, objv, "valid_filename");
       return TCL_ERROR;
    }
 
-   /* The netlist may be given as a file number or a name */
+   /* "valid_filename" may be given as a file number or a name */
    if (Tcl_GetIntFromObj(interp, objv[1], &fnum) != TCL_OK) {
       Tcl_ResetResult(interp);
       result = CommonParseCell(interp, objv[1], &np, &fnum);
