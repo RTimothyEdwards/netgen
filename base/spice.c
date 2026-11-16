@@ -925,13 +925,23 @@ skip_ends:
     }
 
     else if (matchnocase(nexttok, ".PARAM")) {
+      struct hashdict *pdict;
 
-      // Pick up key:value pairs and store in current cell
+      /* A .param statement inside a subcircuit has local scope and	*/
+      /* is saved in the cell's own parameter table.  Otherwise, the	*/
+      /* parameter is global and saved in the "spiceparams" table.	*/
+
+      if (in_subckt && (CurrentCell != NULL)) {
+	 pdict = &(CurrentCell->paramdict);
+	 if (pdict->hashtab == NULL)
+	    InitializeHashTable(pdict, TINYHASHSIZE);
+      }
+      else
+	 pdict = &spiceparams;
+
+      // Pick up key:value pairs and store in the parameter table
       while (nexttok != NULL)
       {
-	 /* Parse for parameters used in expressions.  Save	*/
-	 /* parameters in the "spiceparams" hash table.		*/
-
 	 SpiceTokNoNewline();
 	 if ((nexttok == NULL) || (nexttok[0] == '\0')) break;
 	 if ((eqptr = strchr(nexttok, '=')) != NULL)
@@ -939,13 +949,22 @@ skip_ends:
 	    struct property *kl = NULL;
 
 	    *eqptr = '\0';
+
+	    /* If the parameter is being redefined, free the old one */
+	    kl = (struct property *)HashLookup(nexttok, pdict);
+	    if (kl != NULL) {
+	       FREE(kl->key);
+	       if (kl->pdefault.string) FREE(kl->pdefault.string);
+	       FREE(kl);
+	    }
+
 	    kl = NewProperty();
 	    kl->key = strsave(nexttok);
 	    kl->idx = 0;
 	    kl->type = PROP_STRING;
 	    kl->slop.dval = 0.0;
 	    kl->pdefault.string = strsave(eqptr + 1);
-	    HashPtrInstall(nexttok, kl, &spiceparams);
+	    HashPtrInstall(nexttok, kl, pdict);
 	 }
       }
     }
@@ -1025,7 +1044,6 @@ skip_ends:
       snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, collector, base, emitter);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'M') {
@@ -1098,7 +1116,6 @@ skip_ends:
       snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, drain, gate, source, bulk);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
       SpiceSkipNewLine();
     }
@@ -1192,7 +1209,6 @@ skip_ends:
 	else
            Cap((*CellStackPtr)->cellname, instname, ctop, cbot);
 	pobj = LinkProperties(model, kvlist);
-	ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	DeleteProperties(&kvlist);
       }
     }
@@ -1285,7 +1301,6 @@ skip_ends:
 	else
            Res((*CellStackPtr)->cellname, instname, rtop, rbot);
 	pobj = LinkProperties(model, kvlist);
-	ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	DeleteProperties(&kvlist);
       }
     }
@@ -1340,7 +1355,6 @@ skip_ends:
       snprintf(instname, MAX_STR_LEN-1, "%s:%s", model, inst);
       Cell(instname, model, anode, cathode);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'T') {	/* transmission line */
@@ -1424,7 +1438,6 @@ skip_ends:
            XLine((*CellStackPtr)->cellname, instname, node1, node2,
 			node3, node4);
 	pobj = LinkProperties(model, kvlist);
-	ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 	DeleteProperties(&kvlist);
       }
     }
@@ -1505,7 +1518,6 @@ skip_ends:
       else
 	 Inductor((*CellStackPtr)->cellname, instname, end_a, end_b);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
 
@@ -1577,7 +1589,6 @@ skip_ends:
       }
       Cell(instname, model, pos, neg);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'I') {	/* current source */
@@ -1631,7 +1642,6 @@ skip_ends:
       }
       Cell(instname, model, pos, neg);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
     else if (toupper(nexttok[0]) == 'E') {	/* controlled voltage source */
@@ -1696,7 +1706,6 @@ skip_ends:
       }
       Cell(instname, model, pos, neg, ctrlp, ctrln);
       pobj = LinkProperties(model, kvlist);
-      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
       DeleteProperties(&kvlist);
     }
 
@@ -1891,7 +1900,6 @@ skip_ends:
 
       Instance(subcktname, instancename);
       pobj = LinkProperties(subcktname, kvlist);
-      ReduceExpressions(pobj, NULL, CurrentCell, TRUE);
 
       /* (Diagnostic) */
       /* Fprintf(stderr, "instancing subcell: %s (%s):", subcktname, instancename); */
@@ -1990,6 +1998,29 @@ baddevice:
 		warnings, (warnings == 1) ? "" : "s");
 }
 
+/*----------------------------------------------------------------------*/
+/* Callback to reduce all parameter expressions in the instances of a	*/
+/* cell.  This is run at the end of reading a SPICE file, rather than	*/
+/* after each line is read, so that parameters which are defined after	*/
+/* they are used are known.  Parameters are resolved in the scope of	*/
+/* the cell containing the instance (see TokGetValue()).		*/
+/*----------------------------------------------------------------------*/
+
+int reducecellexpressions(struct hashlist *p, int file)
+{
+   struct nlist *ptr;
+   struct objlist *ob;
+
+   ptr = (struct nlist *)(p->ptr);
+   if (ptr->file != file) return 0;
+
+   for (ob = ptr->cell; ob; ob = ob->next)
+      if (ob->type == PROPERTY)
+	 ReduceExpressions(ob, NULL, ptr, TRUE);
+
+   return 0;
+}
+
 /*----------------------------------------------*/
 /* Top-level SPICE file read routine		*/
 /*----------------------------------------------*/
@@ -2046,6 +2077,11 @@ char *ReadSpiceTop(char *fname, int *fnum, int blackbox)
 
   // Cleanup
   while (CellStack != NULL) PopStack(&CellStack);
+
+  // Now that the entire file has been read and all parameters are
+  // known (including those defined after they were used), reduce all
+  // parameter expressions in the file's cells.
+  RecurseCellFileHashTable(reducecellexpressions, filenum);
 
   RecurseHashTable(&spiceparams, freeprop);
   HashKill(&spiceparams);

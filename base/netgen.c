@@ -182,6 +182,85 @@ struct tokstack *CopyTokStack(struct tokstack *stack)
 /* if the property is not instanced.				*/
 /*--------------------------------------------------------------*/
 
+/*--------------------------------------------------------------*/
+/* Evaluate the stored value of a parameter, which may itself	*/
+/* be an expression in terms of other parameters (e.g.,		*/
+/* ".param a='2*b'").  The expression is evaluated in the scope	*/
+/* where the parameter was defined:  "parent" is the cell (or	*/
+/* NULL for global scope) and "parprops" the instance values.	*/
+/* Returns 1 on success, -1 if the value could not be resolved.	*/
+/*--------------------------------------------------------------*/
+
+#define MAX_PARAM_DEPTH 32
+
+int ReduceOneExpression(struct valuelist *, struct objlist *, struct nlist *, int);
+
+int ParamStringValue(struct property *kl, struct nlist *parent,
+		struct objlist *parprops, int glob, double *dval)
+{
+    static struct property *pstack[MAX_PARAM_DEPTH];
+    static int depth = 0;
+    struct valuelist kv;
+    struct tokstack *stackptr, *nptr;
+    char *pstr;
+    int i, result = -1;
+
+    pstr = kl->pdefault.string;
+    if (pstr == NULL) return -1;
+    if (ConvertStringToFloat(pstr, dval) == 1) return 1;
+
+    /* Guard against circular parameter definitions (e.g., a='b'	*/
+    /* and b='a'), which would otherwise recurse indefinitely.		*/
+    for (i = 0; i < depth; i++) {
+	if (pstack[i] == kl) {
+	    Fprintf(stderr, "Error:  Parameter \"%s\" has a circular "
+			"definition.\n", kl->key);
+	    return -1;
+	}
+    }
+    if (depth >= MAX_PARAM_DEPTH) {
+	Fprintf(stderr, "Error:  Parameter \"%s\" is nested too deeply"
+		" to resolve.\n", kl->key);
+	return -1;
+    }
+
+    kv.key = NULL;
+    kv.type = PROP_STRING;
+    kv.value.string = strsave(pstr);
+
+    pstack[depth++] = kl;
+    ReduceOneExpression(&kv, parprops, parent, glob);
+    depth--;
+
+    /* Note:  ReduceOneExpression() frees the original string */
+
+    switch (kv.type) {
+	case PROP_DOUBLE:
+	case PROP_VALUE:
+	    *dval = kv.value.dval;
+	    result = 1;
+	    break;
+	case PROP_INTEGER:
+	    *dval = (double)kv.value.ival;
+	    result = 1;
+	    break;
+	case PROP_STRING:
+	    FREE(kv.value.string);
+	    break;
+	case PROP_EXPRESSION:
+	    stackptr = kv.value.stack;
+	    while (stackptr != NULL) {
+		nptr = stackptr->next;
+		if (stackptr->toktype == TOK_STRING)
+		    FREE(stackptr->data.string);
+		FREE(stackptr);
+		stackptr = nptr;
+	    }
+	    break;
+    }
+    return result;
+}
+
 int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
 		int glob, double *dval)
 {
@@ -198,18 +277,14 @@ int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
 	if (result == 1) return 1;
     }
 
-    /* No numerical value found.  Try substituting parameters */
+    /* No numerical value found.  Try substituting parameters.	*/
+    /* Parameters are searched from the innermost scope outward:	*/
+    /* (1) parameters passed to the instance;  (2) parameters	*/
+    /* defined by .param inside the subcircuit;  (3) parameters	*/
+    /* declared on the .subckt line (default values);  and (4)	*/
+    /* global parameters (only while reading a netlist).		*/
 
-    if (glob == TRUE) {
-	/* Check global parameters */
-	kl = (struct property *)HashLookup(estr, &spiceparams);
-	if (kl != NULL) {
-	    result = ConvertStringToFloat(kl->pdefault.string, dval);
-	    return ((result == 0) ? -1 : 1);
-	}
-    }
-
-    /* Check local instanced parameters */
+    /* (1) Check local instanced parameters */
     result = 0;
     if ((parprops != NULL) && (parprops->type == PROPERTY)) {
 	for (i = 0; ; i++) {
@@ -230,31 +305,49 @@ int TokGetValue(char *estr, struct nlist *parent, struct objlist *parprops,
 			result = 1;
 			break;
 		}
-		break;
+		/* Found in this scope;  do not look in outer scopes */
+		return ((result == 1) ? 1 : -1);
 	    }
 	}
     }
 
-    /* Check local parent parameters */
-    if (result == 0) {
+    /* (2) Check parameters defined by .param inside the subcircuit */
+    if ((parent != NULL) && (parent->paramdict.hashtab != NULL)) {
+	kl = (struct property *)HashLookup(estr, &(parent->paramdict));
+	if (kl != NULL)
+	    return ParamStringValue(kl, parent, parprops,
+			glob, dval);
+    }
+
+    /* (3) Check parameters declared on the .subckt line */
+    if (parent != NULL)
 	kl = (struct property *)HashLookup(estr, &(parent->propdict));
-	if (kl != NULL) {
-	    switch(kl->type) {
-		case PROP_STRING:
-		    if (kl->pdefault.string != NULL)
-			result = ConvertStringToFloat(kl->pdefault.string, dval);
-		    break;
-		case PROP_DOUBLE:
-		case PROP_VALUE:
-		    *dval = kl->pdefault.dval;
-		    result = 1;
-		    break;
-		case PROP_INTEGER:
-		    *dval = (double)kl->pdefault.ival;
-		    result = 1;
-		    break;
-	    }
+    else
+	kl = NULL;
+    if (kl != NULL) {
+	switch(kl->type) {
+	    case PROP_STRING:
+		return ParamStringValue(kl, parent, parprops,
+			glob, dval);
+	    case PROP_DOUBLE:
+	    case PROP_VALUE:
+		*dval = kl->pdefault.dval;
+		result = 1;
+		break;
+	    case PROP_INTEGER:
+		*dval = (double)kl->pdefault.ival;
+		result = 1;
+		break;
 	}
+	return ((result == 1) ? 1 : -1);
+    }
+
+    /* (4) Check global parameters (only while reading a netlist).	*/
+    /* A global parameter's value is evaluated in global scope.	*/
+    if ((glob == TRUE) && (spiceparams.hashtab != NULL)) {
+	kl = (struct property *)HashLookup(estr, &spiceparams);
+	if (kl != NULL)
+	    return ParamStringValue(kl, NULL, NULL, glob, dval);
     }
     return ((result == 0) ? -1 : 1);
 }

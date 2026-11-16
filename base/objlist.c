@@ -394,6 +394,8 @@ struct nlist *InstallInCellHashTable(char *name, int fnum)
   HashKill(&(p->instdict));
   RecurseHashTable(&(p->propdict), freeprop);
   HashKill(&(p->propdict));
+  RecurseHashTable(&(p->paramdict), freeprop);
+  HashKill(&(p->paramdict));
   FREE(p);
   return(NULL);
 }
@@ -671,6 +673,8 @@ void CellDelete(char *name, int fnum)
    HashKill(&(tp->instdict));
    RecurseHashTable(&(tp->propdict), freeprop);
    HashKill(&(tp->propdict));
+   RecurseHashTable(&(tp->paramdict), freeprop);
+   HashKill(&(tp->paramdict));
    FreeNodeNames(tp);
    ob = tp->cell;
    while (ob != NULL) {
