@@ -233,6 +233,7 @@ struct nlist {
 #define CELL_DUPLICATE		0x020	/* cell has a duplicate */
 #define CELL_VERILOG		0x040	/* cell is verilog module */
 #define CELL_REACHABLE		0x080	/* cell is in the hierarchy being compared */
+#define CELL_EXTERNAL		0x100	/* verilog module to be elaborated by yosys */
 
 /* Flags for combination allowances and prohibitions */
 

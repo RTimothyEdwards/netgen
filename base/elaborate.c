@@ -44,6 +44,16 @@
 /* again if another netlist is read into the same file number.	It	*/
 /* is run by the "elaborate" command, and automatically before		*/
 /* flattening or comparing.						*/
+/*									*/
+/* Verilog modules that netgen's verilog reader cannot read (e.g.,	*/
+/* because they have generate blocks or expressions depending on	*/
+/* parameters) are elaborated by yosys (through the Tcl procedure	*/
+/* netgen::yosys_elaborate), which writes a simple netlist that netgen	*/
+/* reads in place of the module.  This is done first with the		*/
+/* module's default parameter values, replacing the contents of the	*/
+/* module, and then again for each other set of parameter values	*/
+/* passed to it, in place of copying the module and resolving its	*/
+/* parameters.								*/
 
 #include "config.h"
 #include <stdio.h>
@@ -59,6 +69,10 @@
 #include "objlist.h"
 #include "print.h"
 #include "flatten.h"
+
+#ifdef TCL_NETGEN
+extern Tcl_Interp *netgeninterp;
+#endif
 
 /* Instance of a cell, as found in a parent cell */
 
@@ -78,6 +92,7 @@ struct elabcell {
     struct elabinst *lastinst;	/* Last entry in "insts" */
     int indegree;		/* Unprocessed parent instances (topological sort) */
     unsigned char dead;		/* Cell has been replaced by copies */
+    unsigned char done;		/* Cell has been elaborated */
     struct elabcell *next;	/* Next cell in processing order */
 };
 
@@ -201,6 +216,15 @@ static void AddElabInst(struct nlist *parent, struct objlist *ob, int count)
     ec = LookupElabCell(ob->model.class);
     if (ec == NULL) return;
 
+    /* A copy of a cell elaborated by yosys may instance a cell that	*/
+    /* the original did not (e.g., in a conditional generate block),	*/
+    /* and which may then have already been elaborated.		*/
+    if (ec->done && (ec->cell != parent))
+	Printf("Warning:  Cell %s is instanced by %s (elaborated by yosys) "
+		"after %s was elaborated;  parameters passed to it by %s "
+		"are not resolved.\n", ec->cell->name, parent->name,
+		ec->cell->name, parent->name);
+
     /* The property record, if any, follows the last pin record */
     for (pob = ob->next; pob && (pob->type > FIRSTPIN); pob = pob->next);
     if ((pob != NULL) && (pob->type != PROPERTY)) pob = NULL;
@@ -218,6 +242,41 @@ static void AddElabInst(struct nlist *parent, struct objlist *ob, int count)
     ec->lastinst = ei;
 
     if (count) ec->indegree++;
+}
+
+/*----------------------------------------------------------------------*/
+/* The contents of cell "parent" have been replaced (by yosys):  remove	*/
+/* the records of the instances in its old contents, and add records	*/
+/* for the instances in its new contents.  The new instances are not	*/
+/* counted in "indegree" (the old ones were).				*/
+/*----------------------------------------------------------------------*/
+
+static void RenewElabInsts(struct nlist *parent)
+{
+    struct elabcell *ec;
+    struct elabinst *ei, *eprev, *enext;
+    struct objlist *ob;
+
+    for (ec = (struct elabcell *)HashFirst(&elabdict); ec;
+		ec = (struct elabcell *)HashNext(&elabdict)) {
+	eprev = NULL;
+	for (ei = ec->insts; ei; ei = enext) {
+	    enext = ei->next;
+	    if (ei->parent == parent) {
+		if (eprev) eprev->next = enext;
+		else ec->insts = enext;
+		if (ei->signature) FREE(ei->signature);
+		FREE(ei);
+	    }
+	    else
+		eprev = ei;
+	}
+	ec->lastinst = eprev;
+    }
+
+    for (ob = parent->cell; ob; ob = ob->next)
+	if (ob->type == FIRSTPIN)
+	    AddElabInst(parent, ob, FALSE);
 }
 
 /*----------------------------------------------------------------------*/
@@ -398,34 +457,40 @@ static int GetInstParam(struct nlist *tc, struct objlist *prop, char *key,
 /* Parameters that cannot be resolved are written as "key=?".		*/
 /*----------------------------------------------------------------------*/
 
-static void SetSignatures(struct elabcell *ec, char **keys, int nkeys)
+static char *MakeSignature(struct nlist *tc, struct objlist *prop,
+		char **keys, int nkeys)
 {
-    struct elabinst *ei;
-    struct elabcell *pc;
     char *sig, valstr[64];
     int i, len;
     double dval;
 
+    len = 1;
+    for (i = 0; i < nkeys; i++) len += strlen(keys[i]) + 2 + 32;
+    sig = (char *)MALLOC(len);
+    *sig = '\0';
+    for (i = 0; i < nkeys; i++) {
+	if (GetInstParam(tc, prop, keys[i], &dval) == 1)
+	    snprintf(valstr, 63, "%.10g", dval);
+	else
+	    strcpy(valstr, "?");
+	if (i > 0) strcat(sig, " ");
+	strcat(sig, keys[i]);
+	strcat(sig, "=");
+	strcat(sig, valstr);
+    }
+    return sig;
+}
+
+static void SetSignatures(struct elabcell *ec, char **keys, int nkeys)
+{
+    struct elabinst *ei;
+    struct elabcell *pc;
+
     for (ei = ec->insts; ei; ei = ei->next) {
 	pc = LookupElabCell(ei->parent->name);
 	if ((pc != NULL) && pc->dead) continue;
-
-	len = 1;
-	for (i = 0; i < nkeys; i++) len += strlen(keys[i]) + 2 + 32;
-	sig = (char *)MALLOC(len);
-	*sig = '\0';
-	for (i = 0; i < nkeys; i++) {
-	    if (GetInstParam(ec->cell, ei->prop, keys[i], &dval) == 1)
-		snprintf(valstr, 63, "%.10g", dval);
-	    else
-		strcpy(valstr, "?");
-	    if (i > 0) strcat(sig, " ");
-	    strcat(sig, keys[i]);
-	    strcat(sig, "=");
-	    strcat(sig, valstr);
-	}
 	if (ei->signature) FREE(ei->signature);
-	ei->signature = sig;
+	ei->signature = MakeSignature(ec->cell, ei->prop, keys, nkeys);
     }
 }
 
@@ -595,6 +660,395 @@ static struct nlist *CloneCell(struct nlist *tc, char *name)
 }
 
 /*----------------------------------------------------------------------*/
+/* Remove a cell from netlist "file".  Port records must be freed	*/
+/* separately (CellDelete() would treat "model.port" as a string).	*/
+/*----------------------------------------------------------------------*/
+
+static void DeleteCell(char *name, int file)
+{
+    struct nlist *tp;
+    struct objlist *ob, *obnext, *oblast;
+    char *cname;
+
+    tp = LookupCellFile(name, file);
+    if (tp == NULL) return;
+
+    oblast = NULL;
+    for (ob = tp->cell; ob; ob = obnext) {
+	obnext = ob->next;
+	if (ob->type == PORT) {
+	    if (oblast) oblast->next = obnext;
+	    else tp->cell = obnext;
+	    if (ob->name != NULL) FreeString(ob->name);
+	    if (ob->instance.name != NULL) FreeString(ob->instance.name);
+	    FREE(ob);
+	}
+	else
+	    oblast = ob;
+    }
+    cname = strsave(name);	/* "name" may be the cell's own name */
+    CellDelete(cname, file);
+    FREE(cname);
+}
+
+/*----------------------------------------------------------------------*/
+/* Put the ports of cell "nc" (read from the output of yosys) in the	*/
+/* same order as the ports of cell "tc" (the module as read by netgen),	*/
+/* which instances of the module depend on.  Returns TRUE on success,	*/
+/* or FALSE if the two do not have the same ports.			*/
+/*----------------------------------------------------------------------*/
+
+static int ReorderPorts(struct nlist *nc, struct nlist *tc)
+{
+    struct objlist *ob, *nob, *prev, *head, *tail, *rest;
+    int nports = 0, tports = 0;
+
+    for (ob = tc->cell; ob; ob = ob->next)
+	if (ob->type == PORT) tports++;
+
+    /* Move each port of nc, in the order of the ports of tc, from	*/
+    /* nc's list to a new list.						*/
+    head = tail = NULL;
+    for (ob = tc->cell; ob; ob = ob->next) {
+	if (ob->type != PORT) continue;
+	prev = NULL;
+	for (nob = nc->cell; nob; nob = nob->next) {
+	    if ((nob->type == PORT) && (*matchfunc)(nob->name, ob->name)) break;
+	    prev = nob;
+	}
+	if (nob == NULL) {
+	    Printf("Module %s from yosys has no port %s.\n", tc->name, ob->name);
+	    break;
+	}
+	if (prev) prev->next = nob->next;
+	else nc->cell = nob->next;
+	nob->next = NULL;
+	if (tail) tail->next = nob;
+	else head = nob;
+	tail = nob;
+	nports++;
+    }
+
+    /* Ports that were not moved */
+    rest = nc->cell;
+    for (nob = rest; nob; nob = nob->next)
+	if (nob->type == PORT) {
+	    if (nports == tports)
+		Printf("Module %s from yosys has port %s, which the module "
+			"read by netgen does not.\n", tc->name, nob->name);
+	    nports = -1;
+	}
+
+    /* Put the list back together (ports first) */
+    if (tail) {
+	tail->next = rest;
+	nc->cell = head;
+    }
+    if (nports != tports) return FALSE;
+
+    FreeNodeNames(nc);
+    CacheNodeNames(nc);
+    return TRUE;
+}
+
+/*----------------------------------------------------------------------*/
+/* Replace the contents of cell "tc" with the contents of cell "nc",	*/
+/* and remove cell "nc".  The ports must already be in the same order	*/
+/* (see ReorderPorts()).  The cell "tc" itself is kept, as other	*/
+/* records point to it.  Its parameters and flags are not changed.	*/
+/*----------------------------------------------------------------------*/
+
+static void ReplaceContents(struct nlist *tc, struct nlist *nc)
+{
+    struct objlist *ob;
+    struct hashdict dict;
+    struct objlist **cache;
+    long maxnum;
+
+    ob = tc->cell;
+    tc->cell = nc->cell;
+    nc->cell = ob;
+
+    dict = tc->objdict;
+    tc->objdict = nc->objdict;
+    nc->objdict = dict;
+
+    dict = tc->instdict;
+    tc->instdict = nc->instdict;
+    nc->instdict = dict;
+
+    cache = tc->nodename_cache;
+    tc->nodename_cache = nc->nodename_cache;
+    nc->nodename_cache = cache;
+
+    maxnum = tc->nodename_cache_maxnodenum;
+    tc->nodename_cache_maxnodenum = nc->nodename_cache_maxnodenum;
+    nc->nodename_cache_maxnodenum = maxnum;
+
+    tc->class = nc->class;
+
+    /* The cells instanced by the original contents (now in nc) are no	*/
+    /* longer instanced there.						*/
+    for (ob = nc->cell; ob; ob = ob->next) {
+	struct nlist *cc;
+	if (ob->type != FIRSTPIN) continue;
+	cc = LookupCellFile(ob->model.class, tc->file);
+	if ((cc != NULL) && (cc->number > 0)) cc->number--;
+    }
+
+    /* This removes the original contents of tc, now in nc */
+    DeleteCell(nc->name, nc->file);
+}
+
+#ifdef TCL_NETGEN
+
+/*----------------------------------------------------------------------*/
+/* Callback to make a list of the cells in a netlist, other than	*/
+/* "ExtTarget", for netgen::yosys_elaborate:  each is a list of the	*/
+/* cell name, its pin names, and its parameter names.			*/
+/*----------------------------------------------------------------------*/
+
+static struct nlist *ExtTarget;
+static Tcl_Obj *ExtCellList;
+
+static int addextcell(struct hashlist *p, int file)
+{
+    struct nlist *tc = (struct nlist *)(p->ptr);
+    struct objlist *ob;
+    struct property *kl;
+    Tcl_Obj *elem, *pins, *params;
+
+    if (tc->file != file) return 0;
+    if (tc == ExtTarget) return 0;
+    if (tc->flags & CELL_TOP) return 0;		/* Cell for the file itself */
+
+    pins = Tcl_NewListObj(0, NULL);
+    for (ob = tc->cell; ob; ob = ob->next)
+	if (ob->type == PORT)
+	    Tcl_ListObjAppendElement(netgeninterp, pins,
+			Tcl_NewStringObj(ob->name, -1));
+
+    params = Tcl_NewListObj(0, NULL);
+    for (kl = (struct property *)HashFirst(&(tc->propdict)); kl;
+		kl = (struct property *)HashNext(&(tc->propdict)))
+	Tcl_ListObjAppendElement(netgeninterp, params,
+			Tcl_NewStringObj(kl->key, -1));
+
+    elem = Tcl_NewListObj(0, NULL);
+    Tcl_ListObjAppendElement(netgeninterp, elem, Tcl_NewStringObj(tc->name, -1));
+    Tcl_ListObjAppendElement(netgeninterp, elem, pins);
+    Tcl_ListObjAppendElement(netgeninterp, elem, params);
+    Tcl_ListObjAppendElement(netgeninterp, ExtCellList, elem);
+    return 0;
+}
+
+/*----------------------------------------------------------------------*/
+/* Run yosys (through the Tcl procedure netgen::yosys_elaborate) on the	*/
+/* verilog module "tc" (recorded in "em"), with the parameter values in	*/
+/* "params" (a Tcl list of names and values, or NULL for the module's	*/
+/* defaults), and read the result into the netlist as cell "newname",	*/
+/* with its ports in the same order as those of "tc".  Returns the new	*/
+/* cell, or NULL if yosys failed or its output could not be used.	*/
+/*----------------------------------------------------------------------*/
+
+static struct nlist *YosysElaborate(struct nlist *tc, struct extmodule *em,
+		Tcl_Obj *params, char *newname)
+{
+    Tcl_Obj *cmd;
+    struct nlist *nc;
+    char *outname;
+    int result;
+
+    if (em->source == NULL) return NULL;
+
+    ExtTarget = tc;
+    ExtCellList = Tcl_NewListObj(0, NULL);
+    Tcl_IncrRefCount(ExtCellList);
+    RecurseCellFileHashTable(addextcell, tc->file);
+
+    cmd = Tcl_NewListObj(0, NULL);
+    Tcl_IncrRefCount(cmd);
+    Tcl_ListObjAppendElement(netgeninterp, cmd,
+		Tcl_NewStringObj("netgen::yosys_elaborate", -1));
+    Tcl_ListObjAppendElement(netgeninterp, cmd, Tcl_NewStringObj(em->source, -1));
+    Tcl_ListObjAppendElement(netgeninterp, cmd, Tcl_NewStringObj(tc->name, -1));
+    Tcl_ListObjAppendElement(netgeninterp, cmd, Tcl_NewStringObj("-cells", -1));
+    Tcl_ListObjAppendElement(netgeninterp, cmd, ExtCellList);
+    if (params != NULL) {
+	Tcl_ListObjAppendElement(netgeninterp, cmd, Tcl_NewStringObj("-param", -1));
+	Tcl_ListObjAppendElement(netgeninterp, cmd, params);
+    }
+    if (em->defines != NULL) {
+	Tcl_ListObjAppendElement(netgeninterp, cmd, Tcl_NewStringObj("-define", -1));
+	Tcl_ListObjAppendElement(netgeninterp, cmd,
+		Tcl_NewStringObj(em->defines, -1));
+    }
+    result = Tcl_EvalObjEx(netgeninterp, cmd, TCL_EVAL_GLOBAL);
+    Tcl_DecrRefCount(cmd);
+    Tcl_DecrRefCount(ExtCellList);
+    ExtTarget = NULL;
+
+    if (result != TCL_OK) {
+	Fprintf(stderr, "Error running yosys:  %s\n",
+		Tcl_GetStringResult(netgeninterp));
+	Tcl_ResetResult(netgeninterp);
+	return NULL;
+    }
+    outname = strsave((char *)Tcl_GetStringResult(netgeninterp));
+    Tcl_ResetResult(netgeninterp);
+    if (*outname == '\0') {
+	FREE(outname);
+	return NULL;
+    }
+
+    nc = ReadVerilogModuleAs(outname, tc->file, tc->name, newname);
+    if (nc == NULL)
+	Printf("The output of yosys (%s) could not be read.\n", outname);
+    else if (nc->class == CLASS_MODULE) {
+	Printf("The output of yosys for module %s (%s) is not a netlist.\n",
+		tc->name, outname);
+	DeleteCell(newname, tc->file);
+	nc = NULL;
+    }
+    else if (ReorderPorts(nc, tc) == FALSE) {
+	Printf("The ports of module %s from yosys (%s) do not match the "
+		"module as read by netgen.\n", tc->name, outname);
+	DeleteCell(newname, tc->file);
+	nc = NULL;
+    }
+    else
+	remove(outname);	/* Keep the file if it could not be used */
+    FREE(outname);
+    return nc;
+}
+
+/*----------------------------------------------------------------------*/
+/* Make a Tcl list of parameter names and values for an instance with	*/
+/* property record "prop" of cell "tc", for YosysElaborate().		*/
+/* Parameters whose values are not numbers are left out (so that yosys	*/
+/* uses the module's default).						*/
+/*----------------------------------------------------------------------*/
+
+static Tcl_Obj *YosysParams(struct nlist *tc, struct objlist *prop,
+		char **keys, int nkeys)
+{
+    Tcl_Obj *params;
+    char valstr[64];
+    double dval;
+    int i;
+
+    params = Tcl_NewListObj(0, NULL);
+    for (i = 0; i < nkeys; i++) {
+	if (GetInstParam(tc, prop, keys[i], &dval) != 1) {
+	    Printf("Warning:  Value of parameter %s of module %s is not a "
+		"number;  using the default value.\n", keys[i], tc->name);
+	    continue;
+	}
+	if ((dval == (double)(long long)dval) && (dval < 1e18) && (dval > -1e18))
+	    snprintf(valstr, 63, "%lld", (long long)dval);
+	else
+	    snprintf(valstr, 63, "%.17g", dval);
+	Tcl_ListObjAppendElement(netgeninterp, params,
+		Tcl_NewStringObj(keys[i], -1));
+	Tcl_ListObjAppendElement(netgeninterp, params,
+		Tcl_NewStringObj(valstr, -1));
+    }
+    return params;
+}
+
+#endif	/* TCL_NETGEN */
+
+/*----------------------------------------------------------------------*/
+/* Return the record of a module to be elaborated by yosys, if cell	*/
+/* "tc" is one (and yosys has replaced its contents), or NULL.		*/
+/*----------------------------------------------------------------------*/
+
+static struct extmodule *ExtModuleOf(struct nlist *tc)
+{
+    struct extmodule *em;
+
+    if (!(tc->flags & CELL_EXTERNAL)) return NULL;
+    em = ExtModuleLookup(tc->name, tc->file);
+    if ((em == NULL) || (em->status != EXT_DONE)) return NULL;
+    return em;
+}
+
+/*----------------------------------------------------------------------*/
+/* Make a copy of cell "tc" named "vname" for the instances having the	*/
+/* parameters of instance "ei", with the parameters resolved.  For a	*/
+/* module elaborated by yosys, yosys makes the copy (unless the		*/
+/* parameters are those of the module's current contents).		*/
+/*----------------------------------------------------------------------*/
+
+static struct nlist *MakeVariant(struct elabcell *ec, struct elabinst *ei,
+		char **keys, int nkeys, char *vname)
+{
+    struct nlist *tc = ec->cell, *nc = NULL;
+    struct extmodule *em;
+    struct objlist *ctx;
+    struct property *kl;
+
+    em = ExtModuleOf(tc);
+#ifdef TCL_NETGEN
+    if ((em != NULL) && ((em->params == NULL) || strcmp(em->params, ei->signature))) {
+	Tcl_Obj *params = YosysParams(tc, ei->prop, keys, nkeys);
+	Tcl_IncrRefCount(params);
+	nc = YosysElaborate(tc, em, params, vname);
+	Tcl_DecrRefCount(params);
+	if (nc != NULL) {
+	    nc->flags |= tc->flags & ~(CELL_TOP | CELL_MATCHED |
+			CELL_PROPSMATCHED | CELL_DUPLICATE | CELL_EXTERNAL);
+	    for (kl = (struct property *)HashFirst(&(tc->propdict)); kl;
+			kl = (struct property *)HashNext(&(tc->propdict)))
+		HashPtrInstall(kl->key, CopyProperty(kl), &(nc->propdict));
+	    return nc;
+	}
+	Printf("Warning:  Module %s could not be elaborated by yosys with "
+		"parameters %s;  using its contents for %s.\n", tc->name,
+		ei->signature, (em->params) ? em->params : "default parameters");
+    }
+#endif
+    nc = CloneCell(tc, vname);
+    if (em != NULL) nc->flags &= ~CELL_EXTERNAL;
+    ctx = MakeContext(ec, ei, keys, nkeys);
+    ResolveCell(nc, ctx);
+    FreeObject(ctx);
+    return nc;
+}
+
+/*----------------------------------------------------------------------*/
+/* Have yosys elaborate the module "tc" (recorded in "em") in place,	*/
+/* with the parameters of instance "ei", or with its defaults if "ei"	*/
+/* is NULL.  Returns TRUE on success.					*/
+/*----------------------------------------------------------------------*/
+
+static int YosysInPlace(struct nlist *tc, struct extmodule *em,
+		struct elabinst *ei, char **keys, int nkeys, char *signature)
+{
+#ifdef TCL_NETGEN
+    struct nlist *nc;
+    Tcl_Obj *params = NULL;
+    char tmpname[MAX_STR_LEN];
+
+    snprintf(tmpname, MAX_STR_LEN - 1, "%s@yosys", tc->name);
+    if (ei != NULL) {
+	params = YosysParams(tc, ei->prop, keys, nkeys);
+	Tcl_IncrRefCount(params);
+    }
+    nc = YosysElaborate(tc, em, params, tmpname);
+    if (params != NULL) Tcl_DecrRefCount(params);
+    if (nc == NULL) return FALSE;
+
+    ReplaceContents(tc, nc);
+    if (em->params != NULL) FREE(em->params);
+    em->params = (signature != NULL) ? strsave(signature) : NULL;
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
+
+/*----------------------------------------------------------------------*/
 /* Change an instance to instance a different cell.			*/
 /*----------------------------------------------------------------------*/
 
@@ -687,6 +1141,7 @@ static void ElaborateCell(struct elabcell *ec, struct elabfile *ef)
     struct nlist *tc = ec->cell, *nc;
     struct objlist *ctx, *ob;
     struct elabrec *er, *ertail;
+    struct extmodule *em;
     char **keys, vname[MAX_STR_LEN];
     int nkeys, nsets, idx, live;
 
@@ -723,9 +1178,28 @@ static void ElaborateCell(struct elabcell *ec, struct elabfile *ef)
     if (nsets == 1) {
 	/* All instances have the same parameters:  resolve in place */
 	for (ei = ec->insts; ei && (ei->signature == NULL); ei = ei->next);
-	ctx = MakeContext(ec, ei, keys, nkeys);
-	ResolveCell(tc, ctx);
-	FreeObject(ctx);
+	em = ExtModuleOf(tc);
+	if (em != NULL) {
+	    /* Module elaborated by yosys:  do it again, unless the	*/
+	    /* contents already have these parameters.			*/
+	    if ((em->params == NULL) || strcmp(em->params, ei->signature)) {
+		if (YosysInPlace(tc, em, ei, keys, nkeys, ei->signature)) {
+		    Printf("Module %s elaborated by yosys with parameters %s\n",
+				tc->name, ei->signature);
+		    RenewElabInsts(tc);
+		}
+		else
+		    Printf("Warning:  Module %s could not be elaborated by yosys "
+				"with parameters %s;  using %s.\n", tc->name,
+				ei->signature, (em->params) ? em->params :
+				"default parameters");
+	    }
+	}
+	else {
+	    ctx = MakeContext(ec, ei, keys, nkeys);
+	    ResolveCell(tc, ctx);
+	    FreeObject(ctx);
+	}
 	StripInstParams(ec, keys, nkeys);
 	FREE(keys);
 	return;
@@ -733,7 +1207,8 @@ static void ElaborateCell(struct elabcell *ec, struct elabfile *ef)
 
     /* Make a copy of the cell for each unique set of parameters */
 
-    Printf("Subcircuit %s has %d unique sets of parameters:\n", tc->name, nsets);
+    Printf("Subcircuit %s has %d unique sets of parameters%s:\n", tc->name, nsets,
+		(ExtModuleOf(tc) != NULL) ? " (copies made by yosys)" : "");
     for (ertail = ef->records; ertail && ertail->next; ertail = ertail->next);
 
     idx = 1;
@@ -749,10 +1224,7 @@ static void ElaborateCell(struct elabcell *ec, struct elabfile *ef)
 	    snprintf(vname, MAX_STR_LEN - 1, "%s@%d", tc->name, idx++);
 	} while (LookupCellFile(vname, tc->file) != NULL);
 
-	nc = CloneCell(tc, vname);
-	ctx = MakeContext(ec, ei, keys, nkeys);
-	ResolveCell(nc, ctx);
-	FreeObject(ctx);
+	nc = MakeVariant(ec, ei, keys, nkeys, vname);
 
 	/* Change all instances with this set to use the copy */
 	nc->number = 0;
@@ -794,6 +1266,77 @@ static void ElaborateCell(struct elabcell *ec, struct elabfile *ef)
 }
 
 /*----------------------------------------------------------------------*/
+/* Callback to collect the verilog modules in a file that are waiting	*/
+/* to be elaborated by yosys.						*/
+/*----------------------------------------------------------------------*/
+
+struct extlist {
+    struct nlist *cell;
+    struct extmodule *em;
+    struct extlist *next;
+};
+
+static struct extlist *ExtPending;
+
+static int findextpending(struct hashlist *p, int file)
+{
+    struct nlist *tc = (struct nlist *)(p->ptr);
+    struct extmodule *em;
+    struct extlist *el;
+
+    if (tc->file != file) return 0;
+    if (!(tc->flags & CELL_EXTERNAL)) return 0;
+    em = ExtModuleLookup(tc->name, tc->file);
+    if ((em == NULL) || (em->status != EXT_PENDING)) return 0;
+
+    el = (struct extlist *)MALLOC(sizeof(struct extlist));
+    el->cell = tc;
+    el->em = em;
+    el->next = ExtPending;
+    ExtPending = el;
+    return 0;
+}
+
+/*----------------------------------------------------------------------*/
+/* Have yosys elaborate each verilog module in the file that netgen's	*/
+/* verilog reader could not read, with its default parameter values,	*/
+/* replacing the module's contents.  This is done before the rest of	*/
+/* elaboration so that the cells instanced by the module are known.	*/
+/*----------------------------------------------------------------------*/
+
+static void ElaborateExternal(int file)
+{
+    struct extlist *el;
+    struct nlist *tc;
+    char **keys, *sig;
+    int nkeys;
+
+    ExtPending = NULL;
+    RecurseCellFileHashTable(findextpending, file);
+
+    while (ExtPending != NULL) {
+	el = ExtPending;
+	ExtPending = el->next;
+	tc = el->cell;
+
+	nkeys = GetCellParams(tc, &keys);
+	sig = MakeSignature(tc, NULL, keys, nkeys);
+	if (YosysInPlace(tc, el->em, NULL, keys, nkeys, sig)) {
+	    el->em->status = EXT_DONE;
+	    Printf("Module %s elaborated by yosys.\n", tc->name);
+	}
+	else {
+	    el->em->status = EXT_FAILED;
+	    Printf("Module %s could not be elaborated by yosys, and is "
+			"treated as a black box.\n", tc->name);
+	}
+	FREE(sig);
+	FREE(keys);
+	FREE(el);
+    }
+}
+
+/*----------------------------------------------------------------------*/
 /* Elaborate all cells in a file (netlist).  Does nothing if the file	*/
 /* has already been elaborated since the last netlist was read into	*/
 /* it.  Returns the number of subcircuit copies made.			*/
@@ -802,11 +1345,11 @@ static void ElaborateCell(struct elabcell *ec, struct elabfile *ef)
 int ElaborateFile(int file)
 {
     struct elabfile *ef;
-    struct elabcell *ec, *queue, *qtail, *cc;
+    struct elabcell *ec, *queue, *qtail, *cc, **children;
     struct elabinst *ei;
     struct objlist *ob;
     struct elabrec *er;
-    int ncopies = 0;
+    int ncopies = 0, nchild, i;
 
     if (file < 0) return 0;
     ef = GetElabFile(file, TRUE);
@@ -816,6 +1359,9 @@ int ElaborateFile(int file)
 
     elabfile = file;
     SetParamFile(file);
+
+    ElaborateExternal(file);
+
     InitializeHashTable(&elabdict, OBJHASHSIZE);
 
     /* Make a record for each cell with contents, then find the	*/
@@ -839,20 +1385,36 @@ int ElaborateFile(int file)
 	if (queue == NULL) qtail = NULL;
 	ec->next = NULL;
 
-	ElaborateCell(ec, ef);
-
-	/* Release the cells that this cell (or its copies) instances */
+	/* Find the cells that this cell instances (as counted in their	*/
+	/* "indegree") before elaborating it, as yosys may replace its	*/
+	/* contents.							*/
+	nchild = 0;
+	for (ob = ec->cell->cell; ob; ob = ob->next)
+	    if (ob->type == FIRSTPIN) nchild++;
+	children = (struct elabcell **)MALLOC((nchild + 1) *
+			sizeof(struct elabcell *));
+	nchild = 0;
 	for (ob = ec->cell->cell; ob; ob = ob->next) {
 	    if (ob->type != FIRSTPIN) continue;
 	    cc = LookupElabCell(ob->model.class);
 	    if (cc == NULL) continue;
 	    if (cc->cell == ec->cell) continue;	/* Shouldn't happen */
+	    children[nchild++] = cc;
+	}
+
+	ElaborateCell(ec, ef);
+	ec->done = TRUE;
+
+	/* Release the cells that this cell (or its copies) instances */
+	for (i = 0; i < nchild; i++) {
+	    cc = children[i];
 	    if (--cc->indegree == 0) {
 		if (qtail) qtail->next = cc;
 		else queue = cc;
 		qtail = cc;
 	    }
 	}
+	FREE(children);
     }
 
     /* Any cell not processed is part of a recursive loop of	*/

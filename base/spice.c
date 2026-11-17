@@ -1901,17 +1901,15 @@ skip_ends:
 	 ReopenCellDef((*CellStackPtr)->cellname, filenum);		/* Reopen */
 	 update = 1;
       }
-      else if (tp->flags & CELL_VERILOG) {
-	 if (tp->flags & CELL_PLACEHOLDER) {
-	    /* Flag this as an error.  To do:  Rearrange the verilog instance pins to	*/
-	    /* match the SPICE subcircuit pin order.					*/
-	    Fprintf(stderr, "Error:  SPICE subcircuit %s should be read before verilog "
+      else if ((tp->flags & CELL_VERILOG) && (tp->flags & CELL_PLACEHOLDER)) {
+	 /* Flag this as an error.  To do:  Rearrange the verilog instance pins to	*/
+	 /* match the SPICE subcircuit pin order.					*/
+	 /* (Note that this is an instance of the cell.  A SPICE subcircuit	*/
+	 /* definition (.subckt) of a cell already defined as a verilog module	*/
+	 /* is handled where the subcircuit is defined.  An instance of a	*/
+	 /* verilog module in a SPICE netlist is not an error.)			*/
+	 Fprintf(stderr, "Error:  SPICE subcircuit %s should be read before verilog "
 			"module using it, or pins may not match!\n", subcktname);
-	 }
-	 else {
-	    Fprintf(stderr, "Error:  SPICE subcircuit %s redefines a verilog module!\n",
-			subcktname);
-	 }
       }
 
       /* nexttok is now NULL, scan->name points to class */
