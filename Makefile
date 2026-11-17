@@ -13,13 +13,18 @@ INSTALL_CAD_DIRS = lib doc
 
 all:	$(ALL_TARGET)
 
+# The exit status of make is saved in "make.status" so that it is not
+# lost in the pipe to "tee" (so that a failed build is reported).
+
 standard:
 	@echo --- errors and warnings logged in file make.log
-	@${MAKE} mains 2>&1 | tee -a make.log
+	@(${MAKE} mains 2>&1; echo $$? > make.status) | tee -a make.log; \
+		status=`cat make.status`; rm -f make.status; exit $$status
 
 tcl:
 	@echo --- errors and warnings logged in file make.log
-	@${MAKE} tcllibrary 2>&1 | tee -a make.log
+	@(${MAKE} tcllibrary 2>&1; echo $$? > make.status) | tee -a make.log; \
+		status=`cat make.status`; rm -f make.status; exit $$status
 
 force:	clean all
 
@@ -32,17 +37,17 @@ config:
 tcllibrary: modules
 	@echo --- making Tcl shared-object libraries
 	for dir in ${PROGRAMS}; do \
-		(cd $$dir && ${MAKE} tcl-main); done
+		(cd $$dir && ${MAKE} tcl-main) || exit 1; done
 
 mains: modules
 	@echo --- making main programs
 	for dir in ${PROGRAMS}; do \
-		(cd $$dir && ${MAKE} main); done
+		(cd $$dir && ${MAKE} main) || exit 1; done
 
 modules:
 	@echo --- making modules
 	for dir in ${MODULES}; do \
-		(cd $$dir && ${MAKE} module); done
+		(cd $$dir && ${MAKE} module) || exit 1; done
 
 depend:
 	for dir in ${MODULES} ${PROGRAMS}; do \
@@ -57,7 +62,7 @@ install-netgen:
 
 install-real: install-dirs
 	for dir in ${PROGRAMS} ${INSTALL_CAD_DIRS}; do \
-		(cd $$dir && ${MAKE} install); done
+		(cd $$dir && ${MAKE} install) || exit 1; done
 
 install-tcl-dirs:
 	${NETGENDIR}/scripts/mkdirs $(DESTDIR)${INSTALL_BINDIR} \
@@ -73,7 +78,7 @@ install-tcl: install-dirs
 
 install-tcl-real: install-tcl-dirs
 	for dir in ${INSTALL_CAD_DIRS} ${PROGRAMS}; do \
-		(cd $$dir && ${MAKE} install-tcl); done
+		(cd $$dir && ${MAKE} install-tcl) || exit 1; done
 
 clean:
 	for dir in ${MODULES} ${PROGRAMS} ${UNUSED_MODULES}; do \
