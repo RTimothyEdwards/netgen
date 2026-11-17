@@ -197,6 +197,7 @@ struct Permutation {
 };
 
 #define OBJHASHSIZE 42073 /* the size of the object and instance hash lists */
+#define TINYHASHSIZE 31  /* size of small hash tables (e.g., local parameters) */
                         /* prime numbers are good choices as hash sizes */
 
 /* cell definition for hash table */
@@ -215,6 +216,7 @@ struct nlist {
   struct hashdict objdict;  /* hash table of object names */
   struct hashdict instdict; /* hash table of instance names */
   struct hashdict propdict; /* hash table of property keys */
+  struct hashdict paramdict; /* local (.param) parameters; created on demand */
   struct objlist **nodename_cache;
   long nodename_cache_maxnodenum;  /* largest node number in cache */
   void *embedding;   /* this will be cast to the appropriate data structure */
@@ -230,6 +232,7 @@ struct nlist {
 #define CELL_PROPSMATCHED	0x010	/* properties matched to matching cell */
 #define CELL_DUPLICATE		0x020	/* cell has a duplicate */
 #define CELL_VERILOG		0x040	/* cell is verilog module */
+#define CELL_REACHABLE		0x080	/* cell is in the hierarchy being compared */
 
 /* Flags for combination allowances and prohibitions */
 

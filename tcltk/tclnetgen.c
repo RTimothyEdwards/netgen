@@ -73,6 +73,7 @@ int _netgen_debug(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_protochip(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_instances(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_contents(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
+int _netgen_elaborate(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_describe(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_cells(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
 int _netgen_ports(ClientData, Tcl_Interp *, int, Tcl_Obj *const objv[]);
@@ -130,6 +131,11 @@ Command netgen_cmds[] = {
 	{"flatten",		_netgen_flatten,
 		"[class] [<parent>] <cell>\n   "
 		"flatten a hierarchical cell"},
+	{"elaborate",		_netgen_elaborate,
+		"<filename>\n   "
+		"resolve parameters passed to subcircuits in a netlist;\n   "
+		"return a list of subcircuit copies made for each unique\n   "
+		"set of parameters"},
 	{"nodes",		_netgen_nodes,
 		"[<element>] <cell> <file>\n   "
 		"print nodes of an element or cell"},
@@ -838,6 +844,9 @@ _netgen_readnet(ClientData clientData,
    }
 
    /* Return the file number to the interpreter */
+   /* A netlist read into the file must be elaborated (again) */
+   if (filenum >= 0) ElaborateReset(filenum);
+
    Tcl_SetObjResult(interp, Tcl_NewIntObj(filenum));
 
    if (savstr) FREE(savstr);
@@ -1026,6 +1035,7 @@ _netgen_flatten(ClientData clientData,
    char *repstr, *file;
    int result, filenum;
    struct nlist *tp, *tp2, *tptop;
+   struct elabrec *er;
 
    if ((objc < 2) || (objc > 4)) {
       Tcl_WrongNumArgs(interp, 1, objv, "?class? valid_cellname");
@@ -1036,6 +1046,20 @@ _netgen_flatten(ClientData clientData,
    if (result != TCL_OK) return result;
    repstr = tp->name;
 
+   /* Parameters must be resolved before flattening (but not for	*/
+   /* "flatten prohibit", which only marks a cell).			*/
+   if ((objc < 3) || (strcmp(Tcl_GetString(objv[1]), "prohibit") &&
+		strcmp(Tcl_GetString(objv[1]), "deny"))) {
+      ElaborateFile(filenum);
+      /* Elaboration may have replaced the cell's instances with copies */
+      tp = LookupCellFile(repstr, filenum);
+      if (tp == NULL) return TCL_ERROR;
+   }
+
+   /* Commands naming a subcircuit that elaboration has replaced with	*/
+   /* copies (one for each unique set of parameters) also apply to	*/
+   /* the copies.							*/
+
    if (objc >= 3) {
       char *argv = Tcl_GetString(objv[1]);
       if (!strcmp(argv, "class")) {
@@ -1043,6 +1067,8 @@ _netgen_flatten(ClientData clientData,
 
 	 if (objc == 4) {
 	    int numflat;
+	    struct elabrec *erp;
+
 	    tp2 = LookupCellFile(Tcl_GetString(objv[2]), filenum);
 	    if (tp2 == NULL) {
 		Tcl_SetResult(interp, "No such cell.", NULL);
@@ -1052,6 +1078,19 @@ _netgen_flatten(ClientData clientData,
 	        Printf("Flattening instances of %s in cell %s within file %s\n",
 			repstr, tp2->name, tptop->name);
 		numflat = flattenInstancesOf(tp2->name, filenum, repstr);
+		for (er = ElaborateRecords(filenum); er; er = er->next)
+		   if ((*matchfunc)(er->cellname, repstr))
+		      numflat += flattenInstancesOf(tp2->name, filenum,
+				er->variant);
+		/* Copies of the parent cell */
+		for (erp = ElaborateRecords(filenum); erp; erp = erp->next) {
+		   if (!(*matchfunc)(erp->cellname, tp2->name)) continue;
+		   numflat += flattenInstancesOf(erp->variant, filenum, repstr);
+		   for (er = ElaborateRecords(filenum); er; er = er->next)
+		      if ((*matchfunc)(er->cellname, repstr))
+			 numflat += flattenInstancesOf(erp->variant, filenum,
+				er->variant);
+		}
 		if (numflat == 0) {
 		   Tcl_SetResult(interp, "No instances found to flatten.", NULL);
 		   return TCL_ERROR;
@@ -1061,6 +1100,12 @@ _netgen_flatten(ClientData clientData,
 	 else {
 	    Printf("Flattening instances of %s in file %s\n", repstr, tptop->name);
             FlattenInstancesOf(repstr, filenum);
+	    for (er = ElaborateRecords(filenum); er; er = er->next)
+	       if ((*matchfunc)(er->cellname, repstr)) {
+		  Printf("Flattening instances of %s in file %s\n", er->variant,
+				tptop->name);
+		  FlattenInstancesOf(er->variant, filenum);
+	       }
 	 }
       }
       else if (!strcmp(argv, "prohibit") || !strcmp(argv, "deny")) {
@@ -1071,6 +1116,11 @@ _netgen_flatten(ClientData clientData,
 	    Printf("Will not flatten instances of %s in file %s\n", repstr, tptop->name);
 	    /* Mark cell as placeholder so it will not be flattened */
 	    tp->flags |= CELL_PLACEHOLDER;
+	    for (er = ElaborateRecords(filenum); er; er = er->next)
+	       if ((*matchfunc)(er->cellname, repstr)) {
+		  tp2 = LookupCellFile(er->variant, filenum);
+		  if (tp2 != NULL) tp2->flags |= CELL_PLACEHOLDER;
+	       }
 	 }
       }
       else {
@@ -1081,6 +1131,11 @@ _netgen_flatten(ClientData clientData,
    else {
       Printf("Flattening contents of cell %s\n", repstr);
       Flatten(repstr, filenum);
+      for (er = ElaborateRecords(filenum); er; er = er->next)
+	 if ((*matchfunc)(er->cellname, repstr)) {
+	    Printf("Flattening contents of cell %s\n", er->variant);
+	    Flatten(er->variant, filenum);
+	 }
    }
    return TCL_OK;
 }
@@ -1394,6 +1449,62 @@ _netgen_instances(ClientData clientData,
 
    repstr = np->name;
    PrintInstances(repstr, fnum);
+   return TCL_OK;
+}
+
+/*------------------------------------------------------*/
+/* Function name: _netgen_elaborate			*/
+/* Syntax: netgen::elaborate <valid_filename>		*/
+/* Formerly: (none)					*/
+/* Results:						*/
+/*	A list of the copies of subcircuits made for	*/
+/*	each unique set of parameters passed to them.	*/
+/*	Each entry is a list of the original subcircuit	*/
+/*	name, the name of the copy, and its parameter	*/
+/*	values ("key=value key=value ...").		*/
+/* Side Effects:					*/
+/*	Parameter expressions in all cells of the	*/
+/*	netlist are resolved.  This is done		*/
+/*	automatically before flattening or comparing,	*/
+/*	and only once after a netlist is read.		*/
+/*------------------------------------------------------*/
+
+int
+_netgen_elaborate(ClientData clientData,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+   int result, fnum = -1;
+   struct nlist *np = NULL;
+   struct elabrec *er;
+   Tcl_Obj *lobj, *eobj;
+
+   if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 1, objv, "valid_filename");
+      return TCL_ERROR;
+   }
+
+   /* "valid_filename" may be given as a file number or a name */
+   if (Tcl_GetIntFromObj(interp, objv[1], &fnum) != TCL_OK) {
+      Tcl_ResetResult(interp);
+      result = CommonParseCell(interp, objv[1], &np, &fnum);
+      if (result != TCL_OK) return result;
+   }
+   if (fnum < 0) {
+      Tcl_SetResult(interp, "Cannot use wildcard with elaborate command.", NULL);
+      return TCL_ERROR;
+   }
+
+   ElaborateFile(fnum);
+
+   lobj = Tcl_NewListObj(0, NULL);
+   for (er = ElaborateRecords(fnum); er; er = er->next) {
+      eobj = Tcl_NewListObj(0, NULL);
+      Tcl_ListObjAppendElement(interp, eobj, Tcl_NewStringObj(er->cellname, -1));
+      Tcl_ListObjAppendElement(interp, eobj, Tcl_NewStringObj(er->variant, -1));
+      Tcl_ListObjAppendElement(interp, eobj, Tcl_NewStringObj(er->params, -1));
+      Tcl_ListObjAppendElement(interp, lobj, eobj);
+   }
+   Tcl_SetObjResult(interp, lobj);
    return TCL_OK;
 }
 
@@ -2200,6 +2311,10 @@ _netcmp_compare(ClientData clientData,
 	    return TCL_ERROR;
 	 }
          name2 = tp2->name;
+
+	 /* Resolve parameters passed to subcircuits before comparing */
+	 ElaborateFile(fnum1);
+	 ElaborateFile(fnum2);
 
          if (dohierarchy) {
 	    RemoveCompareQueue();
@@ -3139,13 +3254,11 @@ _netcmp_equate(ClientData clientData,
 	    ElementClasses = NULL;
 	    NodeClasses = NULL;
 	 }
+	 /* (Pin matching does not depend on the current cell, so do not	*/
+	 /* return early if there is none;  that also skipped restoring	*/
+	 /* the element and node classes saved above for "-force".)	*/
 	 if ((ElementClasses == NULL) && (auto_blackbox == FALSE)) {
-	    if (CurrentCell == NULL) {
-		Fprintf(stderr, "Equate elements:  no current cell.\n");
-		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
-		return TCL_OK;
-	    }
-	    else if ((tp1->flags & CELL_PLACEHOLDER) ||
+	    if ((tp1->flags & CELL_PLACEHOLDER) ||
 			(tp2->flags & CELL_PLACEHOLDER)) {
 		if (tp1->flags & CELL_PLACEHOLDER) {
 		    Fprintf(stdout, "Warning: Equate pins:  cell %s "
@@ -4582,6 +4695,7 @@ int Tclnetgen_Init(Tcl_Interp *interp)
 {
    int n;
    char keyword[128];
+   const char *argvstr;
    char *cadroot;
 
    /* Sanity checks! */
@@ -4620,10 +4734,20 @@ int Tclnetgen_Init(Tcl_Interp *interp)
       Tcl_CreateObjCommand(consoleinterp, "netgen::interrupt", _tkcon_interrupt,
 		(ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 
+   /* Make the full version number available to Tcl scripts */
+   sprintf(keyword, "%s.%s", NETGEN_VERSION, NETGEN_REVISION);
+   Tcl_SetVar(interp, "netgen_version", keyword, TCL_GLOBAL_ONLY);
+
    InitializeCommandLine(0, NULL);
-   sprintf(keyword, "Netgen %s.%s compiled on %s\n", NETGEN_VERSION,
+
+   /* Print the version banner, except for "netgen --version", which	*/
+   /* prints only the version number (see netgen.tcl).			*/
+   argvstr = Tcl_GetVar(interp, "argv", TCL_GLOBAL_ONLY);
+   if ((argvstr == NULL) || (strstr(argvstr, "--version") == NULL)) {
+      sprintf(keyword, "Netgen %s.%s compiled on %s\n", NETGEN_VERSION,
 		NETGEN_REVISION, NETGEN_DATE);
-   Printf(keyword);
+      Printf(keyword);
+   }
 
    return TCL_OK;	/* Drop back to interpreter for input */
 }

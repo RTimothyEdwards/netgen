@@ -1140,6 +1140,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
     else if (match(nexttok, "parameter") || match(nexttok, "localparam")) {
 	char *paramkey = NULL;
 	char *paramval = NULL;
+	int islocal = match(nexttok, "localparam");
 
 	// Pick up key = value pairs and store in current cell.  Look only
 	// at the keyword before "=".  Then set the definition as everything
@@ -1194,6 +1195,42 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		}
 
 		HashPtrInstall(paramkey, kl, &verilogparams);
+
+		/* Inside a module, a "parameter" is also a parameter of	*/
+		/* the module that an instance may override (the same as	*/
+		/* one declared in the module header), and a "localparam"	*/
+		/* is a local parameter of the module (the same as .param	*/
+		/* inside a SPICE subcircuit).  These are used to resolve	*/
+		/* parameters passed down through the hierarchy (see	*/
+		/* elaborate.c).						*/
+
+		if (in_module && (CurrentCell != NULL)) {
+		    if (islocal) {
+			struct property *klc;
+			struct hashdict *pdict = &(CurrentCell->paramdict);
+
+			if (pdict->hashtab == NULL)
+			    InitializeHashTable(pdict, TINYHASHSIZE);
+			klc = (struct property *)HashLookup(paramkey, pdict);
+			if (klc != NULL) {
+			    FREE(klc->key);
+			    if (klc->pdefault.string) FREE(klc->pdefault.string);
+			    FREE(klc);
+			}
+			klc = NewProperty();
+			klc->key = strsave(paramkey);
+			klc->idx = 0;
+			klc->type = PROP_STRING;
+			klc->slop.dval = 0.0;
+			klc->pdefault.string = strsave(paramval);
+			HashPtrInstall(paramkey, klc, pdict);
+		    }
+		    else if (ConvertStringToFloat(paramval, &dval) == 1)
+			PropertyDouble(CurrentCell->name, filenum, paramkey, 0.01, dval);
+		    else
+			PropertyString(CurrentCell->name, filenum, paramkey, 0, paramval);
+		}
+
 		FREE(paramval);
 		paramval = NULL;
 
@@ -2220,14 +2257,45 @@ nextinst:
 		    Printf("Error: Parameter with no value found.\n");
 		}
 		else {
-	            AddProperty(&kvlist, paramname, nexttok);
-	            SkipTokComments(VLOG_DELIMITERS);
-		    if (!match(nexttok, ")")) {
-		       Printf("Error: Expecting end of parameter value, "
-				"got %s.\n", nexttok);
+		    /* The value may be an expression of several tokens,	*/
+		    /* including parentheses (e.g., "(L + 1) * 2").  Collect	*/
+		    /* everything up to the matching close parenthesis.		*/
+		    char *pval = NULL, *ptmp;
+		    int depth = 0;
+
+		    while (nexttok != NULL) {
+			if (match(nexttok, "(")) depth++;
+			else if (match(nexttok, ")")) {
+			    if (depth == 0) break;
+			    depth--;
+			}
+			if (pval == NULL)
+			    pval = strsave(nexttok);
+			else {
+			    ptmp = (char *)MALLOC(strlen(pval) + strlen(nexttok) + 1);
+			    sprintf(ptmp, "%s%s", pval, nexttok);
+			    FREE(pval);
+			    pval = ptmp;
+			}
+	                SkipTokComments(VLOG_DELIMITERS);
+		    }
+		    if (nexttok == NULL) {
+			Printf("Error: Expecting end of parameter value, "
+				"got end of file.\n");
+		    }
+		    if (pval != NULL) {
+	                AddProperty(&kvlist, paramname, pval);
+			FREE(pval);
 		    }
 		}
 		FREE(paramname);
+	    }
+	    else {
+		/* Parameter values given by position (e.g., "#(3)") are	*/
+		/* not handled, since the order of the module's parameters	*/
+		/* is not known.  Do not ignore them silently.		*/
+		Printf("Warning: Parameter value \"%s\" given by position is not "
+			"supported (use \".name(value)\");  ignored.\n", nexttok);
 	    }
 	    SkipTokComments(VLOG_DELIMITERS);
 	 }

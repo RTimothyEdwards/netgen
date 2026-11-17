@@ -29,6 +29,12 @@ if { [info exists CAD_ROOT] && [file exists $CAD_ROOT/netgen/tcl/tclnetgenSHDLIB
     load TCL_DIR/tclnetgenSHDLIB_EXT
 }
 
+# "netgen --version" prints the version number (e.g., "1.5.330") and exits
+if {[info exists argv] && ([lsearch -exact $argv "--version"] >= 0)} {
+   puts stdout $netgen_version
+   exit 0
+}
+
 #----------------------------------------------------------------
 # Convert LVS list result into a JSON file 
 #----------------------------------------------------------------
@@ -493,6 +499,12 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       }
    }
 
+   # Resolve parameters passed to subcircuits.  A subcircuit that is
+   # instanced with more than one set of parameters is copied, one copy
+   # for each set;  the copies are listed in the log file (see below).
+   set elab1 [netgen::elaborate $fnum1]
+   set elab2 [netgen::elaborate $fnum2]
+
    netgen::compare assign "$fnum1 $cell1" "$fnum2 $cell2"
 
    if {$setupfile == ""} {
@@ -551,6 +563,18 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       set dolog true
    } else {
       set dolog false
+   }
+
+   if {$elab1 != {} || $elab2 != {}} {
+      set elabmsg "\nSubcircuits instanced with more than one set of parameters\n"
+      append elabmsg "were copied, one copy for each set:\n"
+      foreach elab $elab1 {
+	 append elabmsg "  Circuit ($fnum1): [lindex $elab 1]:  [lindex $elab 2]\n"
+      }
+      foreach elab $elab2 {
+	 append elabmsg "  Circuit ($fnum2): [lindex $elab 1]:  [lindex $elab 2]\n"
+      }
+      netgen::log put $elabmsg
    }
 
    if {$dolist == 1} {
@@ -652,8 +676,8 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 	       netgen::log echo on
 	       netgen::log put "  Continuing with black-boxed subcircuits $endval\n"
 	       netgen::log echo off
-	       lappend matcherr [lindex $endval 0]"($fnum1)"
-	       lappend matcherr [lindex $endval 1]"($fnum2)"
+	       lappend matcherr "[lindex $endval 0]($fnum1)"
+	       lappend matcherr "[lindex $endval 1]($fnum2)"
 	       netgen::flatten prohibit "[lindex $endval 0] $fnum1"
 	       netgen::flatten prohibit "[lindex $endval 1] $fnum2"
 	       set doEquatePins 1
@@ -681,6 +705,16 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 				"$fnum2 [lindex $endval 1]"]
 	    }
 	 }
+	 # A black box has nothing to compare but its pins, so if its pins
+	 # do not all match by name, it is a subcell that failed to match.
+	 if {$forceMatch && $result == 0 && [netgen::print queue] != {}} {
+	    if {[lsearch -exact $matcherr "[lindex $endval 0]($fnum1)"] < 0} {
+	       lappend matcherr "[lindex $endval 0]($fnum1)"
+	       lappend matcherr "[lindex $endval 1]($fnum2)"
+	    }
+	    set childMismatch 1
+	 }
+
 	 # Do not equate classes for a top level cell that failed to match
 	 # topologically.  (Non-matching subcells that are black-boxed must
 	 # still be equated so that the parent cell can be compared.)

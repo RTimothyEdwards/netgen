@@ -290,6 +290,38 @@ void TrimQuoted(char *line)
 }
 
 /*----------------------------------------------------------------------*/
+/* TrimEquals() ---							*/
+/* Remove spaces and tabs on either side of an equals sign, so that	*/
+/* "key = value" and "key= value" are read as "key=value".  This is	*/
+/* for SPICE netlists only (see JoinEquals), as verilog uses "=" in	*/
+/* other ways.  Spaces inside quotes have already been removed by	*/
+/* TrimQuoted().							*/
+/*----------------------------------------------------------------------*/
+
+int JoinEquals = FALSE;
+
+void TrimEquals(char *line)
+{
+    char *s, *d;
+
+    for (s = line, d = line; *s != '\0'; s++) {
+	if ((*s == ' ') || (*s == '\t')) {
+	    char *e;
+
+	    /* Drop whitespace that comes before an equals sign */
+	    for (e = s; (*e == ' ') || (*e == '\t'); e++);
+	    if ((*e == '=') && (d > line)) continue;
+	}
+	*d++ = *s;
+	if (*s == '=') {
+	    /* Drop whitespace that comes after an equals sign */
+	    while ((*(s + 1) == ' ') || (*(s + 1) == '\t')) s++;
+	}
+    }
+    *d = '\0';
+}
+
+/*----------------------------------------------------------------------*/
 /* GetNextLineNoNewline()						*/
 /*									*/
 /* Fetch the next line, and grab the first token from the next line.	*/
@@ -433,6 +465,7 @@ int GetNextLineNoNewline(char *delimiter)
 	}
 
 	TrimQuoted(linetok);
+	if (JoinEquals) TrimEquals(linetok);
 	linenum++;
 
 	nexttok = strdtok(linetok, WHITESPACE_DELIMITER, delimiter);

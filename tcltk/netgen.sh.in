@@ -12,14 +12,19 @@
 # Parse for the argument "-c[onsole]".  If it exists, run netgen
 # with the TkCon console.  Strip this argument from the argument list.
 
+# If CAD_ROOT is set and has an installation of netgen, use that instead
+# of the location given at compile time.  As for magic, the files are in
+# ${CAD_ROOT}/netgen/tcl/ (so CAD_ROOT is normally <prefix>/lib).  This
+# must agree with netgenexec.c and netgen.tcl.
+
 tcl_dir_resolved=TCL_DIR
 py_dir_resolved=PY_DIR
-if [ -n $CAD_ROOT ]; then
-   if [ -d "$CAD_ROOT/lib/netgen/tcl" ]; then
-      tcl_dir_resolved="$CAD_ROOT/lib/netgen/tcl"
+if [ -n "$CAD_ROOT" ]; then
+   if [ -f "$CAD_ROOT/netgen/tcl/netgen.tcl" ]; then
+      tcl_dir_resolved="$CAD_ROOT/netgen/tcl"
    fi
-   if [ -d "$CAD_ROOT/lib/netgen/python" ]; then
-      tcl_dir_resolved=$CAD_ROOT/lib/netgen/python
+   if [ -d "$CAD_ROOT/netgen/python" ]; then
+      py_dir_resolved="$CAD_ROOT/netgen/python"
    fi
 fi
 TKCON=true
@@ -41,6 +46,7 @@ for i in "$@" ; do
       -noc*) TKCON=;;
       -bat*) BATCH=true; TKCON=;;
       -gui) GUI=true; TKCON=;;
+      --version) TKCON=;;
       *) arglist="$arglist${arglist:+ }\"${i//\"/\\\"}\"";;
    esac
 done 
