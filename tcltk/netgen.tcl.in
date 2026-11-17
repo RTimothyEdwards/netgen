@@ -805,6 +805,244 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    }
 }
 
+#-----------------------------------------------------------------------
+# Use yosys to elaborate a verilog module into a simple structural
+# netlist that netgen's own verilog reader can read:  generate loops are
+# unrolled, conditions on parameters are evaluated, and so forth.  This
+# needs yosys version 0.67 or newer, which has the "slang" verilog
+# front end (command "read_slang") built in.
+#
+# Usage:
+#    netgen::yosys_elaborate files module ?options?
+#
+#    files	verilog source file(s) containing the module
+#    module	name of the module to elaborate
+#
+# Options:
+#    -param {name value ...}	parameter values for the module
+#    -define {name[=value] ...}	macro definitions.  "LVS" is always
+#				defined, as it is by netgen's verilog
+#				reader.
+#    -stubs {file ...}		verilog file(s) defining the cells that the
+#				module instantiates as black boxes:
+#				"(* blackbox *) module name (pins); ..."
+#				Every cell must be defined, either here or
+#				in the source files.
+#    -include {dir ...}		directories to search for `include files
+#				(in addition to those of the source files)
+#    -output file		name of the output file (by default, a file
+#				in a temporary directory)
+#    -frontend auto|slang|verilog
+#				"slang" uses read_slang;  "verilog" uses
+#				yosys's own reader (read_verilog -sv),
+#				which cannot set parameters to real values;
+#				"auto" (the default) uses read_slang, and
+#				if that fails, read_verilog -sv.
+#
+# Returns the name of the output file, or an empty string if yosys is
+# not available or fails (the reason is printed).  The output file
+# defines the module (with the same name), and also any modules it
+# instantiates that are defined in the source files (with names made
+# unique by yosys, such as "child$module.instance"), but not the stubs.
+#
+# The yosys command can be set with "set netgen::yosys_command <path>".
+#-----------------------------------------------------------------------
+
+namespace eval netgen {
+   variable yosys_command yosys
+   variable yosys_ok {}
+   variable yosys_count 0
+   variable yosys_tmpdir {}
+}
+
+# Check (once) if yosys can be used.  Returns 1 if so, 0 if not.
+
+proc netgen::yosys_check {} {
+   variable yosys_command
+   variable yosys_ok
+
+   if {$yosys_ok != {}} {return $yosys_ok}
+   set yosys_ok 0
+   set yosys [auto_execok $yosys_command]
+   if {$yosys == {}} {
+      puts stderr "Cannot find yosys (\"$yosys_command\")."
+      return 0
+   }
+   if {[catch {exec {*}$yosys -V} vers]} {
+      puts stderr "Cannot run yosys (\"$yosys_command\"):  $vers"
+      return 0
+   }
+   if {![regexp {Yosys ([0-9]+)\.([0-9]+)} $vers -> major minor]} {
+      puts stderr "Cannot determine the version of yosys from \"$vers\"."
+      return 0
+   }
+   if {($major == 0) && ($minor < 67)} {
+      puts stderr "Yosys version $major.$minor is too old;  version 0.67\
+		or newer is needed."
+      return 0
+   }
+   if {[catch {exec {*}$yosys -p "help read_slang" 2>@1} help] ||
+		![regexp {read_slang \[options\]} $help]} {
+      puts stderr "Yosys version $major.$minor does not have the\
+		\"read_slang\" command."
+      return 0
+   }
+   set yosys_ok 1
+   return 1
+}
+
+proc netgen::yosys_elaborate {files module args} {
+   variable yosys_command
+   variable yosys_count
+   variable yosys_tmpdir
+
+   set params {}
+   set defines {LVS}
+   set stubs {}
+   set incdirs {}
+   set output {}
+   set frontend auto
+
+   foreach {opt val} $args {
+      switch -- $opt {
+	 -param    {set params $val}
+	 -define   {lappend defines {*}$val}
+	 -stubs    {set stubs $val}
+	 -include  {set incdirs $val}
+	 -output   {set output $val}
+	 -frontend {
+	    if {[lsearch -exact {auto slang verilog} $val] < 0} {
+	       error "Bad frontend \"$val\":  must be auto, slang, or verilog."
+	    }
+	    set frontend $val
+	 }
+	 default {
+	    error "Unknown option \"$opt\":  must be -param, -define,\
+			-stubs, -include, -output, or -frontend."
+	 }
+      }
+   }
+   if {[llength $params] % 2 != 0} {
+      error "Parameter list \"$params\" must be pairs of name and value."
+   }
+
+   if {![netgen::yosys_check]} {return {}}
+   set yosys [auto_execok $yosys_command]
+
+   # Yosys script arguments cannot be quoted, so names cannot contain
+   # white space.
+   foreach f [concat $files $stubs $incdirs $output] {
+      if {[regexp {\s} $f]} {
+	 puts stderr "Cannot use yosys with file name \"$f\" (contains spaces)."
+	 return {}
+      }
+   }
+   foreach f [concat $files $stubs] {
+      if {![file readable $f]} {
+	 puts stderr "Cannot read file \"$f\"."
+	 return {}
+      }
+   }
+   foreach f $files {
+      set d [file dirname [file normalize $f]]
+      if {[lsearch -exact $incdirs $d] < 0} {lappend incdirs $d}
+   }
+
+   # Temporary directory for scripts, logs, and output
+   if {$yosys_tmpdir == {} || ![file isdirectory $yosys_tmpdir]} {
+      if {[info exists ::env(TMPDIR)] && [file isdirectory $::env(TMPDIR)]} {
+	 set tmp $::env(TMPDIR)
+      } else {
+	 set tmp /tmp
+      }
+      set yosys_tmpdir [file join $tmp netgen_yosys_[pid]]
+      file mkdir $yosys_tmpdir
+   }
+   incr yosys_count
+   set base [file join $yosys_tmpdir ${module}_$yosys_count]
+   if {$output == {}} {set output ${base}.v}
+
+   # Parameter values:  numbers (including verilog based constants such
+   # as 32'h1f) and quoted strings are passed as they are;  anything else
+   # is a string, which yosys needs in double quotes.
+   set pvals {}
+   set isreal 0
+   foreach {name value} $params {
+      set value [string trim $value]
+      if {[string is integer -strict $value] ||
+		[regexp {^[0-9_]*'[sS]?[bBoOdDhH][0-9a-fA-FxXzZ_?]+$} $value] ||
+		[regexp {^".*"$} $value]} {
+	 lappend pvals $name $value
+      } elseif {[string is double -strict $value]} {
+	 lappend pvals $name $value
+	 set isreal 1
+      } else {
+	 lappend pvals $name \"$value\"
+      }
+   }
+
+   if {$frontend == "auto"} {
+      set frontends {slang verilog}
+   } else {
+      set frontends $frontend
+   }
+   set errors {}
+   foreach fe $frontends {
+      if {($fe == "verilog") && $isreal} {
+	 lappend errors "read_verilog cannot set a parameter to a real value."
+	 continue
+      }
+      # Note that the script lines are joined with spaces, not formed as
+      # Tcl lists, which would put braces around values with quotes.
+      set script {}
+      set opts {}
+      foreach d $defines {lappend opts "-D $d"}
+      foreach d $incdirs {lappend opts "-I $d"}
+      set srcs [join [concat $stubs $files] " "]
+      if {$fe == "slang"} {
+	 foreach {name value} $pvals {lappend opts "-G ${name}=$value"}
+	 lappend script "read_slang [join $opts " "] --top $module $srcs"
+      } else {
+	 if {$stubs != {}} {lappend script "read_verilog -lib [join $stubs " "]"}
+	 lappend script "read_verilog -sv [join $opts " "] [join $files " "]"
+	 if {$pvals != {}} {
+	    set chp {}
+	    foreach {name value} $pvals {lappend chp "-set $name $value"}
+	    lappend script "chparam [join $chp " "] $module"
+	 }
+      }
+      lappend script "hierarchy -top $module"
+      # Do not run any optimization:  "opt_clean" would remove cells whose
+      # outputs are not used, such as tie cells and decap cells.
+      lappend script "write_verilog -noattr $output"
+
+      set ys ${base}_${fe}.ys
+      set log ${base}_${fe}.log
+      set fs [open $ys w]
+      puts $fs [join $script "\n"]
+      close $fs
+      file delete -force $output
+      if {![catch {exec {*}$yosys -q -l $log -s $ys 2>@1}] &&
+		[file exists $output]} {
+	 file delete -force $ys $log
+	 return $output
+      }
+      # Collect the error messages from the log
+      set msgs {}
+      if {![catch {open $log r} fl]} {
+	 foreach line [split [read $fl] "\n"] {
+	    if {[regexp {ERROR} $line]} {lappend msgs [string trim $line]}
+	 }
+	 close $fl
+      }
+      if {$msgs == {}} {set msgs "yosys failed."}
+      lappend errors "read_$fe:  [join $msgs "\n      "]\n      (see $ys and $log)"
+   }
+   puts stderr "Yosys could not elaborate module \"$module\":"
+   foreach e $errors {puts stderr "   $e"}
+   return {}
+}
+
 # It is important to make sure no netgen commands overlap with Tcl built-in
 # commands, because otherwise the namespace import will fail.
 
