@@ -43,6 +43,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdio.h>
 #include <stdlib.h>  /* for calloc(), free(), getenv() */
 #include <ctype.h>   /* for isalnum() */
+#include <limits.h>  /* for ULLONG_MAX */
 #ifndef IBMPC
 #include <sys/types.h>	/* for getpwnam() tilde expansion */
 #include <pwd.h>
@@ -403,6 +404,146 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 }
 
 //-------------------------------------------------------------------------
+// Convert one verilog based constant (e.g., "32'h1209_2025", "8'sd5",
+// or "'b1010") at the start of string "s" to its value.  Return the
+// number of characters of "s" that make up the constant, or 0 if "s"
+// does not start with a based constant or the constant cannot be
+// converted (it has x or z bits, or does not fit in 64 bits).  The
+// value is returned in "vptr".  A signed constant whose top bit is set
+// is negative;  then "negptr" is set to 1 and "vptr" is the magnitude.
+//-------------------------------------------------------------------------
+
+static int ConvertBasedConstant(char *s, unsigned long long *vptr, int *negptr)
+{
+    char *p = s;
+    int size = 0, sized = 0, issigned = 0, base, digit, ndigits = 0;
+    unsigned long long value = 0;
+
+    while (isdigit(*p) || (sized && (*p == '_'))) {
+	if (*p != '_') {
+	    if (size < 1000000) size = size * 10 + (*p - '0');
+	    sized = 1;
+	}
+	p++;
+    }
+    while (isspace(*p)) p++;
+    if (*p != '\'') return 0;
+    p++;
+    if ((*p == 's') || (*p == 'S')) {
+	issigned = 1;
+	p++;
+    }
+    switch (tolower(*p)) {
+	case 'b': base = 2; break;
+	case 'o': base = 8; break;
+	case 'd': base = 10; break;
+	case 'h': base = 16; break;
+	default: return 0;
+    }
+    p++;
+    while (isspace(*p)) p++;
+    while (isalnum(*p) || (*p == '_') || (*p == '?')) {
+	if (*p == '_') {
+	    p++;
+	    continue;
+	}
+	if (isdigit(*p))
+	    digit = *p - '0';
+	else if (isxdigit(*p))
+	    digit = tolower(*p) - 'a' + 10;
+	else
+	    return 0;		/* x, z, or ? bits, or not a digit */
+	if (digit >= base) return 0;
+	if (value > (ULLONG_MAX - digit) / base) return 0;	/* Too large */
+	value = value * base + digit;
+	ndigits++;
+	p++;
+    }
+    if (ndigits == 0) return 0;
+    if (sized && (size == 0)) return 0;
+
+    *negptr = 0;
+    if (sized && (size < 64)) {
+	value &= ((1ULL << size) - 1);
+	if (issigned && ((value >> (size - 1)) & 1)) {
+	    *negptr = 1;
+	    value = (1ULL << size) - value;
+	}
+    }
+    *vptr = value;
+    return (int)(p - s);
+}
+
+//-------------------------------------------------------------------------
+// Return a copy of string "str" in which every verilog based constant
+// (see above) is replaced by its decimal value, so that the value can
+// be used like any other number.  Text in double quotes is not changed.
+// Return NULL if "str" has no constants to replace.  The returned
+// string must be freed by the caller.
+//-------------------------------------------------------------------------
+
+static char *ConvertVerilogConstants(char *str)
+{
+    char *s, *dptr, *newstr;
+    char prev, quoted = 0;
+    int n, neg, changed = 0;
+    unsigned long long value;
+
+    if (str == NULL) return NULL;
+    if (strchr(str, '\'') == NULL) return NULL;
+
+    /* Each constant is at least 3 characters and becomes at most	*/
+    /* 23 characters ("(-" + 20 digits + ")").			*/
+    newstr = (char *)MALLOC(8 * strlen(str) + 24);
+    dptr = newstr;
+    s = str;
+    while (*s != '\0') {
+	if (*s == '\"') quoted = !quoted;
+	prev = (s == str) ? ' ' : *(s - 1);
+	if (!quoted && (isdigit(*s) || (*s == '\'')) && !isalnum(prev)
+		&& (prev != '_') && (prev != '$') && (prev != '.')
+		&& (prev != '\'')) {
+	    n = ConvertBasedConstant(s, &value, &neg);
+	    if (n > 0) {
+		if (!neg)
+		    dptr += sprintf(dptr, "%llu", value);
+		else if ((s == str) && (*(s + n) == '\0'))
+		    dptr += sprintf(dptr, "-%llu", value);
+		else
+		    dptr += sprintf(dptr, "(-%llu)", value);
+		s += n;
+		changed = 1;
+		continue;
+	    }
+	}
+	*dptr++ = *s++;
+    }
+    *dptr = '\0';
+
+    if (changed == 0) {
+	FREE(newstr);
+	return NULL;
+    }
+    return newstr;
+}
+
+//-------------------------------------------------------------------------
+// Read an integer from token "tok", which may be a verilog based
+// constant.  Return value is the same as sscanf().
+//-------------------------------------------------------------------------
+
+static int ScanInteger(char *tok, int *vptr)
+{
+    char *cval;
+    int result;
+
+    cval = ConvertVerilogConstants(tok);
+    result = sscanf((cval != NULL) ? cval : tok, "%d", vptr);
+    if (cval != NULL) FREE(cval);
+    return result;
+}
+
+//-------------------------------------------------------------------------
 // Parse an expression which must resolve to a single integer.
 // If it does, return "1" and put the integer in the return
 // pointer "iptr".  If not, return "0" and iptr is undefined.
@@ -411,7 +552,7 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 // but assumes that the entire expression is in the string "expr".
 //-------------------------------------------------------------------------
 
-int ParseIntegerExpression(char *expr, int *iptr)
+static int ParseIntegerExpr(char *expr, int *iptr)
 {
     int result, value;
     char *sptr, *cptr, savec;
@@ -540,6 +681,23 @@ int ParseIntegerExpression(char *expr, int *iptr)
 }
 
 //-------------------------------------------------------------------------
+// Front end to ParseIntegerExpr() above, which first converts any
+// verilog based constants (e.g., "4'd3") in the expression to numbers.
+//-------------------------------------------------------------------------
+
+int ParseIntegerExpression(char *expr, int *iptr)
+{
+    char *cexpr;
+    int result;
+
+    cexpr = ConvertVerilogConstants(expr);
+    if (cexpr == NULL) return ParseIntegerExpr(expr, iptr);
+    result = ParseIntegerExpr(cexpr, iptr);
+    FREE(cexpr);
+    return result;
+}
+
+//-------------------------------------------------------------------------
 // Get bus indexes from the notation name[a:b].  If there is only "name"
 // then look up the name in the bus hash list and return the index bounds.
 // Return 0 on success, 1 on syntax error, and -1 if signal is not a bus.
@@ -604,7 +762,7 @@ int GetBusTok(struct bus *wb)
 		stack = newexp;
 		continue;
 	    }
-	    if ((result = sscanf(nexttok, "%d", &value)) != 1) {
+	    if ((result = ScanInteger(nexttok, &value)) != 1) {
 
 		// Is name in the parameter list?
 		kl = (struct property *)HashLookup(nexttok, &verilogparams);
@@ -1172,6 +1330,27 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 			FREE(paramlast);
 		    }
 		}
+		if (paramval == NULL) paramval = strsave("");
+		else {
+		    /* Change based constants such as 32'h1f to numbers */
+		    char *cval = ConvertVerilogConstants(paramval);
+		    char *sptr, *dptr, quoted = 0;
+
+		    if (cval != NULL) {
+			FREE(paramval);
+			paramval = cval;
+		    }
+
+		    /* Remove white space (except in quoted strings), as	*/
+		    /* the expression evaluator does not expect it (e.g.,	*/
+		    /* "L * 2" must be "L*2").				*/
+		    for (sptr = dptr = paramval; *sptr != '\0'; sptr++) {
+			if (*sptr == '\"') quoted = !quoted;
+			if (!quoted && isspace(*sptr)) continue;
+			*dptr++ = *sptr;
+		    }
+		    *dptr = '\0';
+		}
 
 		kl = NewProperty();
 		kl->key = strsave(paramkey);
@@ -1359,9 +1538,14 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		}
 		else if (match(nexttok, "=")) {
 
+		    char *cval;
+
 		    // The parameter value is the next token.
 		    SkipTokComments(VLOG_DELIMITERS); /* get the next token */
-		    eqptr = nexttok;
+
+		    // Change based constants such as 32'h1f to numbers
+		    cval = ConvertVerilogConstants(nexttok);
+		    eqptr = (cval != NULL) ? cval : nexttok;
 
 		    // Try first as a double, otherwise it's a string
 		    // Double value's slop defaults to 1%.
@@ -1369,6 +1553,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		        PropertyDouble(tp->name, filenum, pkey, 0.01, dval);
 		    else
 			PropertyString(tp->name, filenum, pkey, 0, eqptr);
+		    if (cval != NULL) FREE(cval);
 		}
 		else {
 		    /* Assume this is a keyword and save it */
@@ -1677,6 +1862,7 @@ skip_endmodule:
     }
     else if (match(nexttok, "`define")) {
       struct property *kl = NULL;
+      char *cval, *vptr;
 
       // Pick up key-value pair and store in current cell
 
@@ -1692,37 +1878,44 @@ skip_endmodule:
       kl->merge = MERGE_NONE;
 
       SkipTokNoNewline(VLOG_DELIMITERS);
-      if ((nexttok == NULL) || (nexttok[0] == '\0')) {
+
+      /* Change based constants such as 32'h1f to numbers */
+      cval = ConvertVerilogConstants(nexttok);
+      vptr = (cval != NULL) ? cval : nexttok;
+
+      if ((vptr == NULL) || (vptr[0] == '\0')) {
 	 // Let "`define X" be equivalent to "`define X 1".  Use integer value.
 	 kl->type = PROP_INTEGER;
 	 kl->pdefault.ival = 1;
          kl->slop.ival = 0;
       }
-      else if (ConvertStringToInteger(nexttok, &ival) == 1) {
+      else if (ConvertStringToInteger(vptr, &ival) == 1) {
 	 /* Parameter parses as an integer */
       	 kl->type = PROP_INTEGER;
 	 kl->pdefault.ival = ival;
          kl->slop.ival = 0;		// Exact match default
       }
-      else if (ConvertStringToFloat(nexttok, &dval) == 1) {
+      else if (ConvertStringToFloat(vptr, &dval) == 1) {
 	 /* Parameter parses as a floating-point number */
       	 kl->type = PROP_DOUBLE;
 	 kl->pdefault.dval = dval;
          kl->slop.dval = 0.01;		// One percent default
       }
       else {
-         char *toks;
+         char *toks, *ctoks;
 
 	 /* Treat the parameter as a string; BUT pull everything to */
 	 /* EOL, not just the current token.			    */
 	 toks = GetLineAtTok();
+	 ctoks = ConvertVerilogConstants(toks);
 
       	 kl->type = PROP_STRING;
-	 kl->pdefault.string = strsave(toks);
+	 kl->pdefault.string = (ctoks != NULL) ? ctoks : strsave(toks);
          kl->slop.dval = 0.0;
 
 	 SkipNewLine(VLOG_DELIMITERS);
       }
+      if (cval != NULL) FREE(cval);
       if (kl) HashPtrInstall(kl->key, kl, &verilogdefs);
     }
     else if (match(nexttok, "`undef")) {
@@ -2284,6 +2477,12 @@ nextinst:
 				"got end of file.\n");
 		    }
 		    if (pval != NULL) {
+			/* Change based constants such as 32'h1f to numbers */
+			ptmp = ConvertVerilogConstants(pval);
+			if (ptmp != NULL) {
+			    FREE(pval);
+			    pval = ptmp;
+			}
 	                AddProperty(&kvlist, paramname, pval);
 			FREE(pval);
 		    }
