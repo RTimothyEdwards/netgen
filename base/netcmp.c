@@ -6212,6 +6212,13 @@ PropertyMatch(struct Element *E1, struct Element *E2,
       if ((tp1 != ob1) && (tp1->type <= FIRSTPIN)) break;
       if ((tp2 != ob2) && (tp2->type <= FIRSTPIN)) break;
 
+      /* A cell with no pins has a single placeholder pin "(no pins)"	*/
+      /* that is not connected to any node.				*/
+      if ((tp1->node < 0) || (tp2->node < 0)) {
+	 nl1 = nl1->next;
+	 continue;
+      }
+
       if (file1 == Circuit1->file)
 	 node1 = Circuit1->nodename_cache[tp1->node];
       else
@@ -6231,6 +6238,7 @@ PropertyMatch(struct Element *E1, struct Element *E2,
 	 for (tp2b = ob2, nl2 = E2->nodelist; tp2b; tp2b = tp2b->next, nl2 = nl2->next) {
        	     if ((tp2b != ob2) && (tp2b->type <= FIRSTPIN)) break;
 	     if (tp2b == tp2) continue;
+	     if (tp2b->node < 0) continue;
 	     if (nl2->pin_magic == nl1->pin_magic) {
       		 if (file2 == Circuit1->file)
 		    node2 = Circuit1->nodename_cache[tp2b->node];

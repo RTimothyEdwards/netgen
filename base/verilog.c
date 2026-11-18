@@ -43,6 +43,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <stdio.h>
 #include <stdlib.h>  /* for calloc(), free(), getenv() */
 #include <ctype.h>   /* for isalnum() */
+#include <limits.h>  /* for ULLONG_MAX */
 #ifndef IBMPC
 #include <sys/types.h>	/* for getpwnam() tilde expansion */
 #include <pwd.h>
@@ -50,6 +51,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifdef TCL_NETGEN
 #include <tcl.h>
+extern Tcl_Interp *netgeninterp;
 #endif
 
 #include "netgen.h"
@@ -96,6 +98,25 @@ struct _loop {
 };
 
 struct _loop loop;
+
+// Verilog modules to be elaborated by yosys (see elaborate.c)
+static struct extmodule *ExtModules = NULL;
+
+// Full path of the verilog file being read (for recording the source
+// of modules to be elaborated by yosys)
+static char *verilogsource = NULL;
+
+// When reading the output of yosys, the module named "renamefrom" is
+// read as a cell named "renameto" (see ReadVerilogModuleAs()).
+static char *renamefrom = NULL;
+static char *renameto = NULL;
+
+// Count of modules flagged for yosys while reading a file
+static int extcount = 0;
+
+// Name of the module being read (the cell may have a temporary name,
+// "_PLACEHOLDER_", if the module was used before it was defined)
+static char currentmodule[MAX_STR_LEN];
 
 // Free a bus structure in the hash table during cleanup
 
@@ -402,6 +423,293 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
     return 0;
 }
 
+
+//-------------------------------------------------------------------------
+// Find the record of a verilog module to be elaborated by yosys, or
+// NULL if there is none.
+//-------------------------------------------------------------------------
+
+struct extmodule *ExtModuleLookup(char *name, int file)
+{
+    struct extmodule *em;
+
+    for (em = ExtModules; em; em = em->next)
+	if ((em->file == file) && !strcmp(em->name, name))
+	    return em;
+    return NULL;
+}
+
+//-------------------------------------------------------------------------
+// The module being read (CurrentCell) has something that netgen's
+// verilog reader cannot handle, such as a "generate" block that cannot
+// be evaluated, or an expression that depends on parameters.  Make it a
+// black box, and record it to be elaborated by yosys when the netlist
+// is elaborated (see elaborate.c).  "what" describes the problem.  The
+// caller should then skip to the end of the module.
+//-------------------------------------------------------------------------
+
+static void FlagExternalModule(char *what)
+{
+    struct extmodule *em;
+    struct property *klr, *kl;
+
+    if (CurrentCell == NULL) return;
+
+    /* Abandon any "for" loop being read */
+    if (loop.loopvar != NULL) {
+	klr = (struct property *)HashLookup(loop.loopvar, &verilogparams);
+	if (klr != NULL) {
+	    HashDelete(loop.loopvar, &verilogparams);
+	    FREE(klr->key);
+	    FREE(klr);
+	}
+	else
+	    FREE(loop.loopvar);
+	loop.loopvar = NULL;
+    }
+
+    /* The output of yosys should never need this */
+    if (renamefrom != NULL) {
+	Printf("Module '%s' (from yosys) cannot be read (%s).\n",
+		currentmodule, what);
+	SetClass(CLASS_MODULE);
+	return;
+    }
+
+    Printf("Module '%s' cannot be read by netgen (%s);  it will be "
+		"elaborated by yosys.\n", currentmodule, what);
+    SetClass(CLASS_MODULE);
+    CurrentCell->flags |= CELL_EXTERNAL;
+    extcount++;
+
+    /* Note that the cell may be "_PLACEHOLDER_" until the end of the	*/
+    /* module, when it is renamed to the module name.			*/
+    em = ExtModuleLookup(currentmodule, CurrentCell->file);
+    if (em == NULL) {
+	em = (struct extmodule *)CALLOC(1, sizeof(struct extmodule));
+	em->name = strsave(currentmodule);
+	em->file = CurrentCell->file;
+	em->next = ExtModules;
+	ExtModules = em;
+    }
+    else if (em->source != NULL)
+	FREE(em->source);
+    em->source = (verilogsource != NULL) ? strsave(verilogsource) : NULL;
+    em->status = EXT_PENDING;
+
+    /* Save the definitions (`define), so that yosys reads the module	*/
+    /* the same way (e.g., with or without "`ifdef USE_POWER_PINS").	*/
+    if (em->defines != NULL) FREE(em->defines);
+    em->defines = NULL;
+#ifdef TCL_NETGEN
+    if (definitions != NULL) {
+	Tcl_Obj *dlist = Tcl_NewListObj(0, NULL);
+	char dstr[MAX_STR_LEN];
+
+	Tcl_IncrRefCount(dlist);
+	for (kl = (struct property *)HashFirst(definitions); kl;
+		    kl = (struct property *)HashNext(definitions)) {
+	    if (kl->type == PROP_INTEGER)
+		snprintf(dstr, MAX_STR_LEN, "%s=%d", kl->key, kl->pdefault.ival);
+	    else if (kl->type == PROP_DOUBLE)
+		snprintf(dstr, MAX_STR_LEN, "%s=%.15g", kl->key, kl->pdefault.dval);
+	    else if ((kl->type == PROP_STRING) && (kl->pdefault.string != NULL) &&
+			(strpbrk(kl->pdefault.string, " \t\n\r\"") == NULL))
+		snprintf(dstr, MAX_STR_LEN, "%s=%s", kl->key, kl->pdefault.string);
+	    else
+		continue;	/* The value cannot be passed to yosys */
+	    Tcl_ListObjAppendElement(netgeninterp, dlist,
+			Tcl_NewStringObj(dstr, -1));
+	}
+	em->defines = strsave(Tcl_GetString(dlist));
+	Tcl_DecrRefCount(dlist);
+    }
+#endif
+    if (em->params != NULL) FREE(em->params);
+    em->params = NULL;
+}
+
+//-------------------------------------------------------------------------
+// Return TRUE if the module being read has parameters (in its header or
+// body, or local parameters), or is in a generate loop.
+//-------------------------------------------------------------------------
+
+static int ModuleHasParams()
+{
+    if (CurrentCell == NULL) return FALSE;
+    if (loop.loopvar != NULL) return TRUE;
+    if (HashFirst(&(CurrentCell->propdict)) != NULL) return TRUE;
+    if ((CurrentCell->paramdict.hashtab != NULL) &&
+		(HashFirst(&(CurrentCell->paramdict)) != NULL)) return TRUE;
+    return FALSE;
+}
+
+//-------------------------------------------------------------------------
+// Set the full path of the verilog file being read, returning the
+// previous one (to be restored with RestoreVerilogSource()).
+//-------------------------------------------------------------------------
+
+static char *SetVerilogSource(char *path)
+{
+    char *prev = verilogsource;
+    char *full;
+
+    full = realpath(path, NULL);
+    if (full != NULL) {
+	verilogsource = strsave(full);
+	free(full);
+    }
+    else
+	verilogsource = strsave(path);
+    return prev;
+}
+
+static void RestoreVerilogSource(char *prev)
+{
+    if (verilogsource != NULL) FREE(verilogsource);
+    verilogsource = prev;
+}
+
+//-------------------------------------------------------------------------
+// Convert one verilog based constant (e.g., "32'h1209_2025", "8'sd5",
+// or "'b1010") at the start of string "s" to its value.  Return the
+// number of characters of "s" that make up the constant, or 0 if "s"
+// does not start with a based constant or the constant cannot be
+// converted (it has x or z bits, or does not fit in 64 bits).  The
+// value is returned in "vptr".  A signed constant whose top bit is set
+// is negative;  then "negptr" is set to 1 and "vptr" is the magnitude.
+//-------------------------------------------------------------------------
+
+static int ConvertBasedConstant(char *s, unsigned long long *vptr, int *negptr)
+{
+    char *p = s;
+    int size = 0, sized = 0, issigned = 0, base, digit, ndigits = 0;
+    unsigned long long value = 0;
+
+    while (isdigit(*p) || (sized && (*p == '_'))) {
+	if (*p != '_') {
+	    if (size < 1000000) size = size * 10 + (*p - '0');
+	    sized = 1;
+	}
+	p++;
+    }
+    while (isspace(*p)) p++;
+    if (*p != '\'') return 0;
+    p++;
+    if ((*p == 's') || (*p == 'S')) {
+	issigned = 1;
+	p++;
+    }
+    switch (tolower(*p)) {
+	case 'b': base = 2; break;
+	case 'o': base = 8; break;
+	case 'd': base = 10; break;
+	case 'h': base = 16; break;
+	default: return 0;
+    }
+    p++;
+    while (isspace(*p)) p++;
+    while (isalnum(*p) || (*p == '_') || (*p == '?')) {
+	if (*p == '_') {
+	    p++;
+	    continue;
+	}
+	if (isdigit(*p))
+	    digit = *p - '0';
+	else if (isxdigit(*p))
+	    digit = tolower(*p) - 'a' + 10;
+	else
+	    return 0;		/* x, z, or ? bits, or not a digit */
+	if (digit >= base) return 0;
+	if (value > (ULLONG_MAX - digit) / base) return 0;	/* Too large */
+	value = value * base + digit;
+	ndigits++;
+	p++;
+    }
+    if (ndigits == 0) return 0;
+    if (sized && (size == 0)) return 0;
+
+    *negptr = 0;
+    if (sized && (size < 64)) {
+	value &= ((1ULL << size) - 1);
+	if (issigned && ((value >> (size - 1)) & 1)) {
+	    *negptr = 1;
+	    value = (1ULL << size) - value;
+	}
+    }
+    *vptr = value;
+    return (int)(p - s);
+}
+
+//-------------------------------------------------------------------------
+// Return a copy of string "str" in which every verilog based constant
+// (see above) is replaced by its decimal value, so that the value can
+// be used like any other number.  Text in double quotes is not changed.
+// Return NULL if "str" has no constants to replace.  The returned
+// string must be freed by the caller.
+//-------------------------------------------------------------------------
+
+static char *ConvertVerilogConstants(char *str)
+{
+    char *s, *dptr, *newstr;
+    char prev, quoted = 0;
+    int n, neg, changed = 0;
+    unsigned long long value;
+
+    if (str == NULL) return NULL;
+    if (strchr(str, '\'') == NULL) return NULL;
+
+    /* Each constant is at least 3 characters and becomes at most	*/
+    /* 23 characters ("(-" + 20 digits + ")").			*/
+    newstr = (char *)MALLOC(8 * strlen(str) + 24);
+    dptr = newstr;
+    s = str;
+    while (*s != '\0') {
+	if (*s == '\"') quoted = !quoted;
+	prev = (s == str) ? ' ' : *(s - 1);
+	if (!quoted && (isdigit(*s) || (*s == '\'')) && !isalnum(prev)
+		&& (prev != '_') && (prev != '$') && (prev != '.')
+		&& (prev != '\'')) {
+	    n = ConvertBasedConstant(s, &value, &neg);
+	    if (n > 0) {
+		if (!neg)
+		    dptr += sprintf(dptr, "%llu", value);
+		else if ((s == str) && (*(s + n) == '\0'))
+		    dptr += sprintf(dptr, "-%llu", value);
+		else
+		    dptr += sprintf(dptr, "(-%llu)", value);
+		s += n;
+		changed = 1;
+		continue;
+	    }
+	}
+	*dptr++ = *s++;
+    }
+    *dptr = '\0';
+
+    if (changed == 0) {
+	FREE(newstr);
+	return NULL;
+    }
+    return newstr;
+}
+
+//-------------------------------------------------------------------------
+// Read an integer from token "tok", which may be a verilog based
+// constant.  Return value is the same as sscanf().
+//-------------------------------------------------------------------------
+
+static int ScanInteger(char *tok, int *vptr)
+{
+    char *cval;
+    int result;
+
+    cval = ConvertVerilogConstants(tok);
+    result = sscanf((cval != NULL) ? cval : tok, "%d", vptr);
+    if (cval != NULL) FREE(cval);
+    return result;
+}
+
 //-------------------------------------------------------------------------
 // Parse an expression which must resolve to a single integer.
 // If it does, return "1" and put the integer in the return
@@ -411,7 +719,7 @@ int EvalExpr(struct expr_stack **stackptr, int *valptr)
 // but assumes that the entire expression is in the string "expr".
 //-------------------------------------------------------------------------
 
-int ParseIntegerExpression(char *expr, int *iptr)
+static int ParseIntegerExpr(char *expr, int *iptr)
 {
     int result, value;
     char *sptr, *cptr, savec;
@@ -540,6 +848,23 @@ int ParseIntegerExpression(char *expr, int *iptr)
 }
 
 //-------------------------------------------------------------------------
+// Front end to ParseIntegerExpr() above, which first converts any
+// verilog based constants (e.g., "4'd3") in the expression to numbers.
+//-------------------------------------------------------------------------
+
+int ParseIntegerExpression(char *expr, int *iptr)
+{
+    char *cexpr;
+    int result;
+
+    cexpr = ConvertVerilogConstants(expr);
+    if (cexpr == NULL) return ParseIntegerExpr(expr, iptr);
+    result = ParseIntegerExpr(cexpr, iptr);
+    FREE(cexpr);
+    return result;
+}
+
+//-------------------------------------------------------------------------
 // Get bus indexes from the notation name[a:b].  If there is only "name"
 // then look up the name in the bus hash list and return the index bounds.
 // Return 0 on success, 1 on syntax error, and -1 if signal is not a bus.
@@ -604,7 +929,7 @@ int GetBusTok(struct bus *wb)
 		stack = newexp;
 		continue;
 	    }
-	    if ((result = sscanf(nexttok, "%d", &value)) != 1) {
+	    if ((result = ScanInteger(nexttok, &value)) != 1) {
 
 		// Is name in the parameter list?
 		kl = (struct property *)HashLookup(nexttok, &verilogparams);
@@ -1172,6 +1497,27 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 			FREE(paramlast);
 		    }
 		}
+		if (paramval == NULL) paramval = strsave("");
+		else {
+		    /* Change based constants such as 32'h1f to numbers */
+		    char *cval = ConvertVerilogConstants(paramval);
+		    char *sptr, *dptr, quoted = 0;
+
+		    if (cval != NULL) {
+			FREE(paramval);
+			paramval = cval;
+		    }
+
+		    /* Remove white space (except in quoted strings), as	*/
+		    /* the expression evaluator does not expect it (e.g.,	*/
+		    /* "L * 2" must be "L*2").				*/
+		    for (sptr = dptr = paramval; *sptr != '\0'; sptr++) {
+			if (*sptr == '\"') quoted = !quoted;
+			if (!quoted && isspace(*sptr)) continue;
+			*dptr++ = *sptr;
+		    }
+		    *dptr = '\0';
+		}
 
 		kl = NewProperty();
 		kl->key = strsave(paramkey);
@@ -1252,6 +1598,13 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 	 Fprintf(stderr, "Badly formed \"module\" line\n");
 	 goto skip_endmodule;
       }
+
+      /* When reading the output of yosys, read the module as a cell	*/
+      /* with a different name (see ReadVerilogModuleAs()).		*/
+      if ((renamefrom != NULL) && match(nexttok, renamefrom))
+	 nexttok = renameto;
+      strncpy(currentmodule, nexttok, MAX_STR_LEN - 1);
+      currentmodule[MAX_STR_LEN - 1] = '\0';
 
       if (in_module == (char)1) {
 	  Fprintf(stderr, "Missing \"endmodule\" statement on subcircuit.\n");
@@ -1359,9 +1712,14 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		}
 		else if (match(nexttok, "=")) {
 
+		    char *cval;
+
 		    // The parameter value is the next token.
 		    SkipTokComments(VLOG_DELIMITERS); /* get the next token */
-		    eqptr = nexttok;
+
+		    // Change based constants such as 32'h1f to numbers
+		    cval = ConvertVerilogConstants(nexttok);
+		    eqptr = (cval != NULL) ? cval : nexttok;
 
 		    // Try first as a double, otherwise it's a string
 		    // Double value's slop defaults to 1%.
@@ -1369,6 +1727,7 @@ void ReadVerilogFile(char *fname, int filenum, struct cellstack **CellStackPtr,
 		        PropertyDouble(tp->name, filenum, pkey, 0.01, dval);
 		    else
 			PropertyString(tp->name, filenum, pkey, 0, eqptr);
+		    if (cval != NULL) FREE(cval);
 		}
 		else {
 		    /* Assume this is a keyword and save it */
@@ -1451,6 +1810,9 @@ skip_endmodule:
 	    SkipTokComments(VLOG_DELIMITERS);
 	    if (EndParseFile()) break;
 	    if (match(nexttok, "endmodule")) {
+	       /* Finish the module (black box) as usual, which also	*/
+	       /* replaces a placeholder cell for it, if there is one.	*/
+	       if (in_module && (CurrentCell != NULL)) goto end_module;
 	       in_module = 0;
 	       break;
 	    }
@@ -1508,6 +1870,7 @@ skip_endmodule:
     }
     else if (match(nexttok, "endmodule")) {
 
+end_module:
       CleanupModule();
       EndCell();
 
@@ -1526,7 +1889,7 @@ skip_endmodule:
 	 struct nlist *tpplace;
 	 char *savename;
 	 int lnum, pnum, ltest;
-	 unsigned char valid;
+	 unsigned char valid, numbered;
 	 struct objlist *lobj, *pobj;
 
 	 /* Handle a placeholder from a verilog file that has been replaced
@@ -1561,6 +1924,7 @@ skip_endmodule:
 	 /* cell are integers in ascending order.		*/
 
 	 valid = TRUE;
+	 numbered = TRUE;
 	 lnum = 0;
 	 for (lobj = tpsave->cell; lobj; lobj = lobj->next) {
 	    if (lobj->type != PORT) break;
@@ -1568,8 +1932,10 @@ skip_endmodule:
 	    if (sscanf(lobj->name, "%d", &ltest) != 1) break;
 	    if (ltest != lnum) break;
 	 }
-	 if ((lobj != NULL) && (lobj->type == PORT))
+	 if ((lobj != NULL) && (lobj->type == PORT)) {
 	    valid = FALSE;	/* Pins are not integers in ascending order */
+	    numbered = FALSE;
+	 }
 	 if (pnum != lnum) valid = FALSE;	/* Different number of pins */
 
 	 if (valid == TRUE) {
@@ -1585,10 +1951,13 @@ skip_endmodule:
 		pobj = pobj->next;
 	    }
 	 }
-	 else {
+	 else if (numbered == TRUE) {
+	    /* A SPICE placeholder with a different number of pins */
 	    Printf("Placeholder pins of cell %s are not compatible and"
 		" will be left unchanged\n", tpsave->name);
 	 }
+	 /* Otherwise, the placeholder has named pins (from verilog	*/
+	 /* instances), which are matched by name below.		*/
 
          /* MatchPins is part of netcmp and normally Circuit2 is the
           * circuit being matched, so set Circuit2 to the original
@@ -1677,6 +2046,7 @@ skip_endmodule:
     }
     else if (match(nexttok, "`define")) {
       struct property *kl = NULL;
+      char *cval, *vptr;
 
       // Pick up key-value pair and store in current cell
 
@@ -1692,37 +2062,44 @@ skip_endmodule:
       kl->merge = MERGE_NONE;
 
       SkipTokNoNewline(VLOG_DELIMITERS);
-      if ((nexttok == NULL) || (nexttok[0] == '\0')) {
+
+      /* Change based constants such as 32'h1f to numbers */
+      cval = ConvertVerilogConstants(nexttok);
+      vptr = (cval != NULL) ? cval : nexttok;
+
+      if ((vptr == NULL) || (vptr[0] == '\0')) {
 	 // Let "`define X" be equivalent to "`define X 1".  Use integer value.
 	 kl->type = PROP_INTEGER;
 	 kl->pdefault.ival = 1;
          kl->slop.ival = 0;
       }
-      else if (ConvertStringToInteger(nexttok, &ival) == 1) {
+      else if (ConvertStringToInteger(vptr, &ival) == 1) {
 	 /* Parameter parses as an integer */
       	 kl->type = PROP_INTEGER;
 	 kl->pdefault.ival = ival;
          kl->slop.ival = 0;		// Exact match default
       }
-      else if (ConvertStringToFloat(nexttok, &dval) == 1) {
+      else if (ConvertStringToFloat(vptr, &dval) == 1) {
 	 /* Parameter parses as a floating-point number */
       	 kl->type = PROP_DOUBLE;
 	 kl->pdefault.dval = dval;
          kl->slop.dval = 0.01;		// One percent default
       }
       else {
-         char *toks;
+         char *toks, *ctoks;
 
 	 /* Treat the parameter as a string; BUT pull everything to */
 	 /* EOL, not just the current token.			    */
 	 toks = GetLineAtTok();
+	 ctoks = ConvertVerilogConstants(toks);
 
       	 kl->type = PROP_STRING;
-	 kl->pdefault.string = strsave(toks);
+	 kl->pdefault.string = (ctoks != NULL) ? ctoks : strsave(toks);
          kl->slop.dval = 0.0;
 
 	 SkipNewLine(VLOG_DELIMITERS);
       }
+      if (cval != NULL) FREE(cval);
       if (kl) HashPtrInstall(kl->key, kl, &verilogdefs);
     }
     else if (match(nexttok, "`undef")) {
@@ -1797,22 +2174,22 @@ skip_endmodule:
 	if ((nexttok == NULL) || !match(nexttok, "(")) {
 	    Printf("Badly formed 'for' loop.\n");
 	    FREE(paramkey);
-	    break;
+	    goto bad_for_loop;
 	}
 	SkipTokNoNewline(VLOG_DELIMITERS);
 	/* Next token must be the loop variable */
-	if (nexttok == NULL) break;
+	if (nexttok == NULL) goto bad_for_loop;
 	paramkey = strsave(nexttok);
 	SkipTokNoNewline(VLOG_DELIMITERS);
 	if (!match(nexttok, "=")) {
 	    Printf("Badly formed 'for' loop.\n");
 	    FREE(paramkey);
-	    break;
+	    goto bad_for_loop;
 	}
 	SkipTokNoNewline(VLOG_INTEGER_DELIMITERS);
 	if (ParseIntegerExpression(nexttok, &ival) == 0) {
 	    FREE(paramkey);
-	    break;
+	    goto bad_for_loop;
 	}
 
 	kl = NewProperty();
@@ -1828,7 +2205,7 @@ skip_endmodule:
 	    Printf("Badly formed 'for' loop.\n");
 	    FREE(paramkey);
 	    FREE(kl);
-	    break;
+	    goto bad_for_loop;
 	}
 
 	/* Assuming a standard 'for' loop here */
@@ -1837,7 +2214,7 @@ skip_endmodule:
 	    Printf("Don't know how to parse this 'for' loop!\n");
 	    FREE(paramkey);
 	    FREE(kl);
-	    break;
+	    goto bad_for_loop;
 	}
 	SkipTokNoNewline(VLOG_DELIMITERS);
 	if (strlen(nexttok) == 1) limittype = *nexttok;
@@ -1845,7 +2222,7 @@ skip_endmodule:
 	if (ParseIntegerExpression(nexttok, &ival) == 0) {
 	    FREE(kl);
 	    FREE(paramkey);
-	    break;
+	    goto bad_for_loop;
 	}
 
 	/* Loops will stop after the last value, so if value is > or <,
@@ -1861,7 +2238,7 @@ skip_endmodule:
 	    Printf("Badly formed 'for' loop.\n");
 	    FREE(paramkey);
 	    FREE(kl);
-	    break;
+	    goto bad_for_loop;
 	}
 
 	/* Assume a standard 'for' loop and skip to the block begin	*/
@@ -1875,7 +2252,7 @@ skip_endmodule:
 	    Printf("Badly formed 'for' loop:  No begin/end block.\n");
 	    FREE(paramkey);
 	    FREE(kl);
-	    break;
+	    goto bad_for_loop;
 	}
 
 	/* Save the loop variable, ending value, and file position */
@@ -1886,6 +2263,17 @@ skip_endmodule:
 
 	/* 'for' loop has been completely parsed, so save the loop variable */
 	HashPtrInstall(paramkey, kl, &verilogparams);
+	continue;
+
+bad_for_loop:
+	/* The loop could not be read.  Previously, this ended reading	*/
+	/* of the file.  Instead, have yosys elaborate the module, and	*/
+	/* continue after the end of the module.			*/
+	if (in_module && (CurrentCell != NULL)) {
+	    FlagExternalModule("'for' loop");
+	    goto skip_endmodule;
+	}
+	break;
     }
     else if (match(nexttok, "wire") || match(nexttok, "assign")) {	/* wire = node */
 	struct bus wb, wb2, *nb;
@@ -2109,7 +2497,16 @@ skip_endmodule:
 			    else
 			    	Printf("Left-hand side is \"%s\".\n", lhs->name);
 			    Printf("Improper expression is \"%s\".\n", nexttok);
-			    /* Not parsable, probably behavioral verilog? */
+			    /* An expression in a module with parameters or	*/
+			    /* in a generate loop may resolve to a simple	*/
+			    /* connection for given parameter values (e.g.,	*/
+			    /* "assign a = P ? b : c"), so have yosys		*/
+			    /* elaborate the module.  Otherwise, it is		*/
+			    /* probably behavioral verilog.			*/
+			    if (ModuleHasParams()) {
+				FlagExternalModule("expression in 'assign'");
+				goto skip_endmodule;
+			    }
 			    Printf("Module '%s' is not structural verilog, "
 				    "making black-box.\n", model);
 			    SetClass(CLASS_MODULE);
@@ -2167,6 +2564,14 @@ skip_endmodule:
     else if (nexttok[0] == '`') {
       // Ignore any other directive starting with a backtick (e.g., `timescale)
       SkipNewLine(VLOG_DELIMITERS);
+    }
+    else if (in_module && (match(nexttok, "if") || match(nexttok, "case"))) {
+      /* Conditional generate blocks depend on parameter values, and	*/
+      /* are not handled by netgen;  have yosys elaborate the module.	*/
+      char what[64];
+      snprintf(what, 63, "generate '%s'", nexttok);
+      FlagExternalModule(what);
+      goto skip_endmodule;
     }
     else if (match(nexttok, "reg") || match(nexttok, "always") ||
 	    match(nexttok, "specify") || match(nexttok, "initial")) {
@@ -2284,6 +2689,12 @@ nextinst:
 				"got end of file.\n");
 		    }
 		    if (pval != NULL) {
+			/* Change based constants such as 32'h1f to numbers */
+			ptmp = ConvertVerilogConstants(pval);
+			if (ptmp != NULL) {
+			    FREE(pval);
+			    pval = ptmp;
+			}
 	                AddProperty(&kvlist, paramname, pval);
 			FREE(pval);
 		    }
@@ -3113,20 +3524,22 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   struct cellstack *CellStack = NULL;
   struct nlist *tp;
   int filenum;
+  char name[1024], *openname, *prevsource;
 
   // Make sure CurrentCell is clear
   CurrentCell = NULL;
+  openname = fname;
 
   if ((filenum = OpenParseFile(fname, *fnum)) < 0) {
 
     if (strchr(fname, '.') == NULL) {
-      char name[1024];
       SetExtension(name, fname, VERILOG_EXTENSION);
       if ((filenum = OpenParseFile(name, *fnum)) < 0) {
         Fprintf(stderr, "Error in Verilog file read: No file %s\n", name);
         *fnum = filenum;
         return NULL;
       }
+      openname = name;
     }    
     else {
        Fprintf(stderr, "Error in Verilog file read: No file %s\n", fname);
@@ -3182,8 +3595,15 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
   kl->pdefault.ival = 1;
   HashPtrInstall(kl->key, kl, &verilogdefs);
 
+  prevsource = SetVerilogSource(openname);
+  extcount = 0;
   ReadVerilogFile(fname, filenum, &CellStack, blackbox);
   CloseParseFile();
+  RestoreVerilogSource(prevsource);
+
+  if (extcount > 0)
+     Printf("Note:  %d module%s will be elaborated by yosys (see above).\n",
+		extcount, (extcount == 1) ? "" : "s");
 
   // Cleanup
   while (CellStack != NULL) PopStack(&CellStack);
@@ -3217,11 +3637,12 @@ void IncludeVerilog(char *fname, int parent, struct cellstack **CellStackPtr,
 		int blackbox)
 {
   int filenum = -1;
-  char name[MAX_STR_LEN];
+  char name[MAX_STR_LEN], *openname, *prevsource;
 
   /* If fname does not begin with "/", then assume that it is	*/
   /* in the same relative path as its parent.			*/
   
+  openname = fname;
   if (fname[0] != '/') {
      char *ppath;
      if (*CellStackPtr && ((*CellStackPtr)->cellname != NULL)) {
@@ -3232,6 +3653,7 @@ void IncludeVerilog(char *fname, int parent, struct cellstack **CellStackPtr,
 	else
            strcpy(name, fname);
         filenum = OpenParseFile(name, parent);
+	if (filenum >= 0) openname = name;
      }
   }
 
@@ -3253,14 +3675,96 @@ void IncludeVerilog(char *fname, int parent, struct cellstack **CellStackPtr,
 	      fprintf(stderr,"Error in Verilog file include: No file %s\n", name);
 	      return;
 	   }
+	   openname = name;
         }
 	else {
 	   fprintf(stderr,"Error in Verilog file include: No file %s\n", fname);
 	   return;
         }
      }
+     else
+	openname = fname;
   }
+  prevsource = SetVerilogSource(openname);
   ReadVerilogFile(fname, parent, CellStackPtr, blackbox);
   CloseParseFile();
+  RestoreVerilogSource(prevsource);
 }
 
+
+/*----------------------------------------------------------------------*/
+/* Read a verilog file written by yosys (see elaborate.c) into netlist	*/
+/* "filenum", reading module "module" as a cell named "newname".  The	*/
+/* file should contain only that module.  Returns the new cell, or	*/
+/* NULL if the file could not be read, or the module was not found or	*/
+/* could not be read as a netlist (e.g., it is behavioral).  Unlike	*/
+/* ReadVerilogTop(), this does not make a cell for the file itself.	*/
+/*----------------------------------------------------------------------*/
+
+struct nlist *ReadVerilogModuleAs(char *fname, int filenum, char *module,
+		char *newname)
+{
+  struct cellstack *CellStack = NULL;
+  struct nlist *tp, *savecell;
+  struct hashdict *savedefs;
+  int fnum;
+
+  savecell = CurrentCell;
+  savedefs = definitions;
+  CurrentCell = NULL;
+
+  if (LookupCellFile(newname, filenum) != NULL) {
+     Fprintf(stderr, "Cannot read module %s as %s:  cell already exists.\n",
+		module, newname);
+     return NULL;
+  }
+
+  if ((fnum = OpenParseFile(fname, filenum)) < 0) {
+     Fprintf(stderr, "Cannot read file %s\n", fname);
+     return NULL;
+  }
+
+  /* Use the verilog parameter and definition tables of this netlist	*/
+  /* (the output of yosys has no parameters or definitions of its own).	*/
+  if ((hashfilep != -1) && (hashfilep != filenum)) {
+     RecurseHashTable(&verilogparams, freeprop);
+     HashKill(&verilogparams);
+     hashfilep = -1;
+  }
+  if (hashfilep == -1) {
+     InitializeHashTable(&verilogparams, OBJHASHSIZE);
+     hashfilep = filenum;
+  }
+  if ((hashfiled != -1) && (hashfiled != filenum)) {
+     RecurseHashTable(&verilogdefs, freeprop);
+     HashKill(&verilogdefs);
+     hashfiled = -1;
+  }
+  if (hashfiled == -1) {
+     InitializeHashTable(&verilogdefs, OBJHASHSIZE);
+     hashfiled = filenum;
+  }
+  definitions = &verilogdefs;
+
+  renamefrom = module;
+  renameto = newname;
+  ReadVerilogFile(fname, filenum, &CellStack, 0);
+  CloseParseFile();
+  renamefrom = renameto = NULL;
+
+  while (CellStack != NULL) PopStack(&CellStack);
+  definitions = savedefs;
+
+  /* Remove the cell made for anything outside of a module, if any */
+  if (LookupCellFile(fname, filenum) != NULL) CellDelete(fname, filenum);
+
+  if (savecell != NULL)
+     ReopenCellDef(savecell->name, savecell->file);
+  else
+     CurrentCell = NULL;
+
+  tp = LookupCellFile(newname, filenum);
+  if (tp == NULL)
+     Fprintf(stderr, "Module %s not found in file %s\n", module, fname);
+  return tp;
+}

@@ -82,6 +82,30 @@ struct elabrec {
 extern int ElaborateFile(int file);
 extern void ElaborateReset(int file);
 extern struct elabrec *ElaborateRecords(int file);
+
+/* Verilog module that netgen's verilog reader cannot read (e.g., it	*/
+/* has generate blocks or expressions that depend on parameters), and	*/
+/* that is elaborated by yosys instead (see elaborate.c).		*/
+
+struct extmodule {
+    char *name;		/* Name of the module (cell) */
+    int file;		/* File number of the netlist */
+    char *source;	/* Verilog source file defining the module */
+    char *defines;	/* Verilog definitions when the module was read */
+			/* (a Tcl list of "name=value")			 */
+    int status;		/* EXT_PENDING, EXT_DONE, or EXT_FAILED */
+    char *params;	/* Parameter values of the current contents (when	*/
+			/* EXT_DONE), as an elaboration signature		*/
+    struct extmodule *next;
+};
+
+#define EXT_PENDING	0	/* Not yet elaborated by yosys */
+#define EXT_DONE	1	/* Contents replaced by yosys output */
+#define EXT_FAILED	2	/* Yosys could not be used;  left as black box */
+
+extern struct extmodule *ExtModuleLookup(char *name, int file);
+extern struct nlist *ReadVerilogModuleAs(char *fname, int filenum,
+		char *module, char *newname);
 extern void Node(char *name);
 extern void Global(char *name);
 extern void UniqueGlobal(char *name);

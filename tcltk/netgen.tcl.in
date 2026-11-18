@@ -805,6 +805,504 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    }
 }
 
+#-----------------------------------------------------------------------
+# Use yosys to elaborate a verilog module into a simple structural
+# netlist that netgen's own verilog reader can read:  generate loops are
+# unrolled, conditions on parameters are evaluated, and so forth.  This
+# needs yosys version 0.67 or newer, which has the "slang" verilog
+# front end (command "read_slang") built in.
+#
+# Usage:
+#    netgen::yosys_elaborate files module ?options?
+#
+#    files	verilog source file(s) containing the module
+#    module	name of the module to elaborate
+#
+# Options:
+#    -param {name value ...}	parameter values for the module
+#    -define {name[=value] ...}	macro definitions.  "LVS" is always
+#				defined, as it is by netgen's verilog
+#				reader.
+#    -stubs {file ...}		verilog file(s) defining the cells that the
+#				module instantiates as black boxes:
+#				"(* blackbox *) module name (pins); ..."
+#				Every cell must be defined, either here or
+#				in the source files.
+#    -include {dir ...}		directories to search for `include files
+#				(in addition to those of the source files)
+#    -output file		name of the output file (by default, a file
+#				in a temporary directory)
+#    -frontend auto|slang|verilog
+#				"slang" uses read_slang;  "verilog" uses
+#				yosys's own reader (read_verilog -sv),
+#				which cannot set parameters to real values;
+#				"auto" (the default) uses read_slang, and
+#				if that fails, read_verilog -sv.
+#    -cells {{name {pin ...} {param ...}} ...}
+#				cells known to netgen (this is how netgen
+#				calls this procedure when elaborating a
+#				netlist).  The module is elaborated by one
+#				level only:  the other modules defined in
+#				the source files are black boxes, and stubs
+#				are written for the cells that are not.
+#
+# Returns the name of the output file, or an empty string if yosys is
+# not available or fails (the reason is printed).  The output file
+# defines the module (with the same name).  Without -cells, it also
+# defines any modules it instantiates that are defined in the source
+# files (with names made unique by yosys, such as
+# "child$module.instance"), but not the stubs.
+#
+# Variables:
+#    netgen::yosys_command	the yosys command (default "yosys")
+#    netgen::yosys_use		set to 0 to not use yosys at all;  verilog
+#				modules that netgen cannot read are then
+#				treated as black boxes
+#    netgen::yosys_defines	macro definitions always passed to yosys
+#				(e.g., "USE_POWER_PINS")
+#-----------------------------------------------------------------------
+
+namespace eval netgen {
+   variable yosys_command yosys
+   variable yosys_use 1
+   variable yosys_defines {}
+   variable yosys_ok {}
+   variable yosys_count 0
+   variable yosys_tmpdir {}
+}
+
+# Check (once) if yosys can be used.  Returns 1 if so, 0 if not.
+
+proc netgen::yosys_check {} {
+   variable yosys_command
+   variable yosys_use
+   variable yosys_ok
+
+   if {!$yosys_use} {
+      puts stderr "Use of yosys is disabled (netgen::yosys_use is 0)."
+      return 0
+   }
+   if {$yosys_ok != {}} {return $yosys_ok}
+   set yosys_ok 0
+   set yosys [auto_execok $yosys_command]
+   if {$yosys == {}} {
+      puts stderr "Cannot find yosys (\"$yosys_command\")."
+      return 0
+   }
+   if {[catch {exec {*}$yosys -V} vers]} {
+      puts stderr "Cannot run yosys (\"$yosys_command\"):  $vers"
+      return 0
+   }
+   if {![regexp {Yosys ([0-9]+)\.([0-9]+)} $vers -> major minor]} {
+      puts stderr "Cannot determine the version of yosys from \"$vers\"."
+      return 0
+   }
+   if {($major == 0) && ($minor < 67)} {
+      puts stderr "Yosys version $major.$minor is too old;  version 0.67\
+		or newer is needed."
+      return 0
+   }
+   if {[catch {exec {*}$yosys -p "help read_slang" 2>@1} help] ||
+		![regexp {read_slang \[options\]} $help]} {
+      puts stderr "Yosys version $major.$minor does not have the\
+		\"read_slang\" command."
+      return 0
+   }
+   set yosys_ok 1
+   return 1
+}
+
+# Return a verilog identifier for "name":  the name itself, or an escaped
+# identifier ("\\name ") if it is not a simple identifier or is a keyword.
+
+proc netgen::yosys_ident {name} {
+   if {[string index $name 0] == "\\"} {
+      return "[string trimright $name] "
+   }
+   if {[regexp {^[A-Za-z_][A-Za-z0-9_$]*$} $name] && [lsearch -exact {always
+		and assign begin buf case default else end endcase endmodule
+		for if initial inout input integer module nand nor not or
+		output parameter real reg supply0 supply1 tri wire xor} $name] < 0} {
+      return $name
+   }
+   return "\\$name "
+}
+
+# Return the names of the modules defined in verilog files, without any
+# escape character.
+
+proc netgen::yosys_modules {files} {
+   set names {}
+   foreach f $files {
+      if {[catch {open $f r} fl]} continue
+      set text [read $fl]
+      close $fl
+      regsub -all {/\*.*?\*/} $text " " text
+      regsub -all {//[^\n]*} $text " " text
+      foreach {all name} [regexp -all -inline \
+		{(?:^|[\s;])(?:macro)?module\s+(\\\S+|[A-Za-z_][A-Za-z0-9_$]*)} $text] {
+	 lappend names [string trim $name "\\ "]
+      }
+   }
+   return $names
+}
+
+# Write black-box definitions ("stubs") of cells to file "fname", for
+# yosys.  "cells" is a list of {name {pin ...} {param ...}}.  Bus pins
+# ("a[3]" or "a<3>") are written as vectors ("a[3:0]").  Every pin is
+# "inout", and every parameter has the default value 0 (yosys only needs
+# to know that they exist).
+
+proc netgen::yosys_write_stubs {fname cells} {
+   set fs [open $fname w]
+   puts $fs "// Black-box definitions of cells, written by netgen for yosys"
+   foreach cell $cells {
+      lassign $cell name pins params
+      set bases {}
+      foreach pin $pins {
+	 if {[regexp {^(.+)[\[<]([0-9]+)[\]>]$} $pin -> base idx]} {
+	    if {[dict exists $bases $base]} {
+	       lassign [dict get $bases $base] lo hi
+	       if {$lo == {}} {
+		  # Same name as a pin that is not a bus:  write separately
+		  dict set bases $pin {{} {}}
+		  continue
+	       }
+	       if {$idx < $lo} {set lo $idx}
+	       if {$idx > $hi} {set hi $idx}
+	       dict set bases $base [list $lo $hi]
+	    } else {
+	       dict set bases $base [list $idx $idx]
+	    }
+	 } elseif {![dict exists $bases $pin]} {
+	    dict set bases $pin {{} {}}
+	 }
+      }
+      set plist {}
+      set decls {}
+      dict for {base range} $bases {
+	 set id [netgen::yosys_ident $base]
+	 lappend plist $id
+	 lassign $range lo hi
+	 if {$lo == {}} {
+	    lappend decls "   inout $id;"
+	 } else {
+	    lappend decls "   inout \[$hi:$lo\] $id;"
+	 }
+      }
+      set pdecls {}
+      foreach param $params {
+	 if {[regexp {^[A-Za-z_][A-Za-z0-9_$]*$} $param] &&
+		[lsearch -exact $pdecls "parameter $param = 0"] < 0} {
+	    lappend pdecls "parameter $param = 0"
+	 }
+      }
+      set header "module [netgen::yosys_ident $name]"
+      if {$pdecls != {}} {append header " #([join $pdecls ", "])"}
+      if {$plist != {}} {append header " ([join $plist ", "])"}
+      puts $fs "(* blackbox *)"
+      puts $fs "$header;"
+      foreach d $decls {puts $fs $d}
+      puts $fs "endmodule"
+   }
+   close $fs
+}
+
+# Return the index of the parenthesis that closes the one at index "start"
+# of "text", or -1 if there is none.
+
+proc netgen::yosys_close_paren {text start} {
+   set depth 0
+   set n [string length $text]
+   for {set i $start} {$i < $n} {incr i} {
+      switch -- [string index $text $i] {
+	 "(" {incr depth}
+	 ")" {
+	    incr depth -1
+	    if {$depth == 0} {return $i}
+	 }
+      }
+   }
+   return -1
+}
+
+# For cells that are instanced in verilog files but not defined anywhere,
+# find their pin names (and parameter names) from the instances, which
+# connect pins by name (".pin(net)"), in the same way that netgen makes
+# placeholder cells for them.  Returns a list of cells in the form used by
+# netgen::yosys_write_stubs.  A cell whose instances connect pins by
+# position is left out.
+
+proc netgen::yosys_guess_cells {files names} {
+   set text {}
+   foreach f $files {
+      if {[catch {open $f r} fl]} continue
+      append text [read $fl] "\n"
+      close $fl
+   }
+   regsub -all {/\*.*?\*/} $text " " text
+   regsub -all {//[^\n]*} $text " " text
+
+   set cells {}
+   foreach name $names {
+      set pins {}
+      set params {}
+      set found 0
+      set ok 1
+      regsub -all {[$]} $name {\\$} rname
+      foreach match [regexp -all -indices -inline "\\m${rname}(?!\[A-Za-z0-9_\$\])" $text] {
+	 set pos [expr {[lindex $match 1] + 1}]
+	 set rest [string range $text $pos end]
+	 # Parameters:  "#( .name(value), ... )"
+	 if {[regexp -indices {^\s*#\s*\(} $rest pidx]} {
+	    set open [expr {$pos + [lindex $pidx 1]}]
+	    set close [netgen::yosys_close_paren $text $open]
+	    if {$close < 0} continue
+	    foreach {all p} [regexp -all -inline {\.\s*([A-Za-z_][A-Za-z0-9_$]*)\s*\(} \
+			[string range $text $open $close]] {
+	       if {[lsearch -exact $params $p] < 0} {lappend params $p}
+	    }
+	    set pos [expr {$close + 1}]
+	    set rest [string range $text $pos end]
+	 }
+	 # Instance name, optional array range, and pin list
+	 if {![regexp -indices {^\s*(?:\\\S+|[A-Za-z_][A-Za-z0-9_$]*)\s*(?:\[[^\]]*\])?\s*\(} \
+			$rest iidx]} continue
+	 set open [expr {$pos + [lindex $iidx 1]}]
+	 set close [netgen::yosys_close_paren $text $open]
+	 if {$close < 0} continue
+	 set plist [string range $text [expr {$open + 1}] [expr {$close - 1}]]
+	 set found 1
+	 if {[string trim $plist] == {}} continue
+	 set named [regexp -all -inline {\.\s*(\\\S+|[A-Za-z_][A-Za-z0-9_$]*)\s*\(} $plist]
+	 if {$named == {}} {
+	    set ok 0	;# Pins connected by position
+	    break
+	 }
+	 foreach {all p} $named {
+	    if {[lsearch -exact $pins $p] < 0} {lappend pins $p}
+	 }
+      }
+      if {$found && $ok} {lappend cells [list $name $pins $params]}
+   }
+   return $cells
+}
+
+proc netgen::yosys_elaborate {files module args} {
+   variable yosys_command
+   variable yosys_defines
+   variable yosys_count
+   variable yosys_tmpdir
+
+   set params {}
+   set defines $yosys_defines
+   set stubs {}
+   set incdirs {}
+   set output {}
+   set frontend auto
+   set cells {}
+   set havecells 0
+
+   foreach {opt val} $args {
+      switch -- $opt {
+	 -param    {set params $val}
+	 -define   {lappend defines {*}$val}
+	 -stubs    {set stubs $val}
+	 -include  {set incdirs $val}
+	 -output   {set output $val}
+	 -cells    {set cells $val; set havecells 1}
+	 -frontend {
+	    if {[lsearch -exact {auto slang verilog} $val] < 0} {
+	       error "Bad frontend \"$val\":  must be auto, slang, or verilog."
+	    }
+	    set frontend $val
+	 }
+	 default {
+	    error "Unknown option \"$opt\":  must be -param, -define,\
+			-stubs, -include, -output, -frontend, or -cells."
+	 }
+      }
+   }
+   if {[llength $params] % 2 != 0} {
+      error "Parameter list \"$params\" must be pairs of name and value."
+   }
+   # "LVS" is always defined, as it is by netgen's verilog reader
+   set hasLVS 0
+   foreach d $defines {
+      if {[regexp {^LVS(=.*)?$} $d]} {set hasLVS 1}
+   }
+   if {!$hasLVS} {lappend defines LVS}
+
+   if {![netgen::yosys_check]} {return {}}
+   set yosys [auto_execok $yosys_command]
+
+   # Yosys script arguments cannot be quoted, so names cannot contain
+   # white space.
+   foreach f [concat $files $stubs $incdirs $output] {
+      if {[regexp {\s} $f]} {
+	 puts stderr "Cannot use yosys with file name \"$f\" (contains spaces)."
+	 return {}
+      }
+   }
+   foreach f [concat $files $stubs] {
+      if {![file readable $f]} {
+	 puts stderr "Cannot read file \"$f\"."
+	 return {}
+      }
+   }
+   foreach f $files {
+      set d [file dirname [file normalize $f]]
+      if {[lsearch -exact $incdirs $d] < 0} {lappend incdirs $d}
+   }
+
+   # Temporary directory for scripts, logs, and output
+   if {$yosys_tmpdir == {} || ![file isdirectory $yosys_tmpdir]} {
+      if {[info exists ::env(TMPDIR)] && [file isdirectory $::env(TMPDIR)]} {
+	 set tmp $::env(TMPDIR)
+      } else {
+	 set tmp /tmp
+      }
+      set yosys_tmpdir [file join $tmp netgen_yosys_[pid]]
+      file mkdir $yosys_tmpdir
+   }
+   incr yosys_count
+   regsub -all {[^A-Za-z0-9_]} $module _ mname
+   set base [file join $yosys_tmpdir ${mname}_$yosys_count]
+   if {$output == {}} {set output ${base}.v}
+
+   # With -cells, the other modules defined in the source files are black
+   # boxes, and stubs are written for the cells that are not defined there.
+   set bboxes {}
+   if {$havecells} {
+      set srcmods [netgen::yosys_modules $files]
+      foreach m $srcmods {
+	 if {$m != [string trim $module "\\ "]} {lappend bboxes $m}
+      }
+      set stubcells {}
+      foreach cell $cells {
+	 if {[lsearch -exact $srcmods [string trim [lindex $cell 0] "\\ "]] < 0} {
+	    lappend stubcells $cell
+	 }
+      }
+      if {$stubcells != {}} {
+	 set stubfile ${base}_stubs.v
+	 netgen::yosys_write_stubs $stubfile $stubcells
+	 lappend stubs $stubfile
+      }
+   }
+
+   # Parameter values:  numbers (including verilog based constants such
+   # as 32'h1f) and quoted strings are passed as they are;  anything else
+   # is a string, which yosys needs in double quotes.
+   set pvals {}
+   set isreal 0
+   foreach {name value} $params {
+      set value [string trim $value]
+      if {[string is integer -strict $value] ||
+		[regexp {^[0-9_]*'[sS]?[bBoOdDhH][0-9a-fA-FxXzZ_?]+$} $value] ||
+		[regexp {^".*"$} $value]} {
+	 lappend pvals $name $value
+      } elseif {[string is double -strict $value]} {
+	 lappend pvals $name $value
+	 set isreal 1
+      } else {
+	 lappend pvals $name \"$value\"
+      }
+   }
+
+   if {$frontend == "auto"} {
+      set frontends {slang verilog}
+   } else {
+      set frontends $frontend
+   }
+   set errors {}
+   set guessed 0
+   foreach fe $frontends {
+      if {($fe == "verilog") && $isreal} {
+	 lappend errors "read_verilog cannot set a parameter to a real value."
+	 continue
+      }
+      # A second try is made if cells are not defined anywhere (see below).
+      for {set try 0} {$try < 2} {incr try} {
+	 # Note that the script lines are joined with spaces, not formed as
+	 # Tcl lists, which would put braces around values with quotes.
+	 set script {}
+	 set opts {}
+	 foreach d $defines {lappend opts "-D $d"}
+	 foreach d $incdirs {lappend opts "-I $d"}
+	 set srcs [join [concat $stubs $files] " "]
+	 if {$fe == "slang"} {
+	    foreach {name value} $pvals {lappend opts "-G ${name}=$value"}
+	    foreach m $bboxes {lappend opts "--blackboxed-module $m"}
+	    lappend script "read_slang [join $opts " "] --top $module $srcs"
+	 } else {
+	    if {$stubs != {}} {lappend script "read_verilog -lib [join $stubs " "]"}
+	    lappend script "read_verilog -sv [join $opts " "] [join $files " "]"
+	    if {$bboxes != {}} {lappend script "blackbox [join $bboxes " "]"}
+	    if {$pvals != {}} {
+	       set chp {}
+	       foreach {name value} $pvals {lappend chp "-set $name $value"}
+	       lappend script "chparam [join $chp " "] $module"
+	    }
+	 }
+	 lappend script "hierarchy -top $module"
+	 # Do not run any optimization:  "opt_clean" would remove cells whose
+	 # outputs are not used, such as tie cells and decap cells.
+	 lappend script "write_verilog -noattr $output"
+
+	 set ys ${base}_${fe}.ys
+	 set log ${base}_${fe}.log
+	 set fs [open $ys w]
+	 puts $fs [join $script "\n"]
+	 close $fs
+	 file delete -force $output
+	 if {![catch {exec {*}$yosys -q -l $log -s $ys 2>@1}] &&
+		   [file exists $output]} {
+	    file delete -force $ys $log
+	    if {[info exists stubfile]} {file delete -force $stubfile}
+	    if {[info exists gfile]} {file delete -force $gfile}
+	    return $output
+	 }
+	 # Collect the error messages from the log, and the names of any
+	 # cells that are not defined.
+	 set msgs {}
+	 set unknown {}
+	 if {![catch {open $log r} fl]} {
+	    foreach line [split [read $fl] "\n"] {
+	       if {[regexp {ERROR} $line]} {lappend msgs [string trim $line]}
+	       if {[regexp {unknown module '([^']+)'} $line -> name] ||
+			   [regexp {of unknown type `([^']+)'} $line -> name]} {
+		  if {[lsearch -exact $unknown $name] < 0} {lappend unknown $name}
+	       }
+	    }
+	    close $fl
+	 }
+
+	 # Cells that are not defined anywhere (netgen treats them as
+	 # black boxes, with pins taken from the instances):  write stubs for
+	 # them in the same way, and try again.
+	 if {($try == 0) && !$guessed && ($unknown != {})} {
+	    set gcells [netgen::yosys_guess_cells $files $unknown]
+	    if {[llength $gcells] == [llength $unknown]} {
+	       set gfile ${base}_undefined.v
+	       netgen::yosys_write_stubs $gfile $gcells
+	       lappend stubs $gfile
+	       set guessed 1
+	       puts stdout "Cells not defined (black boxes, pins from instances):\
+			   [join $unknown {, }]"
+	       continue
+	    }
+	 }
+	 if {$msgs == {}} {set msgs "yosys failed."}
+	 lappend errors "read_$fe:  [join $msgs "\n      "]\n      (see $ys and $log)"
+	 break
+      }
+   }
+   puts stderr "Yosys could not elaborate module \"$module\":"
+   foreach e $errors {puts stderr "   $e"}
+   return {}
+}
+
 # It is important to make sure no netgen commands overlap with Tcl built-in
 # commands, because otherwise the namespace import will fail.
 

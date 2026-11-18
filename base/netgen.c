@@ -28,6 +28,7 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>	/* toupper() */
+#include <limits.h>	/* INT_MAX, INT_MIN */
 #ifdef IBMPC
 #include <alloc.h>
 #endif
@@ -2743,7 +2744,10 @@ void CopyProperties(struct objlist *obj_to, struct objlist *obj_from)
 
 /*--------------------------------------------------------------*/
 /* Convert a string to an integer.				*/
-/* At the moment, we do nothing with error conditions.		*/
+/* The whole string (except for trailing white space) must be	*/
+/* an integer that fits in an int;  otherwise, return 0 (no	*/
+/* conversion), so that, e.g., "0.5" is not taken as 0 or a	*/
+/* large value truncated.					*/
 /*--------------------------------------------------------------*/
 
 int ConvertStringToInteger(char *string, int *ival)
@@ -2752,11 +2756,12 @@ int ConvertStringToInteger(char *string, int *ival)
    char *eptr = NULL;
 
    lval = strtol(string, &eptr, 10);
-   if (eptr > string) {
-      *ival = (int)lval;
-      return 1;
-   }
-   else return 0;		/* No conversion */
+   if (eptr == string) return 0;	/* No conversion */
+   while (isspace(*eptr)) eptr++;
+   if (*eptr != '\0') return 0;		/* Not entirely an integer */
+   if ((lval > INT_MAX) || (lval < INT_MIN)) return 0;
+   *ival = (int)lval;
+   return 1;
 }
 
 /*--------------------------------------------------------------*/
