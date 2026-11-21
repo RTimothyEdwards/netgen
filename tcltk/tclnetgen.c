@@ -18,6 +18,11 @@ the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 /* tclnetgen.c ---  Tcl interpreter interface for using netgen */
 
+/* Tcl_GetIndexFromObj caches the option table address in the Tcl object.
+ * Keep every such table in static storage so calls to different commands
+ * cannot reuse a stack address and accept another table's cached index.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>	/* for getenv */
 #include <string.h>
@@ -385,7 +390,7 @@ CommonParseCell(Tcl_Interp *interp, Tcl_Obj *objv,
     char *filename, *cellname;
     struct nlist *tp, *tp2;
 
-    char *suboptions[] = {
+    static char *suboptions[] = {
 	"-circuit1", "-circuit2", "-current", "*", NULL
     };
     enum SubOptionIdx {
@@ -716,7 +721,7 @@ int
 _netgen_readnet(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *formats[] = {
+   static char *formats[] = {
       "automatic", "ext", "extflat", "sim", "prm", "ntk", "spice",
       "verilog", "netgen", "actel", "xilinx", NULL
    };
@@ -865,7 +870,7 @@ int
 _netgen_readlib(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *formats[] = {
+   static char *formats[] = {
       "actel", "spice", "xilinx", NULL
    };
    enum FormatIdx {
@@ -945,7 +950,7 @@ int
 _netgen_writenet(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *formats[] = {
+   static char *formats[] = {
       "ext", "sim", "ntk", "actel",
       "spice", "verilog", "wombat", "esacap", "netgen",
       "ccode", "xilinx", NULL
@@ -1365,7 +1370,7 @@ int
 _netgen_debug(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *yesno[] = {
+   static char *yesno[] = {
       "on", "off", NULL
    };
    enum OptionIdx {
@@ -1686,7 +1691,7 @@ _netgen_model(ClientData clientData,
    int fnum = -1;
    int result, index, nports, nports2;
 
-   char *modelclasses[] = {
+   static char *modelclasses[] = {
       "undefined", "nmos", "pmos", "pnp", "npn",
       "resistor", "capacitor", "diode",
       "inductor", "module", "blackbox", "xline",
@@ -2016,7 +2021,7 @@ int
 _netgen_log(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *yesno[] = {
+   static char *yesno[] = {
       "start", "end", "reset", "suspend", "resume", "file", "echo", "put", NULL
    };
    enum OptionIdx {
@@ -2453,7 +2458,7 @@ int
 _netcmp_summary(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *options[] = {
+   static char *options[] = {
       "nodes", "elements", NULL
    };
    enum OptionIdx {
@@ -2494,7 +2499,7 @@ int
 _netcmp_print(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *options[] = {
+   static char *options[] = {
       "nodes", "elements", "queue", NULL
    };
    enum OptionIdx {
@@ -2504,7 +2509,7 @@ _netcmp_print(ClientData clientData,
    /* Note:  The order is such that the type passed to PrintElementClasses()
     * or PrintNodeClasses() is -1 for all, 0 for legal, and 1 for illegal
     */
-   char *classes[] = {
+   static char *classes[] = {
       "legal", "illegal", NULL
    };
    enum ClassIdx {
@@ -2585,7 +2590,7 @@ int
 _netcmp_run(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *options[] = {
+   static char *options[] = {
       "converge", "resolve", NULL
    };
    enum OptionIdx {
@@ -2729,7 +2734,7 @@ int
 _netcmp_verify(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *options[] = {
+   static char *options[] = {
       "nodes", "elements", "properties", "only", "all", "equivalent", "unique", NULL
    };
    enum OptionIdx {
@@ -3006,7 +3011,7 @@ int
 _netcmp_ignore(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *options[] = {
+   static char *options[] = {
       "class", "shorted", NULL
    };
    enum OptionIdx {
@@ -3054,7 +3059,7 @@ int
 _netcmp_equate(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *options[] = {
+   static char *options[] = {
       "nodes", "elements", "classes", "pins", NULL
    };
    enum OptionIdx {
@@ -3575,7 +3580,7 @@ _netcmp_property(ClientData clientData,
     double dval;
     int ival, argstart;
 
-    char *topoptions[] = {
+    static char *topoptions[] = {
 	"default", "series", "serial", "parallel", "topology", NULL
     };
     enum TopOptionIdx {
@@ -3583,7 +3588,7 @@ _netcmp_property(ClientData clientData,
 	TOP_TOPOLOGY_IDX
     };
 
-    char *options[] = {
+    static char *options[] = {
 	"add", "create", "remove", "delete", "tolerance", "merge", "serial",
 	"series", "parallel", "associate", "derive", NULL
     };
@@ -3593,7 +3598,7 @@ _netcmp_property(ClientData clientData,
     };
     int result, index, idx2;
 
-    char *suboptions[] = {
+    static char *suboptions[] = {
 	"integer", "double", "value", "string", "expression", NULL
     };
     enum SubOptionIdx {
@@ -3604,7 +3609,7 @@ _netcmp_property(ClientData clientData,
     /* It has been replaced by "combineoptions" below, used with "series" and	*/
     /* "parallel".								*/
 
-    char *mergeoptions[] = {
+    static char *mergeoptions[] = {
 	"none", "add", "add_critical", "par", "par_critical",
 	"parallel", "parallel_critical", "ser_critical", "ser",
 	"serial_critical", "series_critical", "serial", "series", NULL
@@ -3616,7 +3621,7 @@ _netcmp_property(ClientData clientData,
 	SER_CRIT_IDX, SER_IDX, SER2_CRIT_IDX, SER3_CRIT_IDX, SER2_IDX, SER3_IDX
     };
 
-    char *combineoptions[] = {
+    static char *combineoptions[] = {
 	"none", "par", "add", "critical", NULL
     };
 
@@ -3624,7 +3629,7 @@ _netcmp_property(ClientData clientData,
 	COMB_NONE_IDX, COMB_PAR_IDX, COMB_ADD_IDX, COMB_CRITICAL_IDX
     };
 
-    char *deriveoptions[] = {
+    static char *deriveoptions[] = {
 	"area", "perimeter", NULL
     };
 
@@ -3632,7 +3637,7 @@ _netcmp_property(ClientData clientData,
 	AREA_IDX, PERIMETER_IDX
     };
 
-    char *yesno[] = {
+    static char *yesno[] = {
 	"on", "yes", "true", "enable", "allow",
 	"off", "no", "false", "disable", "prohibit", NULL
     };
@@ -3642,7 +3647,7 @@ _netcmp_property(ClientData clientData,
 	return TCL_ERROR;
     }
 
-    char *topo[] = {
+    static char *topo[] = {
 	"strict", "relaxed", NULL
     };
 
@@ -4229,7 +4234,7 @@ _netcmp_permute(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
    char *model, *pin1, *pin2;
-   char *permuteclass[] = {
+   static char *permuteclass[] = {
       "transistors", "resistors", "capacitors", "inductors",
 		"default", "forget", "pins", NULL
    };
@@ -4385,7 +4390,7 @@ int
 _netcmp_exhaustive(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *yesno[] = {
+   static char *yesno[] = {
       "on", "off", NULL
    };
    enum OptionIdx {
@@ -4478,7 +4483,7 @@ int
 _netcmp_matching(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-   char *options[] = {
+   static char *options[] = {
       "nodes", "elements", NULL
    };
    enum OptionIdx {

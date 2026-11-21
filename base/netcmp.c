@@ -8778,6 +8778,7 @@ struct nlist *derivedprops(struct hashlist *p, void *clientdata)
     for (ob = ptr->cell; ob; ob = ob->next) {
        if (ob->type == PROPERTY) {
 	  if ((*matchfunc)(ob->model.class, tc->name)) {
+	     haswidth = haslength = hasarea = hasperimeter = FALSE;
 	     for (i = 0;; i++) {
 		vl = &(ob->instance.props[i]);
 		if (vl->type == PROP_ENDLIST) break;
@@ -8811,20 +8812,22 @@ struct nlist *derivedprops(struct hashlist *p, void *clientdata)
 		    }
 		}
 	     }
-	     if (haslength && haswidth) {
+	     if (haslength && haswidth &&
+		     ((dpd->type == area_type && !hasarea) ||
+		      (dpd->type == perimeter_type && !hasperimeter))) {
 
 		/* Once the property names for device width and length have
 		 * been found, and the values recorded, add the area or
 		 * perimeter value to the property list for the instance,
 		 * unless the instance already has the property.
 		 */
-		newvlist = (struct valuelist *)CALLOC(i + 1, sizeof(struct valuelist));
-		vl = &newvlist[i];
+		newvlist = (struct valuelist *)CALLOC(i + 2, sizeof(struct valuelist));
+		vl = &newvlist[i + 1];
 		vl->key = NULL;
 		vl->type = PROP_ENDLIST;
 		vl->value.ival = 0;
 
-		vl = &newvlist[--i];
+		vl = &newvlist[i];
 		if ((dpd->type == area_type) && (!hasarea)) {
 		    valuea = valuew * valuel;
 		    vl->key = strsave("area");
@@ -8849,6 +8852,7 @@ struct nlist *derivedprops(struct hashlist *p, void *clientdata)
 	  }
        }
     }
+    return NULL;
 }
 
 /*------------------------------------------------------*/
