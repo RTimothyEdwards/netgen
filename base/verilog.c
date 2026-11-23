@@ -72,6 +72,8 @@ extern Tcl_Interp *netgeninterp;
 // Used by portelement structure "flags" record.
 #define PORT_NOT_FOUND	0
 #define PORT_FOUND	1
+#define PORT_SLICED	2	// Bus bit is sliced across an instance array
+#define PORT_SHARED	4	// Bus bit connects to every instance of an array
 
 // Global storage for verilog parameters
 struct hashdict verilogparams;
@@ -2134,9 +2136,9 @@ end_module:
 	    klr = (struct property *)HashLookup(loop.loopvar, &verilogparams);
 	    loopval = klr->pdefault.ival;
 
-	    if (loopval < loop.end) loopval++;
-	    else if (loopval > loop.end) loopval--;
-	    SeekFile(loop.filepos);
+	    /* loop.end is the last value of the loop variable.  If the	*/
+	    /* block was just read for the last value, then the loop is	*/
+	    /* done.  Otherwise, read the block again for the next value.	*/
 	    if (loopval == loop.end)
 	    {
 		HashDelete(loop.loopvar, &verilogparams);
@@ -2145,12 +2147,23 @@ end_module:
 		loop.loopvar = NULL;
 	    }
 	    else
+	    {
+		if (loopval < loop.end) loopval++;
+		else loopval--;
 		klr->pdefault.ival = loopval;
+		SeekFile(loop.filepos);
+	    }
 	}
 	continue;
     }
     else if (match(nexttok, "begin") || match(nexttok, "generate")) {
 	/* 'generate' section or 'for' loop start is ignored */
+	continue;
+    }
+    else if (match(nexttok, ":")) {
+	/* Block label after 'begin' or 'end' (e.g., "begin : name"):	*/
+	/* skip the label.						*/
+	SkipTokNoNewline(VLOG_DELIMITERS);
 	continue;
     }
     else if (match(nexttok, "generate") || match(nexttok, "endgenerate")) {
@@ -2732,7 +2745,8 @@ nextinst:
       }
       else if (loop.loopvar != NULL) {
 	 /* Instances created within a generate block for loop have an
-	  * implicit array
+	  * implicit array (of one instance, named with the index when
+	  * the instance is made below).
 	  */
 	 int loopval;
 	 struct property *klr;
@@ -2741,7 +2755,6 @@ nextinst:
 	 loopval = klr->pdefault.ival;
 
          arraystart = arrayend = loopval;
-         sprintf(instancename + strlen(instancename), "[%d]", loopval);
       }
 
       if (match(nexttok, "(")) {
@@ -2957,42 +2970,39 @@ nextinst:
          for (scan = head; scan != NULL; scan = scan->next) {
 	    // Check if net name is a wire bus or portion of a bus
 	    if (GetBus(scan->net, &wb) == 0) {
-		int range;
+		int siglen, arraylen, portlen;
 
-		// This takes care of three situations:
-		// (1) The signal bus length matches the number of instances:
-		//     apply one signal per instance.
-		// (2) The signal bus length is a multiple of the number of instances:
-		//     apply a signal sub-bus to each instance.
-		// (3) The number of instances is a multiple of the signal bus length:
-		//     apply the same signal to each instance.
+		// Work out the port width from the signal width and the
+		// number of instances.  The array and the signal may be
+		// declared in either direction, independently.
+		// (1) The signal width is a multiple of the number of
+		//     instances:  each instance gets a slice of the signal
+		//     (one bit each if the widths are the same).
+		// (2) Otherwise, each instance gets the whole signal.
 
-		if ((arrayend - arraystart) == (wb.end - wb.start)) {
-		    // Net is a bus, but net is split over arrayed instances
+		siglen = wb.start - wb.end;
+		if (siglen < 0) siglen = -siglen;
+		siglen++;
+		arraylen = arraystart - arrayend;
+		if (arraylen < 0) arraylen = -arraylen;
+		arraylen++;
+
+		if ((siglen % arraylen) == 0)
+		    portlen = siglen / arraylen;
+		else
+		    portlen = siglen;
+
+		if (portlen == 1) {
 		    Port(scan->name);
 		}
 		else if (wb.start > wb.end) {
-		    if ((arraystart - arrayend) > (wb.start - wb.end))
-			range = (((arraystart - arrayend) + 1) /
-				    ((wb.start - wb.end) + 1)) - 1;
-		    else
-			range = (((wb.start - wb.end) + 1) /
-				    ((arraystart - arrayend) + 1)) - 1;
-
-		    for (i = range; i >= 0; i--) {
+		    for (i = portlen - 1; i >= 0; i--) {
 			sprintf(defport, "%s[%d]", scan->name, i);
 			Port(defport);
 		    }
 		}
 		else {
-		    if ((arrayend - arraystart) >  (wb.end - wb.start))
-			range = (((arrayend - arraystart) + 1) /
-				    ((wb.end - wb.start) + 1)) - 1;
-		    else
-			range = (((wb.end - wb.start) + 1) /
-				    ((arrayend - arraystart) + 1)) - 1;
-
-		    for (i = 0; i <= range; i++) {
+		    for (i = 0; i < portlen; i++) {
 			sprintf(defport, "%s[%d]", scan->name, i);
 			Port(defport);
 		    }
@@ -3111,12 +3121,19 @@ nextinst:
 				scan->net, wblen, scan->name, scan->width, arraylen);
 	       }
 
-	       // Net is bit-sliced across array of instances.
+	       // Expand the port into one entry per bit.  If the net is
+	       // the same width as the port, then every instance of an
+	       // array gets the whole net.  Otherwise, the net is
+	       // bit-sliced across the array of instances.  The net may
+	       // be declared in either direction.
 
-	       if ((wb.start != -1) && (wb.start >= wb.end)) {
+	       if (wb.start != -1) {
 		  char *bptr = NULL, *cptr = NULL, cchar, *netname;
 		  unsigned char is_bundle = 0;
 		  struct bus wbb;
+		  char portflags;
+
+		  portflags = (wblen == scan->width) ? PORT_SHARED : PORT_SLICED;
 
 		  i = wb.start;
 		  j = portstart;
@@ -3152,6 +3169,7 @@ nextinst:
 			 sprintf(vname, "%s[%d]", netname, i); 
 	             new_port->net = strsave(vname);
 		     new_port->width = scan->width;
+		     new_port->flags = portflags;
 
 		     if (last == NULL)
 			head = new_port;
@@ -3231,7 +3249,9 @@ nextinst:
 	 char *brackptr;
 	 int j;
 	 char locinst[MAX_STR_LEN];
-	 int arraypos = (arraystart > arrayend) ? arraymax - i : i;
+	 /* Position of the instance in the array, counted from the	*/
+	 /* first (left) index, in whichever direction it runs.	*/
+	 int arraypos = (arraystart > arrayend) ? arraystart - i : i - arraystart;
 
          if (i != -1)
 	    sprintf(locinst, "%s[%d]", instancename, i);
@@ -3322,7 +3342,7 @@ nextinst:
 		       // Instance must be an array
 		       char netname[MAX_STR_LEN];
 		       char *spos = scanroot;
-		       int slice, portlen, siglen;
+		       int slice, portlen, siglen, netlen, offset;
 
 		       /* Get the array size of the port for bit slicing */
 		       portlen = (scan->width < 0) ? 1 : scan->width;
@@ -3333,13 +3353,29 @@ nextinst:
 		       if (siglen < 0) siglen = -siglen;
 		       siglen++;
 
+		       /* A net that is the same width as the port connects	*/
+		       /* to every instance in the array.  Otherwise, each	*/
+		       /* instance gets its own slice of the net.  Ports that	*/
+		       /* were expanded into bits above are already marked.	*/
+
+		       if (scan->flags & PORT_SHARED)
+			   offset = 0;
+		       else if (scan->flags & PORT_SLICED)
+			   offset = arraypos * portlen;
+		       else {
+			   netlen = wb.start - wb.end;
+			   if (netlen < 0) netlen = -netlen;
+			   netlen++;
+			   offset = (netlen == portlen) ? 0 : arraypos * portlen;
+		       }
+
 		       // If this is a bundle, then count out to the current
 		       // slice and read off the index.  NOTE:  Need to
 		       // handle multiple bits per bundle entry!
 		       if (isbundle) {
 			   int j;
 			   if (brackptr) *brackptr = '[';
-			   for (j = 0; j < arraypos * portlen; j++) {
+			   for (j = 0; j < offset; j++) {
 			       spos = strvchr(spos, ',');
 			       if (spos == NULL) break;
 			       spos++;
@@ -3356,20 +3392,16 @@ nextinst:
 		          // If signal array is smaller than the portlength *
 		          // length of instance array, then the signal wraps.
 
-		          if (wb2.start >= wb2.end && arraystart >= arrayend) {
-			      slice = wb.start - (arraystart - i) * portlen;
+		          // The first instance of the array gets the bits
+		          // starting at wb.start, and each following instance
+		          // gets the next bits in the direction of the signal.
+
+		          if (wb2.start >= wb2.end) {
+			      slice = wb.start - offset;
 			      while (slice < wb2.end) slice += siglen;
 		          }
-		          else if (wb2.start < wb2.end && arraystart > arrayend) {
-			      slice = wb.start + (arraystart - i) * portlen;
-			      while (slice > wb2.end) slice -= siglen;
-		          }
-		          else if (wb2.start > wb2.end && arraystart < arrayend) {
-			      slice = wb.start - (arraystart + i) * portlen;
-			      while (slice < wb2.end) slice += siglen;
-		          }
-		          else { // (wb2.start < wb2.end && arraystart < arrayend)
-			      slice = wb.start + (arraystart + i) * portlen;
+		          else {
+			      slice = wb.start + offset;
 			      while (slice > wb2.end) slice -= siglen;
 		          }
 			  spos = scanroot;
