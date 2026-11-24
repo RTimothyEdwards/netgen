@@ -74,6 +74,7 @@ extern Tcl_Interp *netgeninterp;
 #define PORT_FOUND	1
 #define PORT_SLICED	2	// Bus bit is sliced across an instance array
 #define PORT_SHARED	4	// Bus bit connects to every instance of an array
+#define PORT_BUNDLE	8	// Net is a bundle sliced across an instance array
 
 // Global storage for verilog parameters
 struct hashdict verilogparams;
@@ -1138,6 +1139,73 @@ int GetBus(char *astr, struct bus *wb)
 	    return -1;
     }
     return 0;
+}
+
+//--------------------------------------------------------------------
+// GetBundleBit() finds the net for one bit of a wire bundle such as
+// "{a, b[3:2], c}", where the bit position pos is counted from the
+// left (the most significant bit of the bundle) starting at zero.
+// Each entry of the bundle may be a single wire, a bit or a range of
+// a bus, or a whole bus.  The net name is written into netname.
+// Returns 0 on success, or 1 if the bundle is not that wide or is
+// badly formed.
+//--------------------------------------------------------------------
+
+int GetBundleBit(char *bundle, int pos, char *netname)
+{
+    char *astr, *sigend, *estart, *eend, *brackptr, sdelim, echar;
+    struct bus wbb;
+    int width, idx, result = 1;
+
+    if (*bundle != '{') return 1;
+    astr = bundle + 1;
+
+    while ((*astr != '\0') && (*astr != '}')) {
+	sigend = strvchr(astr, ',');
+	if (sigend == NULL) sigend = strvchr(astr, '}');
+	if (sigend == NULL) sigend = astr + strlen(astr);
+	sdelim = *sigend;
+	*sigend = '\0';
+
+	/* Remove white space around the entry (but keep the space	*/
+	/* that ends a backslash-escaped name)				*/
+	estart = astr;
+	while (isspace(*estart)) estart++;
+	eend = estart + strlen(estart);
+	if (*estart != '\\')
+	    while ((eend > estart) && isspace(*(eend - 1))) eend--;
+	echar = *eend;
+	*eend = '\0';
+
+	if (GetBus(estart, &wbb) == 0) {
+	    width = wbb.start - wbb.end;
+	    if (width < 0) width = -width;
+	    width++;
+	}
+	else
+	    width = 1;
+
+	if (pos < width) {
+	    if (width == 1 && wbb.start == -1)
+		sprintf(netname, "%s", estart);
+	    else {
+		idx = (wbb.start >= wbb.end) ? wbb.start - pos : wbb.start + pos;
+		brackptr = strvchr(estart, '[');
+		if (brackptr) *brackptr = '\0';
+		sprintf(netname, "%s[%d]", estart, idx);
+		if (brackptr) *brackptr = '[';
+	    }
+	    result = 0;
+	}
+	*eend = echar;
+	*sigend = sdelim;
+	if (result == 0) break;
+
+	pos -= width;
+	if (sdelim == '\0') break;
+	astr = sigend + 1;
+    }
+    return result;
 }
 
 //--------------------------------------------------------------------
@@ -2641,6 +2709,7 @@ bad_for_loop:
 	char *net;	// Name of net connecting to port in the parent
 	int   width;	// Width of port, if port is a bus
 	char  flags;	// Used for marking if port was added into netlist
+	int   bit;	// Bit of a port that is a bundle (PORT_BUNDLE)
 	struct portelement *next;
       };
 
@@ -3161,29 +3230,32 @@ nextinst:
 	       // be declared in either direction.
 
 	       if (wb.start != -1) {
-		  char *bptr = NULL, *cptr = NULL, cchar, *netname;
+		  char *bptr = NULL, *netname;
 		  unsigned char is_bundle = 0;
 		  struct bus wbb;
 		  char portflags;
+		  int k = 0;
 
 		  portflags = (wblen == scan->width) ? PORT_SHARED : PORT_SLICED;
 
 		  i = wb.start;
 		  j = portstart;
 
+		  // A bundle is expanded by finding each bit of it in turn.
+		  // If the bundle is sliced across an array of instances,
+		  // then which bit each instance gets is not known until the
+		  // instance is made, so keep the whole bundle and the
+		  // position of the bit in the port.
+
 		  netname = scan->net;
 		  if (*netname == '{') {
 		     is_bundle = 1;
-		     netname++;
-		     cptr = strvchr(netname, ',');
-		     if (cptr == NULL) cptr = strvchr(netname, '}');
-		     if (cptr == NULL) cptr = netname + strlen(netname) - 1;
-		     cchar = *cptr;
-		     *cptr = '\0';
+		     if ((arraystart != -1) && (portflags == PORT_SLICED))
+			portflags |= PORT_BUNDLE;
 		  }
 
 		  // Remove indexed part of scan->net
-		  if (GetBus(netname, &wbb) == 0) {
+		  else if (GetBus(netname, &wbb) == 0) {
 		     i = wbb.start;
 		     if ((bptr = strvchr(netname, '[')) != NULL)
 			 *bptr = '\0';
@@ -3196,13 +3268,23 @@ nextinst:
 				sizeof(struct portelement));
 	             sprintf(vname, "%s%c%d%c", scan->name, odelim, j, cdelim);
 	             new_port->name = strsave(vname);
-		     if (i == -1)
+		     if (portflags & PORT_BUNDLE)
+			 sprintf(vname, "%s", netname);
+		     else if (is_bundle) {
+			 if (GetBundleBit(netname, k, vname) != 0) {
+			    Fprintf(stderr, "Error:  Bundle %s has no bit %d "
+					"for port %s\n", netname, k, new_port->name);
+			    sprintf(vname, "_noconnect_%d_", localcount++);
+			 }
+		     }
+		     else if (i == -1)
 			 sprintf(vname, "%s", netname); 
 		     else
 			 sprintf(vname, "%s[%d]", netname, i); 
 	             new_port->net = strsave(vname);
 		     new_port->width = scan->width;
 		     new_port->flags = portflags;
+		     new_port->bit = k;
 
 		     if (last == NULL)
 			head = new_port;
@@ -3216,36 +3298,15 @@ nextinst:
 
 		     if (portstart > portend) j--;
 		     else j++;
+		     k++;
 		     if (i != -1) {
 			if (wbb.start > wbb.end) i--;
 			else i++;
 		     }
-
-		     if (is_bundle &&
-			    ((i == -1) ||
-			    ((wbb.start > wbb.end) && (i < wbb.end)) ||
-			    ((wbb.start <= wbb.end) && (i > wbb.end)))) {
-		         if (bptr) *bptr = '[';
-
-			 netname = cptr + 1;
-			 if (cptr) *cptr = cchar; /* Restore previous bundle delimiter */
-		         cptr = strvchr(netname, ',');
-			 if (cptr == NULL) cptr = strvchr(netname, '}');
-			 if (cptr == NULL) cptr = netname + strlen(netname) - 1;
-			 cchar = *cptr;
-			 *cptr = '\0';
-
-			 if (GetBus(netname, &wbb) == 0) {
-			    i = wbb.start;
-			    if ((bptr = strvchr(netname, '[')) != NULL)
-				*bptr = '\0';
-			 }
-			 else i = -1;
-		     }
 		  }
+		  if (bptr) *bptr = '[';
 		  FREE(scan);
 		  scan = last;
-		  if (cptr) *cptr = cchar; /* Restore bundle delimiter */
 	       }
 	    }
 	    else if (portstart != portend) {
@@ -3356,7 +3417,12 @@ nextinst:
 			       Printf("Error: Bus connected to single port\n");
 			   }
 			   // Use only the first bit of the bus
-			   sprintf(pinname, "%s[%d]", scanroot, wb.start);
+			   if (isbundle) {
+			       if (GetBundleBit(scan->net, 0, pinname) != 0)
+				   sprintf(pinname, "_noconnect_%d_", localcount++);
+			   }
+			   else
+			       sprintf(pinname, "%s[%d]", scanroot, wb.start);
 	                   if (LookupObject(pinname, CurrentCell) == NULL)
 				Node(pinname);
 	                   join(pinname, obptr->name);
@@ -3374,17 +3440,10 @@ nextinst:
 		   else {
 		       // Instance must be an array
 		       char netname[MAX_STR_LEN];
-		       char *spos = scanroot;
 		       int slice, portlen, siglen, netlen, offset;
 
 		       /* Get the array size of the port for bit slicing */
 		       portlen = (scan->width < 0) ? 1 : scan->width;
-
-		       /* Get the full array size of the connecting bus */
-		       GetBus(scanroot, &wb2);
-		       siglen = wb2.start - wb2.end;
-		       if (siglen < 0) siglen = -siglen;
-		       siglen++;
 
 		       /* A net that is the same width as the port connects	*/
 		       /* to every instance in the array.  Otherwise, each	*/
@@ -3402,25 +3461,28 @@ nextinst:
 			   offset = (netlen == portlen) ? 0 : arraypos * portlen;
 		       }
 
-		       // If this is a bundle, then count out to the current
-		       // slice and read off the index.  NOTE:  Need to
-		       // handle multiple bits per bundle entry!
+		       // If this is a bundle, then find the bit of the bundle
+		       // for this instance (and for this bit of the port, if
+		       // the port is a bus).  The bundle wraps if it is
+		       // shorter than the port width times the array length.
 		       if (isbundle) {
-			   int j;
-			   if (brackptr) *brackptr = '[';
-			   for (j = 0; j < offset; j++) {
-			       spos = strvchr(spos, ',');
-			       if (spos == NULL) break;
-			       spos++;
+			   int bit;
+			   netlen = wb.start - wb.end + 1;
+			   bit = offset + ((scan->flags & PORT_BUNDLE) ? scan->bit : 0);
+			   if (netlen > 0) bit %= netlen;
+			   if (GetBundleBit(scan->net, bit, netname) != 0) {
+			       Fprintf(stderr, "Error:  Bundle %s has no bit %d for "
+					"instance %s\n", scan->net, bit, locinst);
+			       sprintf(netname, "_noconnect_%d_", localcount++);
 			   }
-			   if (spos != NULL) {
-			       brackptr = strvchr(spos, '[');
-			       *brackptr = '\0';
-			       sscanf(brackptr + 1, "%d", &slice);
-			   }
-			   else spos = scanroot;  /* should emit an error here */
 		       }
 		       else {	/* not a bundle */
+
+		          /* Get the full array size of the connecting bus */
+		          GetBus(scanroot, &wb2);
+		          siglen = wb2.start - wb2.end;
+		          if (siglen < 0) siglen = -siglen;
+		          siglen++;
 
 		          // If signal array is smaller than the portlength *
 		          // length of instance array, then the signal wraps.
@@ -3437,10 +3499,9 @@ nextinst:
 			      slice = wb.start + offset;
 			      while (slice > wb2.end) slice -= siglen;
 		          }
-			  spos = scanroot;
+			  sprintf(netname, "%s[%d]", scanroot, slice);
 		       }
 
-		       sprintf(netname, "%s[%d]", spos, slice);
 	               if (LookupObject(netname, CurrentCell) == NULL) Node(netname);
 	               join(netname, obptr->name);
 		   }
