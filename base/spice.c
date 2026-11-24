@@ -69,12 +69,42 @@ int StringIsValueOrExpression(char *token)
     else return FALSE;
 }
 
+// Write the value of a device (e.g., a resistor's resistance) from
+// its property record "ob", which may be NULL.  The value is the
+// property named "value".  Return TRUE if a value was written.
+
+static int SpiceWriteValue(struct objlist *ob)
+{
+  struct valuelist *vl;
+  int i;
+
+  if (ob == NULL) return FALSE;
+  for (i = 0; ; i++) {
+    vl = &(ob->instance.props[i]);
+    if (vl->type == PROP_ENDLIST) break;
+    if ((vl->key == NULL) || !matchnocase(vl->key, "value")) continue;
+    switch (vl->type) {
+      case PROP_VALUE:
+      case PROP_DOUBLE:
+	FlushString(" %g", vl->value.dval);
+	return TRUE;
+      case PROP_INTEGER:
+	FlushString(" %d", vl->value.ival);
+	return TRUE;
+      case PROP_STRING:
+	FlushString(" %s", vl->value.string);
+	return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 void SpiceSubCell(struct nlist *tp, int IsSubCell)
 {
-  struct objlist *ob;
-  int node, maxnode;
+  struct objlist *ob, *props;
   char *model;
   struct tokstack *stackptr;
+  int valuedone;
 
   /* check to see that all children have been dumped */
   for (ob = tp->cell; ob != NULL; ob = ob->next) {
@@ -82,27 +112,24 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
       struct nlist *tp2;
 
       tp2 = LookupCellFile(ob->model.class, tp->file);
-      if ((tp2 != NULL) && !(tp2->dumped) && (tp2->class == CLASS_SUBCKT)) 
+      /* Write subcircuits, and verilog modules (which may be black	*/
+      /* boxes, but whose pin order is needed).  Placeholders for	*/
+      /* undefined cells are not written, so that they are still	*/
+      /* undefined when the file is read back.				*/
+      if ((tp2 != NULL) && !(tp2->dumped) &&
+		!(tp2->flags & CELL_PLACEHOLDER) &&
+		((tp2->class == CLASS_SUBCKT) || (tp2->class == CLASS_MODULE)))
 	SpiceSubCell(tp2, 1);
     }
   }
 
   /* print preface, if it is a subcell */
   if (IsSubCell) {
-    FlushString(".SUBCKT %s ",tp->name);
+    FlushString(".SUBCKT %s", tp->name);
     for (ob = tp->cell; ob != NULL; ob = ob->next) 
-      if (IsPortInPortlist(ob, tp)) FlushString("%d ", ob->node);
+      if (IsPortInPortlist(ob, tp)) FlushString(" %s", ob->name);
     FlushString("\n");
   }
-
-  /* print names of all nodes, prefixed by comment character */
-  maxnode = 0;
-  for (ob = tp->cell; ob != NULL; ob = ob->next)
-    if (ob->node > maxnode) maxnode = ob->node;
-
-  /* was:  for (node = 0; node <= maxnode; node++)  */
-  for (node = 1; node <= maxnode; node++) 
-    FlushString("# %3d = %s\n", node, NodeName(tp, node));
 
   /* traverse list of objects */
   for (ob = tp->cell; ob != NULL; ob = ob->next) {
@@ -157,108 +184,59 @@ void SpiceSubCell(struct nlist *tp, int IsSubCell)
 
         /* Print out nodes.  FETs switch node order */
 
-	switch (tp2->class) {
+	/* Print the net connected to each pin, leaving ob at the	*/
+	/* instance's last pin.  Devices have nodes in order of SPICE	*/
+	/* syntax.							*/
 
-	   /* 3-terminal FET devices---handled specially */
-	   case CLASS_NMOS: case CLASS_PMOS: case CLASS_FET3:
-	      ob = ob->next;
-              FlushString(" %s", ob->name);		/* drain */
-	      ob = ob->next;
-              FlushString(" %s", ob->name);		/* gate */
-	      ob = ob->next;
-              FlushString(" %s", ob->name);		/* source */
-	      ob = ob->next;
-	      if (tp2->class == CLASS_NMOS)
-                 FlushString(" GND!");		/* default substrate */
-	      else if (tp2->class == CLASS_PMOS)
-                 FlushString(" VDD!");		/* default well */
-	      else 
-                 FlushString(" BULK");		/* default bulk---unknown */
-	      break;
-
-	   /* All other devices have nodes in order of SPICE syntax */
-	   default:
-	      while (ob->next != NULL && ob->next->type >= FIRSTPIN) {
-                 ob = ob->next;
-                 FlushString(" %s", ob->name);
-	      }
-	      break;
+	while (1) {
+	   FlushString(" %s", NodeAlias(tp, ob));
+	   if ((ob->next == NULL) || (ob->next->type <= FIRSTPIN)) break;
+	   ob = ob->next;
 	}
 
-	/* caps, resistors, voltage and current sources, print out device value */
+	/* 3-terminal FET devices need a substrate node */
+	if (tp2->class == CLASS_NMOS)
+	   FlushString(" GND!");		/* default substrate */
+	else if (tp2->class == CLASS_PMOS)
+	   FlushString(" VDD!");		/* default well */
+	else if (tp2->class == CLASS_FET3)
+	   FlushString(" BULK");		/* default bulk---unknown */
 
-	/* print out device type (model/subcircuit name) */
+	/* Print the device value (resistors and capacitors that have	*/
+	/* no model, and sources), or else the model or subcircuit name.	*/
+
+	props = ((ob->next != NULL) && (ob->next->type == PROPERTY)) ?
+		ob->next : NULL;
+	valuedone = FALSE;
 
 	switch (tp2->class) {
 	   case CLASS_CAP:
-	      if (matchnocase(model, "c")) {
-		 ob = ob->next;
-		 if (ob->type == PROPERTY) {
-		    struct valuelist *vl;
-		    int i;
-		    for (i = 0;; i++) {
-		       vl = &(ob->instance.props[i]);
-		       if (vl->type == PROP_ENDLIST) break;
-		       else if (vl->type == PROP_VALUE) {
-			  FlushString(" %g", vl->value.dval);
-			  break;
-		       }
-		    }
-		 }
-	      }
-	      else
-		 FlushString(" %s", model); 	/* semiconductor capacitor */
-	      break;
-
 	   case CLASS_RES:
-	      if (matchnocase(model, "r")) {
-		 ob = ob->next;
-		 if (ob->type == PROPERTY) {
-		    struct valuelist *vl;
-		    int i;
-		    for (i = 0;; i++) {
-		       vl = &(ob->instance.props[i]);
-		       if (vl->type == PROP_ENDLIST) break;
-		       else if (vl->type == PROP_VALUE) {
-			  FlushString(" %g", vl->value.dval);
-			  break;
-		       }
-		    }
-		 }
-	      }
+	      if (matchnocase(model, (tp2->class == CLASS_CAP) ? "c" : "r"))
+		 valuedone = SpiceWriteValue(props);
 	      else
-		 FlushString(" %s", model); 	/* semiconductor resistor */
+		 FlushString(" %s", model); 	/* semiconductor device */
 	      break;
 
 	   case CLASS_VSOURCE:
 	   case CLASS_ISOURCE:
-	      ob = ob->next;
-	      if (ob->type == PROPERTY) {
-		 struct valuelist *vl;
-		 int i;
-		 for (i = 0;; i++) {
-		    vl = &(ob->instance.props[i]);
-		    if (vl->type == PROP_ENDLIST) break;
-		    else if (vl->type == PROP_VALUE) {
-		       FlushString(" %g", vl->value.dval);
-		       break;
-		    }
-		 }
-	      }
+	      valuedone = SpiceWriteValue(props);
 	      break;
 
 	   default:
 	      FlushString(" %s", model);	/* everything else */
 	}
 	   
-	/* write properties (if any) */
-	if (ob) ob = ob->next;
-	if (ob && ob->type == PROPERTY) {
+	/* write properties (if any), except a value already written */
+	if (props != NULL) {
+	   ob = props;
 	   struct valuelist *kv;
 	   int i;
 	   for (i = 0; ; i++) {
 	      kv = &(ob->instance.props[i]);
 	      if (kv->type == PROP_ENDLIST) break;
+	      if (valuedone && (kv->key != NULL) && matchnocase(kv->key, "value"))
+		 continue;
 	      switch (kv->type) {
 		 case PROP_STRING:
 	            FlushString(" %s=%s", kv->key, kv->value.string);
@@ -373,7 +351,8 @@ void SpiceCell(char *name, int fnum, char *filename)
   else 
     SetExtension(FileName, filename, SPICE_EXTENSION);
 
-  if (!OpenFile(FileName, 80)) {
+  /* No line wrapping:  SPICE continuation lines need a "+" */
+  if (!OpenFile(FileName, 0)) {
     perror("ext(): Unable to open output file.");
     return;
   }
@@ -381,7 +360,8 @@ void SpiceCell(char *name, int fnum, char *filename)
   /* all spice decks begin with comment line */
   FlushString("SPICE deck for cell %s written by Netgen %s.%s\n\n", 
 	      name, NETGEN_VERSION, NETGEN_REVISION);
-  SpiceSubCell(tp, 0);
+  /* Write the cell itself as a subcircuit, so that its pins are kept */
+  SpiceSubCell(tp, 1);
   CloseFile(FileName);
 }
 
@@ -534,8 +514,10 @@ void ReadSpiceFile(char *fname, int filenum, struct cellstack **CellStackPtr,
   struct objlist *parent, *sobj, *nobj, *lobj, *pobj;
 
   inst[MAX_STR_LEN-1] = '\0';
+  model[0] = '\0';
   model[MAX_STR_LEN-1] = '\0';
   instname[MAX_STR_LEN-1] = '\0';
+  tpsave = NULL;
 
   /* If this file was included from inside a subcircuit, then it is	*/
   /* part of that subcircuit.  Only cells opened in this file are	*/
@@ -1810,9 +1792,14 @@ skip_ends:
       if (scan->next != NULL) scan = scan->next;
       tail->next = NULL;
 
-      /* Check for class defined inside itself (self-referential loop) */
+      /* Check for class defined inside itself (self-referential loop).	*/
+      /* Compare against the cell being defined (or, if that cell is	*/
+      /* replacing a verilog placeholder, the placeholder).  Instances	*/
+      /* outside of any subcircuit are in the top level of the file.	*/
 
-      if (!strcasecmp(model, scan->name)) {
+      if (in_subckt && (CurrentCell != NULL) &&
+		(!strcasecmp(CurrentCell->name, scan->name) ||
+		((tpsave != NULL) && !strcasecmp(tpsave->name, scan->name)))) {
 	 Fprintf(stderr, "Fatal: Class \"%s\" is instanced inside of itself!\n",
 		scan->name);
          InputParseError(stderr);
