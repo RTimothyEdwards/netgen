@@ -115,6 +115,11 @@ static char *renameto = NULL;
 
 // Count of modules flagged for yosys while reading a file
 static int extcount = 0;
+static int extforced = 0;
+
+// TRUE if yosys must elaborate every module with contents, even if
+// netgen can read it (netgen::yosys_use is 2;  see "netgen::yosys").
+static int yosysforce = FALSE;
 
 // Name of the module being read (the cell may have a temporary name,
 // "_PLACEHOLDER_", if the module was used before it was defined)
@@ -448,14 +453,21 @@ struct extmodule *ExtModuleLookup(char *name, int file)
 // black box, and record it to be elaborated by yosys when the netlist
 // is elaborated (see elaborate.c).  "what" describes the problem.  The
 // caller should then skip to the end of the module.
+//
+// If "what" is NULL, then netgen has read the whole module, but yosys
+// is required to elaborate it (netgen::yosys_use is 2).  This is
+// called at the end of the module;  if yosys fails, then netgen's
+// reading of the module is used.
 //-------------------------------------------------------------------------
 
 static void FlagExternalModule(char *what)
 {
     struct extmodule *em;
     struct property *klr, *kl;
+    int class;
 
     if (CurrentCell == NULL) return;
+    class = CurrentCell->class;
 
     /* Abandon any "for" loop being read */
     if (loop.loopvar != NULL) {
@@ -478,11 +490,15 @@ static void FlagExternalModule(char *what)
 	return;
     }
 
-    Printf("Module '%s' cannot be read by netgen (%s);  it will be "
+    if (what != NULL) {
+	Printf("Module '%s' cannot be read by netgen (%s);  it will be "
 		"elaborated by yosys.\n", currentmodule, what);
+	extcount++;
+    }
+    else
+	extforced++;
     SetClass(CLASS_MODULE);
     CurrentCell->flags |= CELL_EXTERNAL;
-    extcount++;
 
     /* Note that the cell may be "_PLACEHOLDER_" until the end of the	*/
     /* module, when it is renamed to the module name.			*/
@@ -498,6 +514,8 @@ static void FlagExternalModule(char *what)
 	FREE(em->source);
     em->source = (verilogsource != NULL) ? strsave(verilogsource) : NULL;
     em->status = EXT_PENDING;
+    em->forced = (what == NULL) ? TRUE : FALSE;
+    em->class = class;
 
     /* Save the definitions (`define), so that yosys reads the module	*/
     /* the same way (e.g., with or without "`ifdef USE_POWER_PINS").	*/
@@ -1871,6 +1889,21 @@ skip_endmodule:
 	}
     }
     else if (match(nexttok, "endmodule")) {
+
+      /* If yosys is required, then have yosys elaborate each module	*/
+      /* that has instances, unless it is already to be elaborated	*/
+      /* by yosys, or it was made a black box (e.g., behavioral		*/
+      /* verilog).  Modules without instances stay as netgen read	*/
+      /* them (e.g., black boxes, or only "assign" statements).	*/
+
+      if (yosysforce && (renamefrom == NULL) && (CurrentCell != NULL) &&
+		!(CurrentCell->flags & CELL_EXTERNAL) &&
+		(CurrentCell->class != CLASS_MODULE)) {
+	 struct objlist *iob;
+	 for (iob = CurrentCell->cell; iob; iob = iob->next)
+	    if (iob->type == FIRSTPIN) break;
+	 if (iob != NULL) FlagExternalModule(NULL);
+      }
 
 end_module:
       CleanupModule();
@@ -3629,13 +3662,28 @@ char *ReadVerilogTop(char *fname, int *fnum, int blackbox)
 
   prevsource = SetVerilogSource(openname);
   extcount = 0;
+  extforced = 0;
+  yosysforce = FALSE;
+#ifdef TCL_NETGEN
+  /* Check if yosys is required to elaborate all modules */
+  if (!blackbox && (renamefrom == NULL)) {
+     const char *yuse = Tcl_GetVar(netgeninterp, "netgen::yosys_use",
+		TCL_GLOBAL_ONLY);
+     if ((yuse != NULL) && (atoi(yuse) == 2)) yosysforce = TRUE;
+  }
+#endif
   ReadVerilogFile(fname, filenum, &CellStack, blackbox);
   CloseParseFile();
   RestoreVerilogSource(prevsource);
+  yosysforce = FALSE;
 
   if (extcount > 0)
      Printf("Note:  %d module%s will be elaborated by yosys (see above).\n",
 		extcount, (extcount == 1) ? "" : "s");
+  if (extforced > 0)
+     Printf("Note:  %d module%s that netgen read will also be elaborated "
+		"by yosys (yosys is required).\n",
+		extforced, (extforced == 1) ? "" : "s");
 
   // Cleanup
   while (CellStack != NULL) PopStack(&CellStack);

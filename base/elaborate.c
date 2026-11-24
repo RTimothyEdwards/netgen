@@ -1325,6 +1325,14 @@ static void ElaborateExternal(int file)
 	    el->em->status = EXT_DONE;
 	    Printf("Module %s elaborated by yosys.\n", tc->name);
 	}
+	else if (el->em->forced) {
+	    /* Netgen read the module, so use that */
+	    el->em->status = EXT_FAILED;
+	    tc->class = el->em->class;
+	    tc->flags &= ~CELL_EXTERNAL;
+	    Printf("Module %s could not be elaborated by yosys;  netgen's "
+			"reading of it is used.\n", tc->name);
+	}
 	else {
 	    el->em->status = EXT_FAILED;
 	    Printf("Module %s could not be elaborated by yosys, and is "
