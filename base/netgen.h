@@ -96,6 +96,9 @@ struct extmodule {
     int status;		/* EXT_PENDING, EXT_DONE, or EXT_FAILED */
     char *params;	/* Parameter values of the current contents (when	*/
 			/* EXT_DONE), as an elaboration signature		*/
+    int forced;		/* TRUE if netgen read the module, but yosys is	*/
+			/* required (netgen::yosys_use is 2)		*/
+    int class;		/* Class of the cell as netgen read it (if forced) */
     struct extmodule *next;
 };
 

@@ -381,14 +381,20 @@ proc netgen::convert_to_json {filename lvs_final} {
 #    i.e., the cells are expected to match and any mismatch cannot be
 #    expected to be resolved by flattening the contents of the mismatched
 #    cells.
+#    "-yosys" has yosys elaborate every verilog module (that has
+#    instances) in the netlist files read by "lvs" (see "use_yosys
+#    always").  It has no effect on netlists that were already read.
 #-----------------------------------------------------------------------
 
 proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
    set dolist 0
    set dojson 0
+   set doyosys 0
    set noflat {}
    foreach arg $args {
-      if {$arg == "-list"} {
+      if {$arg == "-yosys"} {
+	 set doyosys 1
+      } elseif {$arg == "-list"} {
 	 puts stdout "Generating list result"
 	 set dolist 1
 	 set lvs_final {}
@@ -427,6 +433,12 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       }
    }
 
+   # With -yosys, have yosys elaborate the verilog netlists read here
+   if {$doyosys} {
+      set saveyosys $netgen::yosys_use
+      set netgen::yosys_use 2
+   }
+
    # Allow name1 or name2 to be a list of {filename cellname},
    # A single <filename>, or any valid_cellname form if the
    # file has already been read.
@@ -463,6 +475,10 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
       set fnum2 [lindex $flist2 1]
       set flist2 [canonical $fnum2]
       set file2 [lindex $flist2 0]
+   }
+
+   if {$doyosys} {
+      set netgen::yosys_use $saveyosys
    }
 
    if {$fnum1 == $fnum2} {
@@ -855,9 +871,9 @@ proc netgen::lvs { name1 name2 {setupfile setup.tcl} {logfile comp.out} args} {
 #
 # Variables:
 #    netgen::yosys_command	the yosys command (default "yosys")
-#    netgen::yosys_use		set to 0 to not use yosys at all;  verilog
-#				modules that netgen cannot read are then
-#				treated as black boxes
+#    netgen::yosys_use		when to use yosys (see netgen::use_yosys):
+#				0 (never), 1 (when netgen cannot read a
+#				module;  the default), or 2 (always)
 #    netgen::yosys_defines	macro definitions always passed to yosys
 #				(e.g., "USE_POWER_PINS")
 #-----------------------------------------------------------------------
@@ -869,6 +885,49 @@ namespace eval netgen {
    variable yosys_ok {}
    variable yosys_count 0
    variable yosys_tmpdir {}
+}
+
+#-----------------------------------------------------------------------
+# netgen::use_yosys ?never|auto|always?
+#
+# Set when yosys is used to elaborate verilog modules.  The setting
+# applies to verilog files read after it is set, so it can be changed
+# from one file to the next:
+#
+#    never	yosys is not used.  Modules that netgen cannot read are
+#		treated as black boxes.  (Yosys runs when the netlists
+#		are compared, so this also stops yosys from being used for
+#		files that were read before.)
+#    auto	yosys elaborates the modules that netgen cannot read (the
+#		default).
+#    always	yosys elaborates every module that has instances, even if
+#		netgen can read it.  If yosys fails on a module that netgen
+#		could read, then netgen's reading of the module is used.
+#
+# With no argument, returns the current setting.  The setting is kept
+# in netgen::yosys_use (0, 1, or 2).  See also "lvs ... -yosys".
+#-----------------------------------------------------------------------
+
+proc netgen::use_yosys {{mode {}}} {
+   variable yosys_use
+   set modes {never auto always}
+   if {$mode == {}} {
+      if {[string is integer -strict $yosys_use] && ($yosys_use >= 0) &&
+		($yosys_use <= 2)} {
+	 return [lindex $modes $yosys_use]
+      }
+      return $yosys_use
+   }
+   set idx [lsearch -exact $modes $mode]
+   if {$idx < 0} {
+      if {[string is integer -strict $mode] && ($mode >= 0) && ($mode <= 2)} {
+	 set idx $mode
+      } else {
+	 error "bad mode \"$mode\": must be never, auto, or always"
+      }
+   }
+   set yosys_use $idx
+   return
 }
 
 # Check (once) if yosys can be used.  Returns 1 if so, 0 if not.
